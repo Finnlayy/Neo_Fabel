@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { TickerData, Trade, SubAgentState, GenerativePlan, MainTab } from "./types";
 import SignalRoutesPage from "./features/signalRoutes/SignalRoutesPage";
 import AuthPanel from "./auth/AuthPanel";
-import { fetchCryptoTickers, mergeTickerHistory } from "./api/market";
+import { fetchCryptoTickers, fetchEquityTickers, upsertTickerHistory } from "./api/market";
 import { fetchAiHealth } from "./api/ai";
 import { fetchReadyStatus, type ReadyStatus } from "./api/health";
 import { fetchPaperStatus, mapPaperStatusToTrades } from "./api/paper";
@@ -200,7 +200,7 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Live crypto tickers for heatmaps / risk tiles (fail closed — no fixture seed).
+  // Live crypto tickers via Kraken public REST (~15s). No Linux/CLI required on Windows.
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
@@ -215,7 +215,7 @@ export default function App() {
           setMarketLive(false);
           return;
         }
-        setTickers((prev) => mergeTickerHistory(prev, live));
+        setTickers((prev) => upsertTickerHistory(prev, live));
         setMarketAsOf(asOf);
         setMarketLive(true);
       } catch {
@@ -227,6 +227,27 @@ export default function App() {
     };
     void refresh();
     const timer = setInterval(() => void refresh(), 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  // Alpha Vantage equity batch for risk heatmap — once per hour (rate-limit friendly).
+  useEffect(() => {
+    let cancelled = false;
+    const refreshEquities = async () => {
+      try {
+        const {tickers: equities, asOf} = await fetchEquityTickers(["NIO"]);
+        if (cancelled || equities.length === 0) return;
+        setTickers((prev) => upsertTickerHistory(prev, equities));
+        setMarketAsOf(asOf);
+      } catch {
+        // Keep crypto live state; equities stay at last known price.
+      }
+    };
+    void refreshEquities();
+    const timer = setInterval(() => void refreshEquities(), 60 * 60 * 1000);
     return () => {
       cancelled = true;
       clearInterval(timer);

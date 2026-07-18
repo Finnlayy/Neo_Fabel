@@ -33,9 +33,13 @@ async def telegram_config(_user: dict = Depends(require_user)) -> dict[str, str]
             username = await bot.ensure_username()
         except Exception:  # noqa: BLE001
             username = ""
+    chat_id = settings.telegram_chat_id or settings.manus_telegram_chat_id or ""
     return {
-        "chatId": settings.telegram_chat_id or "",
+        "chatId": chat_id,
         "botUsername": username,
+        "channel": settings.telegram_channel or "manus",
+        "manusChatId": settings.manus_telegram_chat_id or chat_id,
+        "glintChatId": settings.glint_telegram_chat_id or "",
     }
 
 

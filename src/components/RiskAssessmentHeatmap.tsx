@@ -67,17 +67,17 @@ export default function RiskAssessmentHeatmap({
   marketLive?: boolean;
   marketAsOf?: string | null;
 }) {
-  // Combine pre-built cryptos and custom watchlist items
+  // Seed symbols only — prices/risk come from live tickers (Kraken ~15s, AV equities hourly).
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([
-    { symbol: "BTC", name: "Bitcoin", basePrice: 92450, custom: false },
-    { symbol: "ETH", name: "Ethereum", basePrice: 3412, custom: false },
-    { symbol: "SOL", name: "Solana", basePrice: 184, custom: false },
-    { symbol: "MATIC", name: "Polygon", basePrice: 0.58, custom: false },
-    { symbol: "AVAX", name: "Avalanche", basePrice: 28.4, custom: false },
-    { symbol: "DOT", name: "Polkadot", basePrice: 4.85, custom: false },
-    { symbol: "XRP", name: "Ripple", basePrice: 0.62, custom: false },
-    { symbol: "ADA", name: "Cardano", basePrice: 0.38, custom: false },
-    { symbol: "NIO", name: "NIO Inc. (EV)", basePrice: 4.25, custom: false },
+    { symbol: "BTC", name: "Bitcoin", basePrice: 0, custom: false },
+    { symbol: "ETH", name: "Ethereum", basePrice: 0, custom: false },
+    { symbol: "SOL", name: "Solana", basePrice: 0, custom: false },
+    { symbol: "MATIC", name: "Polygon", basePrice: 0, custom: false },
+    { symbol: "AVAX", name: "Avalanche", basePrice: 0, custom: false },
+    { symbol: "DOT", name: "Polkadot", basePrice: 0, custom: false },
+    { symbol: "XRP", name: "Ripple", basePrice: 0, custom: false },
+    { symbol: "ADA", name: "Cardano", basePrice: 0, custom: false },
+    { symbol: "NIO", name: "NIO Inc. (EV)", basePrice: 0, custom: false },
   ]);
 
   // Input states for adding new watchlist members
@@ -193,7 +193,7 @@ export default function RiskAssessmentHeatmap({
               Fable 5 Risk Assessment Heatmap // Tiles
             </h3>
             <p className="text-[9px] text-slate-500">
-              Prices and risk factors refresh from live Kraken market batch when the API is available.
+              Crypto: Kraken public REST ~15s. Equities (e.g. NIO): Alpha Vantage batch once/hour. No Linux required.
             </p>
           </div>
           <span

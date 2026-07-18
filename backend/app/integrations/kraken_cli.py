@@ -51,6 +51,12 @@ class KrakenCli:
             stdout, _stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout_seconds)
         except FileNotFoundError as exc:
             raise KrakenCliError("config", "kraken executable is not installed") from exc
+        except NotImplementedError as exc:
+            # Windows SelectorEventLoop (common under uvicorn) cannot spawn subprocesses.
+            raise KrakenCliError(
+                "config",
+                "kraken CLI subprocess is unavailable on this event loop; use public REST fallback",
+            ) from exc
         except asyncio.TimeoutError as exc:
             process.kill()
             await process.wait()

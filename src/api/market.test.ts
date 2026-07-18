@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest";
-import {extractChangePct, extractLastPrice, mergeTickerHistory} from "./market";
+import {extractChangePct, extractLastPrice, mergeTickerHistory, upsertTickerHistory} from "./market";
 
 describe("market parsers", () => {
   it("extracts last price from nested kraken-shaped payloads", () => {
@@ -18,4 +18,13 @@ describe("market parsers", () => {
     );
     expect(merged[0].history).toEqual([1, 2, 3]);
   });
+
+  it("upserts equity ticks without dropping crypto rows", () => {
+    const merged = upsertTickerHistory(
+      [{symbol: "BTC", name: "Bitcoin", price: 1, change: 0, history: [1]}],
+      [{symbol: "NIO", name: "NIO", price: 4, change: 1, history: [4]}],
+    );
+    expect(merged.map((t) => t.symbol).sort()).toEqual(["BTC", "NIO"]);
+  });
 });
+

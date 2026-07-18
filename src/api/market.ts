@@ -82,6 +82,28 @@ export function extractChangePct(data: Record<string, unknown> | null | undefine
   return 0;
 }
 
+function itemsToTickers(body: MarketBatchResponse, symbolMode: "crypto" | "equity"): TickerData[] {
+  const tickers: TickerData[] = [];
+  for (const item of body.items) {
+    if (item.status !== "ok" || !item.data) continue;
+    const last = extractLastPrice(item.data);
+    if (last === null) continue;
+    const symbol =
+      symbolMode === "crypto"
+        ? PAIR_TO_SYMBOL[item.symbol] ?? item.symbol.replace(/USD$/, "")
+        : item.symbol.toUpperCase();
+    const change = extractChangePct(item.data, last);
+    tickers.push({
+      symbol,
+      name: NAMES[symbol] ?? (typeof item.data.symbol === "string" ? String(item.data.symbol) : symbol),
+      price: last,
+      change,
+      history: [last],
+    });
+  }
+  return tickers;
+}
+
 export async function fetchCryptoTickers(symbols: string[] = Object.keys(SYMBOL_TO_PAIR)): Promise<{
   tickers: TickerData[];
   asOf: string;
@@ -90,22 +112,19 @@ export async function fetchCryptoTickers(symbols: string[] = Object.keys(SYMBOL_
   const body = await apiRequest<MarketBatchResponse>(
     `/api/v1/market/batch?asset_class=crypto&symbols=${encodeURIComponent(pairs)}`,
   );
-  const tickers: TickerData[] = [];
-  for (const item of body.items) {
-    if (item.status !== "ok" || !item.data) continue;
-    const last = extractLastPrice(item.data);
-    if (last === null) continue;
-    const symbol = PAIR_TO_SYMBOL[item.symbol] ?? item.symbol.replace(/USD$/, "");
-    const change = extractChangePct(item.data, last);
-    tickers.push({
-      symbol,
-      name: NAMES[symbol] ?? symbol,
-      price: last,
-      change,
-      history: [last],
-    });
-  }
-  return {tickers, asOf: body.as_of};
+  return {tickers: itemsToTickers(body, "crypto"), asOf: body.as_of};
+}
+
+/** Alpha Vantage GLOBAL_QUOTE batch for equities (use ~hourly to respect rate limits). */
+export async function fetchEquityTickers(symbols: string[] = ["NIO"]): Promise<{
+  tickers: TickerData[];
+  asOf: string;
+}> {
+  if (symbols.length === 0) return {tickers: [], asOf: new Date().toISOString()};
+  const body = await apiRequest<MarketBatchResponse>(
+    `/api/v1/market/batch?asset_class=sp500&symbols=${encodeURIComponent(symbols.join(","))}`,
+  );
+  return {tickers: itemsToTickers(body, "equity"), asOf: body.as_of};
 }
 
 export function mergeTickerHistory(prev: TickerData[], next: TickerData[]): TickerData[] {
@@ -115,4 +134,15 @@ export function mergeTickerHistory(prev: TickerData[], next: TickerData[]): Tick
     const history = [...(old?.history ?? []), t.price].slice(-24);
     return {...t, history};
   });
+}
+
+/** Merge/upsert by symbol so crypto + equity batches can share one ticker list. */
+export function upsertTickerHistory(prev: TickerData[], next: TickerData[]): TickerData[] {
+  const map = new Map(prev.map((t) => [t.symbol, t]));
+  for (const t of next) {
+    const old = map.get(t.symbol);
+    const history = [...(old?.history ?? []), t.price].slice(-24);
+    map.set(t.symbol, {...t, history});
+  }
+  return Array.from(map.values());
 }

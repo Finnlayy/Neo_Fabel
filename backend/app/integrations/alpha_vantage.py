@@ -48,7 +48,39 @@ class AlphaVantageClient:
         return await self._get({"function": "REALTIME_BULK_QUOTES", "symbol": ",".join(symbols)})
 
     async def equity_quote(self, symbol: str) -> dict[str, Any]:
-        return await self._get({"function": "GLOBAL_QUOTE", "symbol": symbol})
+        payload = await self._get({"function": "GLOBAL_QUOTE", "symbol": symbol})
+        quote = payload.get("Global Quote") if isinstance(payload.get("Global Quote"), dict) else payload
+        if not isinstance(quote, dict) or not quote:
+            raise AlphaVantageError("parse", f"no global quote for {symbol}")
+        # Normalize keys for the shared frontend ticker extractor.
+        price = quote.get("05. price") or quote.get("price") or quote.get("close")
+        change_pct_raw = quote.get("10. change percent") or quote.get("change_pct") or "0"
+        change_pct = str(change_pct_raw).replace("%", "").strip()
+        open_ = quote.get("02. open") or quote.get("open")
+        return {
+            **quote,
+            "symbol": quote.get("01. symbol") or symbol,
+            "last": price,
+            "price": price,
+            "close": price,
+            "open": open_,
+            "change_pct": change_pct,
+        }
+
+    async def equity_quotes_batch(
+        self, symbols: list[str], concurrency: int = 1
+    ) -> list[tuple[str, dict[str, Any] | Exception]]:
+        """Per-symbol GLOBAL_QUOTE batch (free-tier safe; no REALTIME_BULK_QUOTES entitlement)."""
+        semaphore = asyncio.Semaphore(max(1, concurrency))
+
+        async def fetch(symbol: str) -> tuple[str, dict[str, Any] | Exception]:
+            async with semaphore:
+                try:
+                    return symbol, await self.equity_quote(symbol)
+                except Exception as exc:  # Preserve per-symbol failures.
+                    return symbol, exc
+
+        return list(await asyncio.gather(*(fetch(symbol) for symbol in symbols)))
 
     async def forex_quote(self, pair: str) -> dict[str, Any]:
         if len(pair) != 6:
