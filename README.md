@@ -80,6 +80,30 @@ UI: main menu **Signal Routes** (shortcut `5`). Requires Firebase Auth sign-in
 plus a `signal_admin` custom claim for admin APIs. Bypass switches and credential
 rotation require recent auth.
 
+## AI / TVAPI / Telegram tabs
+
+Legacy `/api/*` routes (Vite proxies to FastAPI) power the chat, orchestrator,
+TVAPI optimizer, and Telegram feed. All mutating calls require Firebase Bearer
+auth (`require_user`).
+
+| Path | Purpose |
+|------|---------|
+| `GET /api/ai/health` | Gemini configured? (no auth) |
+| `POST /api/chat` | Gemini chat |
+| `POST /api/gemini/orchestrate` | Generative plan (bare JSON) |
+| `POST /api/gemini/analyze-trades` | Trade diagnostics |
+| `POST /api/tvapi/optimize` | Labeled deterministic parameter sweep (V1) |
+| `POST /api/tvapi/analyze-chart` | Gemini vision on chart image |
+| `GET/POST /api/telegram/*` | Bot config, messages, send, daemon status |
+
+Env (see `.env.example`): `GEMINI_API_KEY`, `AI_CHAT_ENABLED`,
+`AI_ALLOW_DETERMINISTIC_FALLBACK` (dev/tests only), `TVAPI_ENABLED`,
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ENABLED`.
+
+Keep local trading paper-first: `KRAKEN_AUTONOMY_LEVEL=2` and
+`KRAKEN_LIVE_TRADING_ENABLED=false`. If `/health/ready` reports
+`live-autonomous`, fix your `.env.local` — do not commit secrets.
+
 ### Firebase Auth setup
 
 Backend (token verification):

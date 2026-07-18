@@ -64,6 +64,41 @@ class Settings(BaseSettings):
     advisory_prompt_version: str = Field(default="v1", validation_alias="ADVISORY_PROMPT_VERSION")
     signal_policy_version: str = Field(default="v1", validation_alias="SIGNAL_POLICY_VERSION")
 
+    # AI chat / orchestrate / vision (Gemini via Generative Language API).
+    gemini_api_key: str | None = Field(default=None, validation_alias="GEMINI_API_KEY")
+    ai_chat_enabled: bool = Field(default=True, validation_alias="AI_CHAT_ENABLED")
+    ai_allow_deterministic_fallback: bool = Field(
+        default=False, validation_alias="AI_ALLOW_DETERMINISTIC_FALLBACK"
+    )
+    gemini_timeout_seconds: float = Field(default=45.0, validation_alias="GEMINI_TIMEOUT_SECONDS")
+    gemini_default_model: str = Field(default="gemini-2.0-flash", validation_alias="GEMINI_DEFAULT_MODEL")
+
+    # TVAPI / chart optimize (RapidAPI optional; deterministic sweep always available).
+    tradingview_rapidapi_key: str | None = Field(default=None, validation_alias="TRADINGVIEW_RAPIDAPI_KEY")
+    tvapi_enabled: bool = Field(default=True, validation_alias="TVAPI_ENABLED")
+
+    # Telegram bot feed.
+    telegram_bot_token: str | None = Field(default=None, validation_alias="TELEGRAM_BOT_TOKEN")
+    telegram_chat_id: str | None = Field(default=None, validation_alias="TELEGRAM_CHAT_ID")
+    telegram_enabled: bool = Field(default=True, validation_alias="TELEGRAM_ENABLED")
+    telegram_timeout_seconds: float = Field(default=20.0, validation_alias="TELEGRAM_TIMEOUT_SECONDS")
+    telegram_poll_limit: int = Field(default=50, validation_alias="TELEGRAM_POLL_LIMIT")
+
+    # Optional provider keys (stored for CLI/integrations; extra="ignore" alone would drop typing).
+    openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
+    openrouter_api_key: str | None = Field(default=None, validation_alias="OPENROUTER_API_KEY")
+    xai_api_key: str | None = Field(default=None, validation_alias="XAI_API_KEY")
+    finnhub_api_key: str | None = Field(default=None, validation_alias="FINNHUB_API_KEY")
+    kraken_api_key: str | None = Field(default=None, validation_alias="KRAKEN_API_KEY")
+    kraken_api_secret: str | None = Field(default=None, validation_alias="KRAKEN_API_SECRET")
+    bybit_api_key: str | None = Field(default=None, validation_alias="BYBIT_API_KEY")
+    bybit_api_secret: str | None = Field(default=None, validation_alias="BYBIT_API_SECRET")
+    pionex_api_key: str | None = Field(default=None, validation_alias="PIONEX_API_KEY")
+    pionex_api_secret: str | None = Field(default=None, validation_alias="PIONEX_API_SECRET")
+    pionex_signal_webhook_token: str | None = Field(
+        default=None, validation_alias="PIONEX_SIGNAL_WEBHOOK_TOKEN"
+    )
+
     @field_validator("kraken_autonomy_level")
     @classmethod
     def autonomy_in_range(cls, value: int) -> int:

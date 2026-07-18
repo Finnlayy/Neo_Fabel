@@ -15,6 +15,9 @@ from .integrations.kraken_cli import KrakenCli, KrakenCliError
 from .paper_orders import PaperOrderService
 from .schemas import MarketBatchItem, MarketBatchResponse, OhlcvBatchResponse, OhlcvItem, PaperOrderRequest, PaperOrderResponse, TickerResponse
 from .settings import get_settings
+from .routers.ai import router as ai_router
+from .routers.telegram import router as telegram_router
+from .routers.tvapi import router as tvapi_router
 from .signals.mcp_server import mcp_router
 from .signals.router import router as signal_router
 from .signals.safety import assert_signals_module_imports
@@ -103,6 +106,9 @@ app.add_middleware(
 )
 app.include_router(signal_router)
 app.include_router(mcp_router)
+app.include_router(ai_router)
+app.include_router(tvapi_router)
+app.include_router(telegram_router)
 
 # Fail import-time if signal modules reference live Kraken execution symbols.
 assert_signals_module_imports()
