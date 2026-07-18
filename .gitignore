@@ -1,0 +1,21 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.runtime/
+secrets/
+.cursor/
+.agents/
+*.local
+fable-5-masterprompt-os (2)/
+uploads/

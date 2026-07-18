@@ -1,0 +1,7 @@
+.env*
+node_modules
+dist
+__pycache__
+*.py[cod]
+.git
+fable-5-masterprompt-os (2)

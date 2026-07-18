@@ -1,0 +1,93 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: fable
+      POSTGRES_USER: fable
+      POSTGRES_PASSWORD: fable
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fable -d fable"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgresql+asyncpg://fable:fable@postgres:5432/fable
+      ALLOWED_ORIGINS: http://localhost
+      KRAKEN_BINARY: /usr/local/bin/kraken
+      KRAKEN_AUTONOMY_LEVEL: "2"
+      KRAKEN_LIVE_TRADING_ENABLED: "false"
+      ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY:-}
+      ALPHAVANTAGE_BULK_QUOTES_ENABLED: ${ALPHAVANTAGE_BULK_QUOTES_ENABLED:-false}
+      SIGNAL_ROUTES_ENABLED: ${SIGNAL_ROUTES_ENABLED:-false}
+      TRADINGVIEW_INGRESS_ENABLED: ${TRADINGVIEW_INGRESS_ENABLED:-false}
+      MCP_SIGNAL_ADAPTER_ENABLED: ${MCP_SIGNAL_ADAPTER_ENABLED:-false}
+      SIGNAL_WORKER_ENABLED: "false"
+      SIGNAL_EXECUTION_ENABLED: ${SIGNAL_EXECUTION_ENABLED:-false}
+      AI_ADVISORY_ENABLED: ${AI_ADVISORY_ENABLED:-false}
+      SIGNAL_CREDENTIAL_PEPPER: ${SIGNAL_CREDENTIAL_PEPPER:-}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+    command: ["/bin/sh", "-c", "alembic -c backend/alembic.ini upgrade head && exec uvicorn backend.app.main:app --host 0.0.0.0 --port 8000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  signal-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgresql+asyncpg://fable:fable@postgres:5432/fable
+      KRAKEN_BINARY: /usr/local/bin/kraken
+      KRAKEN_AUTONOMY_LEVEL: "2"
+      KRAKEN_LIVE_TRADING_ENABLED: "false"
+      SIGNAL_ROUTES_ENABLED: ${SIGNAL_ROUTES_ENABLED:-false}
+      SIGNAL_WORKER_ENABLED: ${SIGNAL_WORKER_ENABLED:-false}
+      SIGNAL_EXECUTION_ENABLED: ${SIGNAL_EXECUTION_ENABLED:-false}
+      AI_ADVISORY_ENABLED: ${AI_ADVISORY_ENABLED:-false}
+      ADVISORY_PROVIDER: ${ADVISORY_PROVIDER:-fake}
+      SIGNAL_CREDENTIAL_PEPPER: ${SIGNAL_CREDENTIAL_PEPPER:-}
+    command: ["python", "-m", "backend.app.signals"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+    read_only: true
+    tmpfs:
+      - /tmp
+    profiles:
+      - signals
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:-}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:-}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID:-}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET:-}
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres-data:

@@ -1,0 +1,6 @@
+{
+  "name": "Fable 5 Masterprompt OS",
+  "description": "Alpaca Table 5 Agent OS — Intelligent Trade Intelligence, Prompt Architecture, Company Knowledge, and Multi-Agent Orchestration console featuring live simulated trades, active cybernetic sub-agents, and Gemini-powered generative goal planning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

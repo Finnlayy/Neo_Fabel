@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "prompt-optimizer": {
+      "source": "affaan-m/ECC",
+      "sourceType": "github",
+      "skillPath": "skills/prompt-optimizer/SKILL.md",
+      "computedHash": "354c74126df30a43f612daaf210b3b0e891df1163c8c3ad3121b24fd2bcf9df3"
+    }
+  }
+}

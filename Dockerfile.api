@@ -1,0 +1,21 @@
+FROM debian:bookworm-slim AS kraken-installer
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && curl --proto '=https' --tlsv1.2 -LsSf \
+         https://github.com/krakenfx/kraken-cli/releases/latest/download/kraken-cli-installer.sh | sh \
+    && test -x /root/.cargo/bin/kraken \
+    && /root/.cargo/bin/kraken --version \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM python:3.11-slim AS runtime
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+RUN useradd --create-home --uid 10001 fable
+WORKDIR /app
+COPY --from=kraken-installer /root/.cargo/bin/kraken /usr/local/bin/kraken
+COPY backend /app/backend
+RUN pip install --no-cache-dir /app/backend \
+    && kraken --version
+USER fable
+EXPOSE 8000
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
