@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { SubAgentState, Trade } from "../types";
 import { ShieldCheck, Activity, Brain, Cpu, BarChart2, TrendingUp, AlertCircle, RefreshCw, Terminal, CheckCircle2 } from "lucide-react";
+import { ApiError } from "../api/client";
+import { postAnalyzeTrades } from "../api/ai";
 
 interface SubAgentsSectionProps {
   agents: SubAgentState[];
@@ -69,19 +71,16 @@ export default function SubAgentsSection({
     setIsAnalyzing(true);
     setAnalysisResult(null);
     try {
-      const response = await fetch("/api/gemini/analyze-trades", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trades }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setAnalysisResult(data.analysis || "Analysis complete.");
+      const data = await postAnalyzeTrades(trades);
+      if (data.error) {
+        setAnalysisResult(`Error running analysis: ${data.error}`);
       } else {
-        setAnalysisResult(`Error running analysis: ${data.error || "Unknown server error"}`);
+        setAnalysisResult(data.analysis || "Analysis complete.");
       }
-    } catch (err: any) {
-      setAnalysisResult(`Failed to connect to full-stack analytics endpoint: ${err.message}`);
+    } catch (err: unknown) {
+      const message =
+        err instanceof ApiError ? `${err.code}: ${err.message}` : err instanceof Error ? err.message : "Unknown error";
+      setAnalysisResult(`Failed to connect to analytics endpoint: ${message}`);
     } finally {
       setIsAnalyzing(false);
     }

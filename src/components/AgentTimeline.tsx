@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { 
   GitCommit, Activity, Search, AlertCircle, RefreshCw, Sparkles, 
   Terminal, ShieldCheck, HeartPulse, Send, Brain
@@ -15,72 +15,8 @@ interface TimelineEvent {
 }
 
 export default function AgentTimeline() {
-  // Pre-seed some beautiful, realistic agent events
-  const [events, setEvents] = useState<TimelineEvent[]>([
-    {
-      id: "ev-1",
-      time: "08:05:12",
-      agentName: "MASTER ORCHESTRATOR AGENT",
-      agentId: "orchestrator",
-      type: "SUCCESS",
-      message: "Synchronized target allocation values with core trading nodes. System status verified: Green.",
-      impactScore: 85
-    },
-    {
-      id: "ev-2",
-      time: "08:03:45",
-      agentName: "RNA Smartelligent Agent",
-      agentId: "rna_smart",
-      type: "INFO",
-      message: "Executed Deep Neural Network model for pattern recognition. Double bottom anomaly validated on ETH/USD chart.",
-      impactScore: 92
-    },
-    {
-      id: "ev-3",
-      time: "08:01:12",
-      agentName: "Risk Governor Agent",
-      agentId: "risk_gov",
-      type: "SUCCESS",
-      message: "Verified 100% compliance with safe capital deployment limits. No slippage anomalies detected on MATIC trade execution.",
-      impactScore: 95
-    },
-    {
-      id: "ev-4",
-      time: "07:58:20",
-      agentName: "Adaptive Agent",
-      agentId: "adaptive",
-      type: "WARNING",
-      message: "Widen Standard Deviation corridors due to a localized volatility spike on SOL/USD. Parameter multiplier locked.",
-      impactScore: 68
-    },
-    {
-      id: "ev-5",
-      time: "07:55:04",
-      agentName: "Market Data Agent",
-      agentId: "market_data",
-      type: "INFO",
-      message: "Ingested multi-exchange order book ticks. Localized volume weighted average price (VWAP) computed successfully.",
-      impactScore: 50
-    },
-    {
-      id: "ev-6",
-      time: "07:51:30",
-      agentName: "Predictive Modeling Agent",
-      agentId: "predictive",
-      type: "INFO",
-      message: "Generated standard 1-hour interval predictive price vectors. Estimating SOL support zone at $178.5 USD.",
-      impactScore: 74
-    },
-    {
-      id: "ev-7",
-      time: "07:48:15",
-      agentName: "Analytical Analysis Agent",
-      agentId: "analytic",
-      type: "SUCCESS",
-      message: "Compiled rolling multi-asset execution summaries. Yield curve indexes verified under standard deviation limits.",
-      impactScore: 60
-    }
-  ]);
+  // Manual / future agent-stream events only — no simulated injectors.
+  const [events, setEvents] = useState<TimelineEvent[]>([]);
 
   // Filters
   const [selectedAgentId, setSelectedAgentId] = useState<string>("ALL");
@@ -101,62 +37,6 @@ export default function AgentTimeline() {
     { id: "predictive", name: "Predictive Modeling" },
     { id: "analytic", name: "Analytical Analysis" }
   ];
-
-  // Tick generator to periodically add simulated neural events so that the timeline feels "live"
-  useEffect(() => {
-    const eventTimer = setInterval(() => {
-      // Pick random agent
-      const randomAgent = agentsList[Math.floor(Math.random() * agentsList.length)];
-      
-      const messagesMap: Record<string, { msg: string; type: TimelineEvent["type"]; score: number }[]> = {
-        orchestrator: [
-          { msg: "Audited active sub-agent metrics. Efficiency weight optimization cycle successfully locked.", type: "SUCCESS", score: 80 },
-          { msg: "Injected customized plan rules. Deploying neural compliance parameter override.", type: "INFO", score: 85 }
-        ],
-        market_data: [
-          { msg: "Multi-exchange order book profile successfully synchronized with Coinbase live ticks.", type: "SUCCESS", score: 55 },
-          { msg: "Detected temporary order stream congestion. Automatically compressed frame latency to 4.2ms.", type: "WARNING", score: 62 }
-        ],
-        adaptive: [
-          { msg: "Successfully balanced current drawdown risk index across the composite crypto index.", type: "SUCCESS", score: 78 },
-          { msg: "Recalibrated volatility margin multiplier based on live standard deviation surge.", type: "INFO", score: 70 }
-        ],
-        rna_smart: [
-          { msg: "Identified high-probability bullish continuation pattern on standard chart interval.", type: "SUCCESS", score: 90 },
-          { msg: "Filtered out high-frequency noise from fake breakout traps on lower timeframe indicators.", type: "SUCCESS", score: 88 }
-        ],
-        risk_gov: [
-          { msg: "Hard drawdown limits successfully checked. Risk profile remains secure in compliance zone.", type: "SUCCESS", score: 98 },
-          { msg: "Auditing active collateral leverage margins. No over-exposure warnings recorded.", type: "SUCCESS", score: 92 }
-        ],
-        predictive: [
-          { msg: "Projected localized liquidation corridors on top active capital pools.", type: "INFO", score: 72 },
-          { msg: "Calculated support resistance bands. Bullish momentum indicators strengthening.", type: "INFO", score: 75 }
-        ],
-        analytic: [
-          { msg: "Consolidated daily trade execution logs. Backtesting coefficient verified.", type: "SUCCESS", score: 65 },
-          { msg: "Portfolio variance index re-optimized. Dynamic asset bounds successfully calculated.", type: "SUCCESS", score: 60 }
-        ]
-      };
-
-      const options = messagesMap[randomAgent.id];
-      const selectedOption = options[Math.floor(Math.random() * options.length)];
-
-      const freshEvent: TimelineEvent = {
-        id: `ev-${Date.now()}`,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-        agentName: randomAgent.name.toUpperCase(),
-        agentId: randomAgent.id,
-        type: selectedOption.type,
-        message: selectedOption.msg,
-        impactScore: selectedOption.score
-      };
-
-      setEvents((prev) => [freshEvent, ...prev.slice(0, 45)]);
-    }, 15000);
-
-    return () => clearInterval(eventTimer);
-  }, []);
 
   // Handle manual injection
   const handleInjectEvent = (e: React.FormEvent) => {
@@ -218,7 +98,7 @@ export default function AgentTimeline() {
         {/* Real-time Indicator */}
         <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">
           <HeartPulse className="w-3.5 h-3.5 animate-bounce" />
-          LIVE TELEMETRY ACTIVE
+          NO AGENT STREAM
         </span>
       </div>
 

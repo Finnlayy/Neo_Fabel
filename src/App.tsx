@@ -2,6 +2,11 @@ import React, { useState, useEffect } from "react";
 import { TickerData, Trade, SubAgentState, GenerativePlan, MainTab } from "./types";
 import SignalRoutesPage from "./features/signalRoutes/SignalRoutesPage";
 import AuthPanel from "./auth/AuthPanel";
+import { fetchCryptoTickers, mergeTickerHistory } from "./api/market";
+import { fetchAiHealth } from "./api/ai";
+import { fetchReadyStatus, type ReadyStatus } from "./api/health";
+import { fetchPaperStatus, mapPaperStatusToTrades } from "./api/paper";
+import { INITIAL_SUB_AGENTS } from "./data";
 
 // Components
 import TelegramFeed from "./components/TelegramFeed";
@@ -15,6 +20,7 @@ import TvapiOptimizer from "./components/TvapiOptimizer";
 import GeminiChatbot from "./components/GeminiChatbot";
 import NeuralTracker from "./components/NeuralTracker";
 import RiskAssessmentHeatmap from "./components/RiskAssessmentHeatmap";
+import CircularGauge from "./components/CircularGauge";
 import AgentTimeline from "./components/AgentTimeline";
 import NavigationMenu from "./components/NavigationMenu";
 import NeuralVectorAnalyzer from "./components/NeuralVectorAnalyzer";
@@ -31,7 +37,7 @@ const TRANSLATIONS = {
   en: {
     systemTime: "SYSTEM TIME",
     systemStatus: "SYSTEM STATUS",
-    connectedGemini: "CONNECTED (GEMINI)",
+    connectedGemini: "AI: CHECKING",
     complianceRig: "COMPLIANCE RIG",
     enforced: "⚠️ ENFORCED",
     unguarded: "⚡ UNGUARDED",
@@ -77,7 +83,7 @@ const TRANSLATIONS = {
   de: {
     systemTime: "SYSTEMZEIT",
     systemStatus: "SYSTEMSTATUS",
-    connectedGemini: "VERBUNDEN (GEMINI)",
+    connectedGemini: "KI: PRÜFE",
     complianceRig: "SICHERHEITS-REGLER",
     enforced: "⚠️ ERZWUNGEN",
     unguarded: "⚡ UNGESCHÜTZT",
@@ -123,16 +129,16 @@ const TRANSLATIONS = {
 };
 
 export default function App() {
-  const [tickers] = useState<TickerData[]>([]);
+  const [tickers, setTickers] = useState<TickerData[]>([]);
+  const [marketAsOf, setMarketAsOf] = useState<string | null>(null);
+  const [marketLive, setMarketLive] = useState(false);
+  const [queueLatencyMs, setQueueLatencyMs] = useState<number | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [subAgents, setSubAgents] = useState<SubAgentState[]>([]);
+  const [subAgents, setSubAgents] = useState<SubAgentState[]>(INITIAL_SUB_AGENTS);
   const [activePlan, setActivePlan] = useState<GenerativePlan | null>(null);
-  const [allocation, setAllocation] = useState([
-    { name: "BTC", value: 45 },
-    { name: "ETH", value: 30 },
-    { name: "SOL", value: 15 },
-    { name: "MATIC", value: 10 }
-  ]);
+  const [allocation, setAllocation] = useState<{ name: string; value: number }[]>([]);
+  const [aiStatusLabel, setAiStatusLabel] = useState("AI: OFFLINE");
+  const [readyStatus, setReadyStatus] = useState<ReadyStatus | null>(null);
   const [isComplianceActive, setIsComplianceActive] = useState(true);
   const [activeSymbol, setActiveSymbol] = useState("BTC");
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
@@ -163,12 +169,110 @@ export default function App() {
 
   const allTimeRealizedPnL = trades.reduce((acc, t) => acc + t.pnl, 0);
 
+  const avgEfficiency =
+    subAgents.length > 0
+      ? subAgents.reduce((acc, agent) => acc + agent.efficiency, 0) / subAgents.length
+      : 0;
+  const avgAbsChange =
+    tickers.length > 0
+      ? tickers.reduce((acc, ticker) => acc + Math.abs(ticker.change), 0) / tickers.length
+      : 0;
+  const bullishPct =
+    tickers.length > 0
+      ? (tickers.filter((ticker) => ticker.change >= 0).length / tickers.length) * 100
+      : 50;
+  // Orchestrator score: agent efficiency + market stability (updates with 15s ticker poll).
+  const orchestratorScore = Math.round(
+    Math.max(0, Math.min(100, avgEfficiency * 0.65 + Math.max(0, 100 - avgAbsChange * 10) * 0.35)),
+  );
+  // Composite index: live breadth / sentiment from ticker changes.
+  const compositeIndex = Math.round(Math.max(0, Math.min(100, bullishPct)));
+  const sentimentLabel =
+    bullishPct >= 55 ? `${bullishPct.toFixed(1)}% Bullish` : bullishPct <= 45 ? `${(100 - bullishPct).toFixed(1)}% Bearish` : `${bullishPct.toFixed(1)}% Mixed`;
+  const anomalyLabel = avgAbsChange >= 8 ? (language === "de" ? "Volatilität hoch" : "High volatility") : t("noneDetected");
+  const latencyLabel = queueLatencyMs !== null ? `${queueLatencyMs}ms` : "—";
+
   // Clock tick
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date().toLocaleTimeString());
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Live crypto tickers for heatmaps / risk tiles (fail closed — no fixture seed).
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      const started = performance.now();
+      try {
+        const {tickers: live, asOf} = await fetchCryptoTickers();
+        if (!cancelled) {
+          setQueueLatencyMs(Math.round(performance.now() - started));
+        }
+        if (cancelled) return;
+        if (live.length === 0) {
+          setMarketLive(false);
+          return;
+        }
+        setTickers((prev) => mergeTickerHistory(prev, live));
+        setMarketAsOf(asOf);
+        setMarketLive(true);
+      } catch {
+        if (!cancelled) {
+          setMarketLive(false);
+          setQueueLatencyMs(Math.round(performance.now() - started));
+        }
+      }
+    };
+    void refresh();
+    const timer = setInterval(() => void refresh(), 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  // Paper ledger + AI health + ready status
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const health = await fetchAiHealth();
+        if (!cancelled) {
+          setAiStatusLabel(
+            health.configured
+              ? `AI: ${String(health.provider).toUpperCase()}`
+              : health.deterministic_fallback
+                ? "AI: FALLBACK"
+                : "AI: OFFLINE",
+          );
+        }
+      } catch {
+        if (!cancelled) setAiStatusLabel("AI: OFFLINE");
+      }
+      try {
+        const ready = await fetchReadyStatus();
+        if (!cancelled) setReadyStatus(ready);
+      } catch {
+        if (!cancelled) setReadyStatus(null);
+      }
+      try {
+        const paper = await fetchPaperStatus();
+        if (!cancelled) {
+          const mapped = mapPaperStatusToTrades(paper.data);
+          if (mapped.length > 0) setTrades(mapped);
+        }
+      } catch {
+        // Auth may be missing; keep client paper rows only.
+      }
+    };
+    void refresh();
+    const timer = setInterval(() => void refresh(), 20000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, []);
 
   // Clear trade announcement after 4 seconds
@@ -458,9 +562,9 @@ export default function App() {
             </div>
             <div className="hidden sm:flex flex-col lg:items-end">
               <span className="text-slate-500 uppercase tracking-wider text-[9px]">{t("systemStatus")}</span>
-              <span className="text-emerald-400 font-bold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                {t("connectedGemini")}
+              <span className={`font-bold flex items-center gap-1 ${aiStatusLabel.includes("OFFLINE") ? "text-amber-400" : "text-emerald-400"}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${aiStatusLabel.includes("OFFLINE") ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`}></span>
+                {aiStatusLabel}
               </span>
             </div>
             <div className="flex flex-col lg:items-end">
@@ -547,16 +651,12 @@ export default function App() {
 
                     {/* Circular Gauge Meter */}
                     <div className="flex items-center justify-between mt-3">
-                      <div className="flex-1 max-w-28 h-20 relative flex items-center justify-center">
-                        <svg className="w-20 h-20 transform -rotate-90">
-                          <circle cx="40" cy="40" r="32" stroke="rgba(255,255,255,0.05)" strokeWidth="6" fill="transparent" />
-                          <circle cx="40" cy="40" r="32" stroke="#10b981" strokeWidth="6" fill="transparent" strokeDasharray="201" strokeDashoffset="40" />
-                        </svg>
-                        <div className="absolute flex flex-col items-center">
-                          <span className="text-emerald-400 font-extrabold text-base leading-none">+60</span>
-                          <span className="text-[7px] text-slate-500 uppercase leading-none mt-0.5 font-sans">{t("score")}</span>
-                        </div>
-                      </div>
+                      <CircularGauge
+                        score={orchestratorScore}
+                        label={t("score")}
+                        stroke="#10b981"
+                        textClass="text-emerald-400"
+                      />
 
                       <div className="flex-1 space-y-1 pl-4 text-[10px]">
                         <div className="flex justify-between border-b border-white/5 pb-0.5">
@@ -565,11 +665,13 @@ export default function App() {
                         </div>
                         <div className="flex justify-between border-b border-white/5 pb-0.5">
                           <span className="text-slate-500">{t("queueLatency")}:</span>
-                          <span className="text-slate-300 font-semibold">12.5ms</span>
+                          <span className="text-slate-300 font-semibold">{latencyLabel}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">{t("safetyCompliance")}:</span>
-                          <span className="text-rose-400 font-semibold">{t("hardOverride")}</span>
+                          <span className={`font-semibold ${isComplianceActive ? "text-emerald-400" : "text-rose-400"}`}>
+                            {isComplianceActive ? (language === "de" ? "Aktiv" : "Active") : t("hardOverride")}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -593,31 +695,27 @@ export default function App() {
 
                     {/* Composite signal meter */}
                     <div className="flex items-center justify-between mt-3">
-                      <div className="flex-1 max-w-28 h-20 relative flex items-center justify-center">
-                        <svg className="w-20 h-20 transform -rotate-90">
-                          <circle cx="40" cy="40" r="32" stroke="rgba(255,255,255,0.05)" strokeWidth="6" fill="transparent" />
-                          <circle cx="40" cy="40" r="32" stroke="#06b6d4" strokeWidth="6" fill="transparent" strokeDasharray="201" strokeDashoffset="34" />
-                        </svg>
-                        <div className="absolute flex flex-col items-center">
-                          <span className="text-cyan-400 font-extrabold text-base leading-none">+62</span>
-                          <span className="text-[7px] text-slate-500 uppercase leading-none mt-0.5 font-sans">{t("index")}</span>
-                        </div>
-                      </div>
+                      <CircularGauge
+                        score={compositeIndex}
+                        label={t("index")}
+                        stroke="#06b6d4"
+                        textClass="text-cyan-400"
+                      />
 
                       <div className="flex-1 space-y-1 pl-4 text-[10px]">
                         <div className="flex justify-between border-b border-white/5 pb-0.5">
                           <span className="text-slate-500">{t("sentimentWeight")}:</span>
-                          <span className="text-cyan-400 font-semibold">68.4% Bullish</span>
+                          <span className="text-cyan-400 font-semibold">{sentimentLabel}</span>
                         </div>
                         <div className="flex justify-between border-b border-white/5 pb-0.5">
                           <span className="text-slate-500">{t("signalAnomaly")}:</span>
-                          <span className="text-slate-300 font-semibold">{t("noneDetected")}</span>
+                          <span className="text-slate-300 font-semibold">{anomalyLabel}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">{t("telemetryFeed")}:</span>
-                          <span className="text-emerald-400 font-semibold uppercase flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                            {t("active")}
+                          <span className={`font-semibold uppercase flex items-center gap-1 ${marketLive ? "text-emerald-400" : "text-amber-400"}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${marketLive ? "bg-emerald-400 animate-ping" : "bg-amber-400"}`}></span>
+                            {marketLive ? t("active") : (language === "de" ? "Cache" : "Cached")}
                           </span>
                         </div>
                       </div>
@@ -738,6 +836,7 @@ export default function App() {
                     setSubAgents(prev => prev.map(a => a.id === "market_data" ? { ...a, lastAction: `Incepted index focus update for ${symbol}/USD tickers.` } : a));
                   }}
                   activeSymbol={activeSymbol}
+                  marketLive={marketLive}
                 />
 
                 <SimulatedTrading 
@@ -878,16 +977,12 @@ export default function App() {
 
                     {/* Circular Gauge Meter */}
                     <div className="flex items-center justify-between mt-3">
-                      <div className="flex-1 max-w-28 h-20 relative flex items-center justify-center">
-                        <svg className="w-20 h-20 transform -rotate-90">
-                          <circle cx="40" cy="40" r="32" stroke="rgba(255,255,255,0.05)" strokeWidth="6" fill="transparent" />
-                          <circle cx="40" cy="40" r="32" stroke="#10b981" strokeWidth="6" fill="transparent" strokeDasharray="201" strokeDashoffset="40" />
-                        </svg>
-                        <div className="absolute flex flex-col items-center">
-                          <span className="text-emerald-400 font-extrabold text-base leading-none">+60</span>
-                          <span className="text-[7px] text-slate-500 uppercase leading-none mt-0.5 font-sans">SCORE</span>
-                        </div>
-                      </div>
+                      <CircularGauge
+                        score={orchestratorScore}
+                        label={t("score")}
+                        stroke="#10b981"
+                        textClass="text-emerald-400"
+                      />
 
                       <div className="flex-1 space-y-1 pl-4 text-[10px]">
                         <div className="flex justify-between border-b border-white/5 pb-0.5">
@@ -896,11 +991,13 @@ export default function App() {
                         </div>
                         <div className="flex justify-between border-b border-white/5 pb-0.5">
                           <span className="text-slate-500">Queue Latency:</span>
-                          <span className="text-slate-300 font-semibold">12.5ms</span>
+                          <span className="text-slate-300 font-semibold">{latencyLabel}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">Safety Compliance:</span>
-                          <span className="text-rose-400 font-semibold">Hard Override</span>
+                          <span className={`font-semibold ${isComplianceActive ? "text-emerald-400" : "text-rose-400"}`}>
+                            {isComplianceActive ? "Active" : "Hard Override"}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -924,31 +1021,27 @@ export default function App() {
 
                     {/* Composite signal meter */}
                     <div className="flex items-center justify-between mt-3">
-                      <div className="flex-1 max-w-28 h-20 relative flex items-center justify-center">
-                        <svg className="w-20 h-20 transform -rotate-90">
-                          <circle cx="40" cy="40" r="32" stroke="rgba(255,255,255,0.05)" strokeWidth="6" fill="transparent" />
-                          <circle cx="40" cy="40" r="32" stroke="#06b6d4" strokeWidth="6" fill="transparent" strokeDasharray="201" strokeDashoffset="34" />
-                        </svg>
-                        <div className="absolute flex flex-col items-center">
-                          <span className="text-cyan-400 font-extrabold text-base leading-none">+62</span>
-                          <span className="text-[7px] text-slate-500 uppercase leading-none mt-0.5 font-sans">INDEX</span>
-                        </div>
-                      </div>
+                      <CircularGauge
+                        score={compositeIndex}
+                        label={t("index")}
+                        stroke="#06b6d4"
+                        textClass="text-cyan-400"
+                      />
 
                       <div className="flex-1 space-y-1 pl-4 text-[10px]">
                         <div className="flex justify-between border-b border-white/5 pb-0.5">
                           <span className="text-slate-500">Sentiment weight:</span>
-                          <span className="text-cyan-400 font-semibold">68.4% Bullish</span>
+                          <span className="text-cyan-400 font-semibold">{sentimentLabel}</span>
                         </div>
                         <div className="flex justify-between border-b border-white/5 pb-0.5">
                           <span className="text-slate-500">Signal Anomaly:</span>
-                          <span className="text-slate-300 font-semibold">None detected</span>
+                          <span className="text-slate-300 font-semibold">{anomalyLabel}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">Telemetry Feed:</span>
-                          <span className="text-emerald-400 font-semibold uppercase flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                            ACTIVE
+                          <span className={`font-semibold uppercase flex items-center gap-1 ${marketLive ? "text-emerald-400" : "text-amber-400"}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${marketLive ? "bg-emerald-400 animate-ping" : "bg-amber-400"}`}></span>
+                            {marketLive ? "ACTIVE" : "CACHED"}
                           </span>
                         </div>
                       </div>
@@ -996,7 +1089,7 @@ export default function App() {
                 />
 
                 <div className="grid grid-cols-1 gap-6">
-                  <RiskAssessmentHeatmap tickers={tickers} />
+                  <RiskAssessmentHeatmap tickers={tickers} marketLive={marketLive} marketAsOf={marketAsOf} />
                   <AgentTimeline />
                 </div>
               </>
@@ -1017,10 +1110,11 @@ export default function App() {
                     setSubAgents(prev => prev.map(a => a.id === "market_data" ? { ...a, lastAction: `Incepted index focus update for ${symbol}/USD tickers.` } : a));
                   }}
                   activeSymbol={activeSymbol}
+                  marketLive={marketLive}
                 />
 
                 <div className="grid grid-cols-1 gap-6">
-                  <RiskAssessmentHeatmap tickers={tickers} />
+                  <RiskAssessmentHeatmap tickers={tickers} marketLive={marketLive} marketAsOf={marketAsOf} />
                   <AgentTimeline />
                 </div>
 
@@ -1137,16 +1231,18 @@ export default function App() {
           <div className="flex flex-wrap gap-4 items-center">
             <span className="text-cyan-400 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span> 
-              MASTER ENGINE: STABLE
+              ENGINE: {readyStatus?.execution ?? "unreachable"}
             </span>
             <span className="text-slate-700">|</span>
-            <span className="text-slate-400">GOAL PLANNING: ACTIVE</span>
+            <span className="text-slate-400">
+              AUTONOMY L{readyStatus?.autonomy_level ?? "—"} · LIVE={String(readyStatus?.live_trading_enabled ?? "—")}
+            </span>
             <span className="text-slate-700">|</span>
-            <span className="text-slate-400 uppercase">SENSORY ANALYSE AGNT: ONLINE</span>
+            <span className="text-slate-400 uppercase">DB: {readyStatus?.database ?? "n/a"}</span>
           </div>
           <div className="flex items-center gap-4 text-slate-400">
-            <span className="uppercase text-[9px]">Session ID: ORCH-992-X</span>
-            <span className="text-white bg-white/10 px-2 py-0.5 rounded-sm text-[9px]">UTC 14:22:45</span>
+            <span className="uppercase text-[9px]">Market: {marketLive ? "LIVE" : "STALE"}{marketAsOf ? ` · ${new Date(marketAsOf).toLocaleTimeString()}` : ""}</span>
+            <span className="text-white bg-white/10 px-2 py-0.5 rounded-sm text-[9px]">{currentTime}</span>
           </div>
         </div>
 

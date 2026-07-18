@@ -82,6 +82,7 @@ export const INITIAL_TRADES: Trade[] = [
   { id: "T-08", time: "08:01:12", asset: "MATIC", type: "BUY", price: 0.575, amount: 1000, pnl: 5.0, status: "COMPLETED" }
 ];
 
+/** Unused fixture retained for type demos only — TelegramFeed uses live API. */
 export const INITIAL_TELEGRAM_SIGNALS: TelegramSignal[] = [
   {
     id: "TS-1",

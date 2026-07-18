@@ -24,6 +24,8 @@ import {
   Trash2,
   ExternalLink
 } from "lucide-react";
+import { ApiError } from "../api/client";
+import { postTvapiAnalyzeChart, postTvapiOptimize } from "../api/ai";
 
 interface TvapiOptimizerProps {
   activeSymbol: string;
@@ -153,28 +155,22 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
     setSetPipelineLog([]);
 
     try {
-      const response = await fetch("/api/tvapi/optimize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          strategy,
-          symbol,
-          timeframe,
-          minTrades,
-          primaryObjective,
-          secondaryObjective,
-          parameters: strategy === "smc" ? smcParams : {}
-        })
+      const data = await postTvapiOptimize({
+        strategy,
+        symbol,
+        timeframe,
+        minTrades,
+        primaryObjective,
+        secondaryObjective,
+        parameters: strategy === "smc" ? smcParams : {},
       });
-
-      const data = await response.json();
       if (data.success) {
         setOptimizationResult(data);
       } else {
         console.error("Optimization failed:", data.error);
       }
     } catch (err) {
-      console.error("Error optimizing strategy:", err);
+      console.error("Error optimizing strategy:", err instanceof ApiError ? err.message : err);
     } finally {
       setIsOptimizing(false);
     }
@@ -454,7 +450,7 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
     // Header Title
     ctx.fillStyle = "#f1f5f9";
     ctx.font = "bold 13px 'JetBrains Mono', monospace";
-    ctx.fillText(`BINANCE:${sym}T, ${tf} - LIVE CHART FEED [SMC OPTIMIZED]`, 20, 30);
+    ctx.fillText(`PREVIEW:${sym}T, ${tf} - DETERMINISTIC CANVAS (NOT LIVE FEED)`, 20, 30);
 
     // Technical Indicator Legends
     ctx.fillStyle = "#38bdf8"; // Light Blue
@@ -513,12 +509,13 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
     for (let i = 0; i < count; i++) {
       const x = startX + i * spacing;
       const open = currentClose;
-      const change = (Math.random() - 0.48) * 35; // Slight bullish bias
+      // Deterministic preview candles (not a live exchange feed).
+      const change = (Math.sin(i * 0.7) * 0.5 + 0.05) * 35;
       const close = open - change;
       currentClose = close;
 
-      const high = Math.min(open, close) - Math.random() * 15;
-      const low = Math.max(open, close) + Math.random() * 15;
+      const high = Math.min(open, close) - Math.abs(Math.cos(i * 0.9)) * 15;
+      const low = Math.max(open, close) + Math.abs(Math.sin(i * 1.1)) * 15;
 
       const isGreen = close < open; // Canvas Y coordinate is inverted: smaller value is higher price!
       ctx.strokeStyle = isGreen ? "#10b981" : "#ef4444";
@@ -567,24 +564,20 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
     setVisionAnalysisResult(null);
 
     try {
-      const response = await fetch("/api/tvapi/analyze-chart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          image: imgToUse,
-          mimeType: overrideImage ? "image/png" : visionMimeType,
-          promptMode: visionMode
-        })
+      const data = await postTvapiAnalyzeChart({
+        image: imgToUse,
+        mimeType: overrideImage ? "image/png" : visionMimeType,
+        promptMode: visionMode,
       });
-
-      const data = await response.json();
       if (data.success) {
-        setVisionAnalysisResult(data.analysis);
+        setVisionAnalysisResult(data.analysis ?? "");
       } else {
         setVisionAnalysisResult(`⚠️ Error: ${data.error || "Failed to analyze chart screenshot"}`);
       }
-    } catch (err: any) {
-      setVisionAnalysisResult(`⚠️ Error: ${err.message || "Failed to connect to chart analyzer endpoint"}`);
+    } catch (err: unknown) {
+      const message =
+        err instanceof ApiError ? `${err.code}: ${err.message}` : err instanceof Error ? err.message : "Failed to connect";
+      setVisionAnalysisResult(`⚠️ Error: ${message}`);
     } finally {
       setIsVisionAnalyzing(false);
     }
