@@ -115,6 +115,32 @@ export async function fetchCryptoTickers(symbols: string[] = Object.keys(SYMBOL_
   return {tickers: itemsToTickers(body, "crypto"), asOf: body.as_of};
 }
 
+export type OrderBookLevel = {
+  price: number;
+  volume: number;
+};
+
+export type OrderBookResponse = {
+  pair: string;
+  bids: OrderBookLevel[];
+  asks: OrderBookLevel[];
+  source: string;
+  as_of: string;
+  request_id: string;
+};
+
+export function symbolToPair(symbol: string): string {
+  const upper = symbol.trim().toUpperCase();
+  return SYMBOL_TO_PAIR[upper] ?? (upper.endsWith("USD") ? upper : `${upper}USD`);
+}
+
+export async function fetchOrderBook(symbolOrPair: string, count = 12): Promise<OrderBookResponse> {
+  const pair = symbolToPair(symbolOrPair);
+  return apiRequest<OrderBookResponse>(
+    `/api/v1/market/orderbook/${encodeURIComponent(pair)}?count=${encodeURIComponent(String(count))}`,
+  );
+}
+
 /** Alpha Vantage GLOBAL_QUOTE batch for equities (use ~hourly to respect rate limits). */
 export async function fetchEquityTickers(symbols: string[] = ["NIO"]): Promise<{
   tickers: TickerData[];

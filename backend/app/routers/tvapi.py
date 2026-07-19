@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends
 
 from ..auth import require_user
 from ..integrations.gemini_client import AiNotConfigured, GeminiClient
-from ..integrations.tvapi_optimizer import run_deterministic_optimize
-from ..schemas_ai import TvapiAnalyzeChartRequest, TvapiOptimizeRequest
+from ..integrations.tvapi_optimizer import list_chart_strategies, run_deterministic_optimize
+from ..schemas_ai import TvapiAnalyzeChartRequest, TvapiChartStrategiesRequest, TvapiOptimizeRequest
 from ..settings import get_settings
 
 router = APIRouter(tags=["tvapi"])
@@ -31,6 +31,16 @@ async def tvapi_optimize(payload: TvapiOptimizeRequest, _user: dict = Depends(re
     return result
 
 
+@router.post("/api/tvapi/chart-strategies")
+async def tvapi_chart_strategies(
+    payload: TvapiChartStrategiesRequest, _user: dict = Depends(require_user)
+) -> dict[str, Any]:
+    settings = get_settings()
+    if not settings.tvapi_enabled:
+        return {"success": False, "error": "TVAPI is disabled (TVAPI_ENABLED=false)", "strategies": []}
+    return list_chart_strategies(payload.symbol)
+
+
 @router.post("/api/tvapi/analyze-chart")
 async def tvapi_analyze_chart(
     payload: TvapiAnalyzeChartRequest, _user: dict = Depends(require_user)
@@ -40,7 +50,17 @@ async def tvapi_analyze_chart(
         return {"success": False, "error": "TVAPI is disabled (TVAPI_ENABLED=false)"}
     mode = payload.promptMode
     prompt = (
-        "Analyze this trading chart for SMC structure, liquidity sweeps, and bias."
+        (
+            "You are a BLINDFolded candlestick pattern analyst. "
+            "Ignore and do NOT mention ticker/symbol names, exchange labels, timeframes, axis numbers, "
+            "dollar/price levels, or numeric indicator values. "
+            "Focus ONLY on candle geometry and classic patterns "
+            "(Hammer, Inverted Hammer, Hanging Man, Shooting Star, Dragonfly/Gravestone Doji, Doji, "
+            "Bullish/Bearish Engulfing, Piercing Line, Dark Cloud Cover, Harami, Inside Bar, "
+            "Morning/Evening Star, Three White Soldiers, Three Black Crows, Marubozu, Flags/Wedges as pure shape). "
+            "Output: pattern name(s), bias (bullish/bearish/neutral), confidence 0-100, "
+            "and one sentence on geometry confluence. No prices. No symbol. No timeframe."
+        )
         if mode == "pattern"
         else "Review this backtest chart and summarize edge quality, drawdown, and overfitting risk."
     )

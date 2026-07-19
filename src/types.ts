@@ -1,4 +1,4 @@
-export type MainTab = "dashboard" | "terminal" | "strategy" | "swarm" | "signals" | "full";
+export type MainTab = "dashboard" | "terminal" | "strategy" | "swarm" | "signals" | "academy" | "full";
 
 export interface TickerData {
   symbol: string;

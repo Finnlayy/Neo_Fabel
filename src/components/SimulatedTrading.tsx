@@ -1,7 +1,8 @@
-import {FormEvent, useMemo, useState} from "react";
-import {AlertTriangle, CheckCircle2, Play, ShieldCheck} from "lucide-react";
+import {FormEvent, useEffect, useMemo, useState} from "react";
+import {AlertTriangle, CheckCircle2, Play, RefreshCw, ShieldCheck} from "lucide-react";
 import {TickerData, Trade} from "../types";
 import {ApiError, apiRequest} from "../api/client";
+import {fetchOrderBook, type OrderBookLevel, type OrderBookResponse} from "../api/market";
 
 interface SimulatedTradingProps {
   tickers: TickerData[];
@@ -12,17 +13,58 @@ interface SimulatedTradingProps {
 
 type PaperOrderResponse = {result: Record<string, unknown>};
 
+function formatPrice(value: number): string {
+  if (value >= 1000) return value.toLocaleString(undefined, {maximumFractionDigits: 2});
+  if (value >= 1) return value.toLocaleString(undefined, {maximumFractionDigits: 4});
+  return value.toLocaleString(undefined, {maximumFractionDigits: 6});
+}
+
+function formatVolume(value: number): string {
+  if (value >= 100) return value.toLocaleString(undefined, {maximumFractionDigits: 2});
+  return value.toLocaleString(undefined, {maximumFractionDigits: 5});
+}
+
+function DepthRows({
+  levels,
+  side,
+  maxVolume,
+}: {
+  levels: OrderBookLevel[];
+  side: "bid" | "ask";
+  maxVolume: number;
+}) {
+  const barColor = side === "bid" ? "bg-emerald-500/20" : "bg-rose-500/20";
+  const textColor = side === "bid" ? "text-emerald-300" : "text-rose-300";
+  return (
+    <div className="space-y-0.5">
+      {levels.map((level) => {
+        const width = maxVolume > 0 ? Math.max(4, Math.round((level.volume / maxVolume) * 100)) : 0;
+        return (
+          <div key={`${side}-${level.price}`} className="relative grid grid-cols-2 gap-2 px-1.5 py-0.5 text-[10px]">
+            <div className={`absolute inset-y-0 ${side === "bid" ? "right-0" : "left-0"} ${barColor}`} style={{width: `${width}%`}} />
+            <span className={`relative z-[1] font-semibold ${textColor}`}>{formatPrice(level.price)}</span>
+            <span className="relative z-[1] text-right text-slate-300">{formatVolume(level.volume)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function SimulatedTrading({
   tickers,
   onExecuteTrade,
   isComplianceActive: _isComplianceActive,
-  tradingExchange,
+  tradingExchange: _tradingExchange,
 }: SimulatedTradingProps) {
   const [selectedAsset, setSelectedAsset] = useState(tickers[0]?.symbol ?? "BTC");
   const [tradeType, setTradeType] = useState<"BUY" | "SELL">("BUY");
   const [amount, setAmount] = useState("0.001");
   const [status, setStatus] = useState<"idle" | "submitting" | "accepted" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [orderBook, setOrderBook] = useState<OrderBookResponse | null>(null);
+  const [bookStatus, setBookStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [bookError, setBookError] = useState("");
 
   const activeTicker = useMemo(
     () => tickers.find((ticker) => ticker.symbol === selectedAsset),
@@ -30,6 +72,58 @@ export default function SimulatedTrading({
   );
   const activePrice = activeTicker?.price ?? 0;
   const canSubmit = status !== "submitting" && Boolean(activeTicker) && Number(amount) > 0;
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    setOrderBook(null);
+    setBookStatus("loading");
+    setBookError("");
+
+    const load = async () => {
+      try {
+        const data = await fetchOrderBook(selectedAsset, 12);
+        if (cancelled) return;
+        setOrderBook(data);
+        setBookStatus("ready");
+        setBookError("");
+      } catch (error) {
+        if (cancelled) return;
+        setOrderBook(null);
+        setBookStatus("error");
+        setBookError(error instanceof ApiError ? `${error.code}: ${error.message}` : "Order book unavailable");
+      } finally {
+        if (!cancelled) {
+          timer = setTimeout(load, 5000);
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [selectedAsset]);
+
+  const maxVolume = useMemo(() => {
+    if (!orderBook) return 0;
+    return Math.max(
+      0,
+      ...orderBook.bids.map((level) => level.volume),
+      ...orderBook.asks.map((level) => level.volume),
+    );
+  }, [orderBook]);
+
+  const askRows = useMemo(
+    () => (orderBook?.asks ?? []).slice(0, 8).reverse(),
+    [orderBook],
+  );
+  const bidRows = useMemo(() => (orderBook?.bids ?? []).slice(0, 8), [orderBook]);
+  const bestBid = orderBook?.bids[0]?.price;
+  const bestAsk = orderBook?.asks[0]?.price;
+  const spread =
+    bestBid != null && bestAsk != null && bestAsk > 0 ? ((bestAsk - bestBid) / bestAsk) * 100 : null;
 
   const handleOrderSubmission = async (event: FormEvent) => {
     event.preventDefault();
@@ -115,11 +209,46 @@ export default function SimulatedTrading({
       <div className="bg-slate-900/40 border border-white/5 rounded-xl p-5">
         <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
           <span className="text-white font-bold uppercase tracking-wider text-[11px]">Order book</span>
-          <span className="text-[9px] text-slate-500 uppercase">Backend data required</span>
+          <span className="text-[9px] text-slate-500 uppercase flex items-center gap-1.5">
+            {bookStatus === "loading" && <RefreshCw className="w-3 h-3 animate-spin" />}
+            {orderBook?.source ?? "Backend data required"}
+          </span>
         </div>
-        <div className="h-52 flex items-center justify-center text-center text-slate-500 border border-dashed border-white/10 rounded">
-          No order-book snapshot is available. The UI will not display fabricated depth data.
-        </div>
+
+        {bookStatus === "error" || (!orderBook && bookStatus !== "loading") ? (
+          <div className="h-52 flex items-center justify-center text-center text-slate-500 border border-dashed border-white/10 rounded px-4">
+            {bookError || "No order-book snapshot is available. The UI will not display fabricated depth data."}
+          </div>
+        ) : bookStatus === "loading" && !orderBook ? (
+          <div className="h-52 flex items-center justify-center text-center text-slate-500 border border-dashed border-white/10 rounded gap-2">
+            <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+            Loading live depth…
+          </div>
+        ) : orderBook && (bidRows.length > 0 || askRows.length > 0) ? (
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2 text-[9px] uppercase tracking-wider text-slate-500 px-1.5">
+              <span>Price</span>
+              <span className="text-right">Size</span>
+            </div>
+            <DepthRows levels={askRows} side="ask" maxVolume={maxVolume} />
+            <div className="border border-white/5 bg-slate-950/70 rounded-sm px-2 py-1.5 flex items-center justify-between text-[10px]">
+              <span className="text-slate-400">
+                Mid {bestBid != null && bestAsk != null ? formatPrice((bestBid + bestAsk) / 2) : "—"}
+              </span>
+              <span className="text-cyan-300">
+                Spread {spread != null ? `${spread.toFixed(3)}%` : "—"}
+              </span>
+            </div>
+            <DepthRows levels={bidRows} side="bid" maxVolume={maxVolume} />
+            <div className="text-[9px] text-slate-600 text-right uppercase tracking-wider">
+              {orderBook.pair} · refreshed {new Date(orderBook.as_of).toLocaleTimeString()}
+            </div>
+          </div>
+        ) : (
+          <div className="h-52 flex items-center justify-center text-center text-slate-500 border border-dashed border-white/10 rounded px-4">
+            Order book returned empty bids/asks for {selectedAsset}.
+          </div>
+        )}
       </div>
     </div>
   );

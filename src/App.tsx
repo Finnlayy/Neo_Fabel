@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { TickerData, Trade, SubAgentState, GenerativePlan, MainTab } from "./types";
 import SignalRoutesPage from "./features/signalRoutes/SignalRoutesPage";
+import AcademyPage from "./features/academy/AcademyPage";
 import AuthPanel from "./auth/AuthPanel";
-import { fetchCryptoTickers, fetchEquityTickers, upsertTickerHistory } from "./api/market";
+import { fetchCryptoTickers, fetchEquityTickers, fetchOrderBook, upsertTickerHistory } from "./api/market";
 import { connectMarketStream } from "./api/marketStream";
 import { fetchAiHealth } from "./api/ai";
 import { fetchReadyStatus, type ReadyStatus } from "./api/health";
 import { fetchPaperStatus, mapPaperStatusToTrades } from "./api/paper";
 import { INITIAL_SUB_AGENTS } from "./data";
+import { closesToBlindCandles, scanBlindPatterns } from "./services/blindPatternScan";
 
 // Components
 import TelegramFeed from "./components/TelegramFeed";
@@ -133,6 +135,8 @@ export default function App() {
   const [tickers, setTickers] = useState<TickerData[]>([]);
   const [marketAsOf, setMarketAsOf] = useState<string | null>(null);
   const [marketLive, setMarketLive] = useState(false);
+  const [marketSource, setMarketSource] = useState<string | null>(null);
+  const [orderBookOnline, setOrderBookOnline] = useState(false);
   const [queueLatencyMs, setQueueLatencyMs] = useState<number | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [subAgents, setSubAgents] = useState<SubAgentState[]>(INITIAL_SUB_AGENTS);
@@ -193,6 +197,68 @@ export default function App() {
   const anomalyLabel = avgAbsChange >= 8 ? (language === "de" ? "Volatilität hoch" : "High volatility") : t("noneDetected");
   const latencyLabel = queueLatencyMs !== null ? `${queueLatencyMs}ms` : "—";
 
+  const agentsActive = subAgents.filter((a) => a.status === "ACTIVE").length;
+  const agentsOptimizing = subAgents.filter((a) => a.status === "OPTIMIZING").length;
+  const agentsAlert = subAgents.filter((a) => a.status === "ALERT").length;
+  const rnaBlindSummary =
+    subAgents.find((a) => a.id === "rna_smart")?.lastAction ??
+    (language === "de" ? "Blind-Scan idle" : "Blind scan idle");
+  const osTelemetryRows = [
+    {
+      label: language === "de" ? "Markt" : "Market",
+      value: marketLive
+        ? `LIVE · ${marketSource ?? "stream"} · ${tickers.length} tkr`
+        : language === "de"
+          ? "STALE / kein Stream"
+          : "STALE / no stream",
+      tone: marketLive ? "text-emerald-400" : "text-amber-400",
+    },
+    {
+      label: language === "de" ? "Orderbuch" : "Depth",
+      value: orderBookOnline
+        ? language === "de"
+          ? "ONLINE"
+          : "ONLINE"
+        : language === "de"
+          ? "OFFLINE"
+          : "OFFLINE",
+      tone: orderBookOnline ? "text-emerald-400" : "text-slate-500",
+    },
+    {
+      label: "AI",
+      value: aiStatusLabel,
+      tone: aiStatusLabel.includes("OFFLINE") ? "text-rose-400" : "text-cyan-400",
+    },
+    {
+      label: language === "de" ? "Ausführung" : "Exec",
+      value: `${readyStatus?.execution ?? "unknown"} · L${readyStatus?.autonomy_level ?? "—"}`,
+      tone: "text-slate-300",
+    },
+    {
+      label: language === "de" ? "Agenten" : "Agents",
+      value: `${agentsActive}/${subAgents.length} ACTIVE${agentsOptimizing ? ` · ${agentsOptimizing} OPT` : ""}${agentsAlert ? ` · ${agentsAlert} ALERT` : ""}`,
+      tone: agentsAlert ? "text-rose-400" : agentsOptimizing ? "text-amber-400" : "text-emerald-400",
+    },
+    {
+      label: language === "de" ? "Compliance" : "Compliance",
+      value: isComplianceActive
+        ? language === "de"
+          ? "ON · Paper only"
+          : "ON · paper only"
+        : language === "de"
+          ? "OFF"
+          : "OFF",
+      tone: isComplianceActive ? "text-rose-300" : "text-amber-400",
+    },
+  ] as const;
+  const osFooter = activePlan
+    ? language === "de"
+      ? `Aktive Direktive: "${activePlan.planTitle}" · ${allocation.length} Allokations-Knoten · ${trades.length} Paper-Rows.`
+      : `Active directive: "${activePlan.planTitle}" · ${allocation.length} alloc nodes · ${trades.length} paper rows.`
+    : language === "de"
+      ? `Kein Custom-Plan · Standard-Schwarm · RNA: ${rnaBlindSummary}`
+      : `No custom plan · default swarm · RNA: ${rnaBlindSummary}`;
+
   // Clock tick
   useEffect(() => {
     const timer = setInterval(() => {
@@ -221,9 +287,11 @@ export default function App() {
         setTickers((prev) => upsertTickerHistory(prev, live));
         setMarketAsOf(asOf);
         setMarketLive(true);
+        setMarketSource("http-batch");
       } catch {
         if (!cancelled && !streamHealthy) {
           setMarketLive(false);
+          setMarketSource(null);
           setQueueLatencyMs(Math.round(performance.now() - started));
         }
       }
@@ -236,6 +304,7 @@ export default function App() {
         setTickers((prev) => upsertTickerHistory(prev, live));
         setMarketAsOf(asOf);
         setMarketLive(true);
+        setMarketSource(source || "websocket");
         setQueueLatencyMs(source.startsWith("ccxt") ? 5 : 15);
         if (pollTimer !== null) {
           clearInterval(pollTimer);
@@ -268,6 +337,230 @@ export default function App() {
       if (pollTimer !== null) clearInterval(pollTimer);
     };
   }, []);
+
+  // Probe order-book depth once market ticks are live (same Kraken public path).
+  useEffect(() => {
+    if (!marketLive) {
+      setOrderBookOnline(false);
+      return;
+    }
+    let cancelled = false;
+    void fetchOrderBook("BTC", 5)
+      .then((book) => {
+        if (cancelled) return;
+        setOrderBookOnline((book.bids?.length ?? 0) > 0 || (book.asks?.length ?? 0) > 0);
+      })
+      .catch(() => {
+        if (!cancelled) setOrderBookOnline(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [marketLive]);
+
+  // Keep sub-agent lastAction tied to live telemetry (not static roster copy).
+  useEffect(() => {
+    const source = marketSource ?? "market";
+    const allocationNodes = allocation.length;
+    const paperRows = trades.length;
+    const execMode = readyStatus?.execution ?? "unknown";
+    const autonomyLevel = readyStatus?.autonomy_level ?? "—";
+    const liveTrading = readyStatus?.live_trading_enabled === true;
+    const focus = tickers.find((t) => t.symbol === activeSymbol);
+    const focusHist = (focus?.history ?? []).filter((n) => n > 0);
+    const topMovers = [...tickers]
+      .filter((t) => t.price > 0)
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+      .slice(0, 3)
+      .map((t) => `${t.symbol} ${t.change >= 0 ? "+" : ""}${t.change.toFixed(1)}%`)
+      .join(", ");
+    const paperPnl = trades.reduce((sum, trade) => sum + (Number.isFinite(trade.pnl) ? trade.pnl : 0), 0);
+
+    setSubAgents((prev) =>
+      prev.map((agent) => {
+        // Don't clobber in-flight plan injection / adaptive calibrate animations.
+        if (agent.status === "OPTIMIZING") return agent;
+
+        if (agent.id === "market_data") {
+          if (!marketLive) {
+            return {
+              ...agent,
+              lastAction:
+                language === "de"
+                  ? "Warte auf CCXT/WebSocket-Marktstream."
+                  : "Waiting for CCXT/WebSocket market stream.",
+            };
+          }
+          const depthEn = orderBookOnline
+            ? " Order-book depth online."
+            : " Probing order-book depth…";
+          const depthDe = orderBookOnline
+            ? " Orderbuch-Tiefe online."
+            : " Orderbuch wird geprüft…";
+          return {
+            ...agent,
+            status: agent.status === "STANDBY" ? "ACTIVE" : agent.status,
+            lastAction:
+              language === "de"
+                ? `${tickers.length} Live-Ticker über ${source}.${depthDe}`
+                : `Streaming ${tickers.length} live tickers via ${source}.${depthEn}`,
+          };
+        }
+
+        if (agent.id === "orchestrator") {
+          if (!marketLive && !activePlan) {
+            return {
+              ...agent,
+              lastAction:
+                language === "de"
+                  ? "Warte auf Live-Markt und Allokations-Sync."
+                  : "Awaiting live market + allocation sync.",
+            };
+          }
+
+          if (activePlan) {
+            return {
+              ...agent,
+              status: agent.status === "STANDBY" ? "ACTIVE" : agent.status,
+              lastAction:
+                language === "de"
+                  ? `Plan "${activePlan.planTitle}" auf ${allocationNodes || "—"} Knoten · Markt ${marketLive ? "LIVE" : "STALE"} · ${aiStatusLabel} · ${paperRows} Paper-Rows · ${execMode}.`
+                  : `Synced "${activePlan.planTitle}" across ${allocationNodes || "—"} nodes · market ${marketLive ? "LIVE" : "STALE"} · ${aiStatusLabel} · ${paperRows} paper rows · ${execMode}.`,
+            };
+          }
+
+          return {
+            ...agent,
+            status: agent.status === "STANDBY" ? "ACTIVE" : agent.status,
+            lastAction:
+              language === "de"
+                ? `Standard-Orchestrierung aktiv · ${tickers.length} Ticker via ${source}${orderBookOnline ? " · Orderbuch online" : ""} · ${aiStatusLabel} · ${paperRows} Paper-Rows.`
+                : `Coordinating default swarm · ${tickers.length} tickers via ${source}${orderBookOnline ? " · order book online" : ""} · ${aiStatusLabel} · ${paperRows} paper rows.`,
+          };
+        }
+
+        if (agent.id === "rna_smart") {
+          // Blindfold: feed only relative candle geometry — never symbol / TF / absolute prices in output.
+          const closes = focusHist.length >= 2 ? focusHist : focus && focus.price > 0 ? [focus.price] : [];
+          const blind = scanBlindPatterns(closesToBlindCandles(closes));
+          if (blind.candleCount < 2) {
+            return {
+              ...agent,
+              lastAction:
+                language === "de"
+                  ? "Blind-Pattern-Scan idle — warte auf relative Kerzen-Geometrie (ohne Symbol/TF/Preis)."
+                  : "Blind pattern scan idle — awaiting relative candle geometry (no symbol/TF/price).",
+            };
+          }
+          const deSummary = blind.hits.length
+            ? `Blind-Pattern-Scan · ${blind.hits
+                .slice(0, 3)
+                .map((h) => `${h.name} (${h.bias}, ${h.confidence}%)`)
+                .join(" · ")} · kein Symbol/TF/Preis-Kontext.`
+            : `Blind-Pattern-Scan · ${blind.candleCount} relative Kerzen · kein Katalog-Treffer (nur Geometrie).`;
+          return {
+            ...agent,
+            status: "ACTIVE",
+            lastAction: language === "de" ? deSummary : blind.summary,
+          };
+        }
+
+        if (agent.id === "adaptive") {
+          return {
+            ...agent,
+            status: marketLive ? "ACTIVE" : agent.status,
+            lastAction:
+              language === "de"
+                ? marketLive
+                  ? `Sizing-Korridor folgt Live-Tape (${source}) · Fokus ${activeSymbol}${focus ? ` Δ ${focus.change >= 0 ? "+" : ""}${focus.change.toFixed(2)}%` : ""}.`
+                  : "Warte auf Live-Tape für Sizing-Neukalibrierung."
+                : marketLive
+                  ? `Sizing corridor tracking live tape (${source}) · focus ${activeSymbol}${focus ? ` Δ ${focus.change >= 0 ? "+" : ""}${focus.change.toFixed(2)}%` : ""}.`
+                  : "Awaiting live tape for sizing recalibration.",
+          };
+        }
+
+        if (agent.id === "risk_gov") {
+          return {
+            ...agent,
+            status: "ACTIVE",
+            lastAction:
+              language === "de"
+                ? `Compliance ${isComplianceActive ? "ON" : "OFF"} · Ausführung ${execMode} · Paper-Rows ${paperRows}.`
+                : `Compliance guard ${isComplianceActive ? "ON" : "OFF"} · execution ${execMode} · ${paperRows} paper rows.`,
+          };
+        }
+
+        if (agent.id === "kraken_broker") {
+          const pending = trades.filter((t) => t.status === "PENDING").length;
+          const completed = trades.filter((t) => t.status === "COMPLETED").length;
+          const liveGate = liveTrading ? "LIVE GATE ON" : "PAPER ONLY";
+          const liveGateDe = liveTrading ? "LIVE-GATE AN" : "NUR PAPER";
+          return {
+            ...agent,
+            status: paperRows > 0 || execMode !== "unknown" ? "ACTIVE" : agent.status,
+            lastAction:
+              language === "de"
+                ? `Kraken-Broker · ${execMode} · L${autonomyLevel} · ${liveGateDe} · ${completed} Fills / ${pending} pending · ${paperRows} Rows.`
+                : `Kraken broker · ${execMode} · L${autonomyLevel} · ${liveGate} · ${completed} fills / ${pending} pending · ${paperRows} rows.`,
+          };
+        }
+
+        if (agent.id === "predictive") {
+          if (!marketLive || !topMovers) {
+            return {
+              ...agent,
+              status: "STANDBY",
+              lastAction:
+                language === "de"
+                  ? "Warte auf Live-Mover für Vektor-Refresh."
+                  : "Awaiting live movers for vector refresh.",
+            };
+          }
+          return {
+            ...agent,
+            status: "ACTIVE",
+            lastAction:
+              language === "de"
+                ? `Top-Mover: ${topMovers} · Fokus ${activeSymbol}/USD.`
+                : `Top movers: ${topMovers} · focus ${activeSymbol}/USD.`,
+          };
+        }
+
+        if (agent.id === "analytic") {
+          return {
+            ...agent,
+            status: paperRows > 0 ? "ACTIVE" : agent.status,
+            lastAction:
+              language === "de"
+                ? paperRows > 0
+                  ? `Paper-Ledger ${paperRows} Rows · Σ PnL ${paperPnl.toFixed(2)} · ${aiStatusLabel}.`
+                  : "Warte auf Paper-Ledger-Rows für Analyse."
+                : paperRows > 0
+                  ? `Paper ledger ${paperRows} rows · Σ PnL ${paperPnl.toFixed(2)} · ${aiStatusLabel}.`
+                  : "Awaiting paper ledger rows for analysis.",
+          };
+        }
+
+        return agent;
+      }),
+    );
+  }, [
+    marketLive,
+    marketSource,
+    orderBookOnline,
+    tickers,
+    language,
+    activePlan,
+    allocation.length,
+    trades,
+    aiStatusLabel,
+    readyStatus?.execution,
+    readyStatus?.autonomy_level,
+    readyStatus?.live_trading_enabled,
+    activeSymbol,
+    isComplianceActive,
+  ]);
 
   // Alpha Vantage equity batch for risk heatmap — once per hour (rate-limit friendly).
   useEffect(() => {
@@ -353,6 +646,20 @@ export default function App() {
       status: "PENDING",
     };
     setTrades((prev) => [...prev, freshTrade]);
+    setSubAgents((prev) =>
+      prev.map((agent) =>
+        agent.id === "kraken_broker"
+          ? {
+              ...agent,
+              status: "OPTIMIZING",
+              lastAction:
+                language === "de"
+                  ? `Kraken-Broker · Paper-Order ${freshTrade.type} ${freshTrade.asset} @ ${freshTrade.price} eingereiht.`
+                  : `Kraken broker · queued paper ${freshTrade.type} ${freshTrade.asset} @ ${freshTrade.price}.`,
+            }
+          : agent,
+      ),
+    );
   };
 
   // Handle Deployment of Gemini-Generated Trading Plan
@@ -779,9 +1086,9 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Strategy Guidelines Summary Panel */}
+                  {/* OS telemetry — live backend/agent state, not marketing copy */}
                   <div className="bg-slate-900/40 border border-white/5 rounded-xl p-5 glow-rose flex flex-col justify-between h-56 transition-all duration-300 hover:border-white/10 hover:bg-slate-900/60">
-                    <div className="space-y-3">
+                    <div className="space-y-2.5 min-h-0">
                       <div className="flex items-center justify-between border-b border-white/10 pb-2">
                         <span className="text-purple-400 font-bold uppercase tracking-wider text-[11px]">
                           {t("systemOverview")}
@@ -790,21 +1097,19 @@ export default function App() {
                           {language === "de" ? "OS TELEMETRIE" : "OS TELEMETRY"}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-400 leading-relaxed">
-                        {t("systemOverviewDesc")}
-                      </p>
+                      <div className="space-y-1 text-[9px] font-mono overflow-y-auto max-h-[7.5rem] pr-1">
+                        {osTelemetryRows.map((row) => (
+                          <div key={row.label} className="flex justify-between gap-2 border-b border-white/5 pb-0.5">
+                            <span className="text-slate-500 uppercase shrink-0">{row.label}</span>
+                            <span className={`text-right truncate ${row.tone}`}>{row.value}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
-                    <div className="pt-2 bg-slate-950/40 border border-white/5 p-2.5 rounded-lg text-[9px] text-slate-300 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-purple-400 shrink-0 animate-pulse" />
-                      <span>
-                        {activePlan 
-                          ? (language === "de" 
-                              ? `Aktive Direktive: "${activePlan.planTitle}" ist auf allen Sub-Knoten initialisiert.` 
-                              : `Active directive: "${activePlan.planTitle}" is fully initialized across active sub-nodes.`)
-                          : t("standardAutomated")
-                        }
-                      </span>
+                    <div className="pt-2 bg-slate-950/40 border border-white/5 p-2.5 rounded-lg text-[9px] text-slate-300 flex items-start gap-2">
+                      <Sparkles className={`w-4 h-4 text-purple-400 shrink-0 mt-0.5 ${activePlan || agentsOptimizing ? "animate-pulse" : ""}`} />
+                      <span className="leading-relaxed line-clamp-3">{osFooter}</span>
                     </div>
                   </div>
                 </div>
@@ -1012,6 +1317,12 @@ export default function App() {
               </div>
             )}
 
+            {activeTab === "academy" && (
+              <div role="tabpanel" aria-labelledby="tab-academy" className="space-y-4">
+                <AcademyPage />
+              </div>
+            )}
+
             {activeTab === "swarm" && (
               <>
                 {/* Master Control and Signal Dial Row - Bento Styled */}
@@ -1105,9 +1416,8 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Strategy Guidelines Summary Panel */}
                   <div className="bg-slate-900/40 border border-white/5 rounded-xl p-5 glow-rose flex flex-col justify-between h-56 transition-all duration-300 hover:border-white/10 hover:bg-slate-900/60">
-                    <div className="space-y-3">
+                    <div className="space-y-2.5 min-h-0">
                       <div className="flex items-center justify-between border-b border-white/10 pb-2">
                         <span className="text-purple-400 font-bold uppercase tracking-wider text-[11px]">
                           OS SYSTEM OVERVIEW
@@ -1116,19 +1426,19 @@ export default function App() {
                           OS TELEMETRY
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-400 leading-relaxed">
-                        Tactical execution aligns directly with user directives. Leverage the "Generative Goal Planning" below to override configurations and deploy custom-tailored multi-agent rules!
-                      </p>
+                      <div className="space-y-1 text-[9px] font-mono overflow-y-auto max-h-[7.5rem] pr-1">
+                        {osTelemetryRows.map((row) => (
+                          <div key={row.label} className="flex justify-between gap-2 border-b border-white/5 pb-0.5">
+                            <span className="text-slate-500 uppercase shrink-0">{row.label}</span>
+                            <span className={`text-right truncate ${row.tone}`}>{row.value}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
-                    <div className="pt-2 bg-slate-950/40 border border-white/5 p-2.5 rounded-lg text-[9px] text-slate-300 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-purple-400 shrink-0 animate-pulse" />
-                      <span>
-                        {activePlan 
-                          ? `Active directive: "${activePlan.planTitle}" is fully initialized across active sub-nodes.`
-                          : "Standard automated market-scanning strategy active. All core sub-agent nodes green."
-                        }
-                      </span>
+                    <div className="pt-2 bg-slate-950/40 border border-white/5 p-2.5 rounded-lg text-[9px] text-slate-300 flex items-start gap-2">
+                      <Sparkles className={`w-4 h-4 text-purple-400 shrink-0 mt-0.5 ${activePlan || agentsOptimizing ? "animate-pulse" : ""}`} />
+                      <span className="leading-relaxed line-clamp-3">{osFooter}</span>
                     </div>
                   </div>
                 </div>

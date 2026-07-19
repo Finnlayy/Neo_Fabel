@@ -89,6 +89,10 @@ class KrakenCli:
     async def ticker(self, pair: str) -> dict[str, Any]:
         return await self._run(["ticker", self._pair(pair)])
 
+    async def orderbook(self, pair: str, *, count: int = 25) -> dict[str, Any]:
+        depth = max(1, min(int(count), 100))
+        return await self._run(["orderbook", self._pair(pair), "--count", str(depth)])
+
     async def pairs(self, pair: str) -> dict[str, Any]:
         return await self._run(["pairs", "--pair", self._pair(pair)])
 

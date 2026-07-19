@@ -1,21 +1,36 @@
 import {apiRequest} from "./client";
-import type {GenerativePlan, Trade} from "../types";
+import {tradesForAnalyzeWire} from "./chatWire";
+import type {AgentStatusPacket, GenerativePlan, Trade} from "../types";
 
 export type AiHealth = {
   configured: boolean;
-  provider: "gemini" | "none" | string;
+  provider: "gemini" | "openrouter" | "groq" | "cerebras" | "aiprimetech" | "none" | string;
+  providers?: string[];
+  provider_order?: string[];
+  active_chain?: string[];
   deterministic_fallback?: boolean;
   chat_enabled?: boolean;
+  rotate?: boolean;
 };
 
 export type ChatMessage = {role: "user" | "assistant" | "system"; content: string};
+
+export type ChatContextMeta = {
+  input_messages?: number;
+  input_chars?: number;
+  sent_messages?: number;
+  sent_chars?: number;
+  trimmed?: boolean;
+};
 
 export type ChatResponse = {
   success: boolean;
   reply?: string;
   modelUsed?: string;
   routeLabel?: string;
+  provider?: string;
   citations?: {title: string; uri: string}[];
+  context?: ChatContextMeta;
   error?: string;
 };
 
@@ -27,21 +42,27 @@ export async function postChat(body: {
   messages: ChatMessage[];
   modelSelection: "auto" | "pro-preview" | "flash" | "flash-lite";
   enableSearch: boolean;
+  mode?: "assistant" | "orchestrator";
+  agentStatusPackets?: AgentStatusPacket[];
 }): Promise<ChatResponse> {
   return apiRequest<ChatResponse>("/api/chat", {method: "POST", body: JSON.stringify(body)});
 }
 
-export async function postOrchestrate(prompt: string): Promise<GenerativePlan> {
+export async function postOrchestrate(
+  prompt: string,
+  agentStatusPackets: AgentStatusPacket[] = [],
+): Promise<GenerativePlan> {
   return apiRequest<GenerativePlan>("/api/gemini/orchestrate", {
     method: "POST",
-    body: JSON.stringify({prompt}),
+    body: JSON.stringify({prompt, agentStatusPackets}),
   });
 }
 
 export async function postAnalyzeTrades(trades: Trade[]): Promise<{analysis?: string; error?: string}> {
   return apiRequest<{analysis?: string; error?: string}>("/api/gemini/analyze-trades", {
     method: "POST",
-    body: JSON.stringify({trades}),
+    // Wire budget: last ~25 trades only (server also caps).
+    body: JSON.stringify({trades: tradesForAnalyzeWire(trades)}),
   });
 }
 
@@ -53,6 +74,9 @@ export type TvapiOptimizePayload = {
   primaryObjective: string;
   secondaryObjective: string;
   parameters: Record<string, unknown>;
+  scriptId?: string;
+  pineName?: string;
+  pineSource?: string;
 };
 
 export type TvapiOptimizeResult = {
@@ -69,6 +93,32 @@ export async function postTvapiOptimize(payload: TvapiOptimizePayload): Promise<
   return apiRequest<TvapiOptimizeResult>("/api/tvapi/optimize", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export type ChartStrategy = {
+  id: string;
+  name: string;
+  kind: string;
+  pane?: string;
+  inputs?: Record<string, unknown>;
+  origin?: string;
+  hasSource?: boolean;
+};
+
+export async function fetchChartStrategies(symbol: string): Promise<{
+  success: boolean;
+  symbol?: string;
+  strategies: ChartStrategy[];
+  source?: string;
+  note?: string;
+  error?: string;
+  tvremixConfigured?: boolean;
+  tvremixCount?: number;
+}> {
+  return apiRequest("/api/tvapi/chart-strategies", {
+    method: "POST",
+    body: JSON.stringify({symbol, includeProbe: true}),
   });
 }
 

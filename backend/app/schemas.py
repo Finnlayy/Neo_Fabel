@@ -15,6 +15,20 @@ class TickerResponse(BaseModel):
     request_id: str
 
 
+class OrderBookLevel(BaseModel):
+    price: float
+    volume: float
+
+
+class OrderBookResponse(BaseModel):
+    pair: str
+    bids: list[OrderBookLevel]
+    asks: list[OrderBookLevel]
+    source: str
+    as_of: str
+    request_id: str
+
+
 class MarketBatchItem(BaseModel):
     symbol: str
     asset_class: Literal["crypto", "forex", "sp500"]

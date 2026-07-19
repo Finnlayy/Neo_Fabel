@@ -8,7 +8,7 @@ export const INITIAL_SUB_AGENTS: SubAgentState[] = [
     status: "ACTIVE",
     efficiency: 99.4,
     directive: "Coordinate multi-agent telemetry, verify execution safety, and allocate real-time resources based on composite neural signals.",
-    lastAction: "Synchronized target allocation values with core trading nodes."
+    lastAction: "Awaiting live market + allocation sync."
   },
   {
     id: "market_data",
@@ -21,18 +21,18 @@ export const INITIAL_SUB_AGENTS: SubAgentState[] = [
   {
     id: "adaptive",
     name: "Adaptive Agent",
-    status: "OPTIMIZING",
+    status: "ACTIVE",
     efficiency: 97.5,
     directive: "Continually optimize parameter thresholds, scale leverage ratios dynamically, and balance risk profiles.",
-    lastAction: "Recalibrated position-sizing factor from 1.2x to 1.35x based on volume surge."
+    lastAction: "Awaiting live tape for sizing recalibration."
   },
   {
     id: "rna_smart",
     name: "RNA Smartelligent Agent",
     status: "ACTIVE",
     efficiency: 99.1,
-    directive: "Execute Deep Neural Network model for pattern recognition, real-time fractal detection, and anomaly filtering.",
-    lastAction: "Identified high-probability bullish wedge formation on SOL/USD 15m frame."
+    directive: "Blindfolded candlestick pattern recognition — geometry only; no symbol, timeframe, or absolute prices.",
+    lastAction: "Blind pattern scan idle — awaiting relative candle geometry."
   },
   {
     id: "risk_gov",
@@ -40,7 +40,16 @@ export const INITIAL_SUB_AGENTS: SubAgentState[] = [
     status: "ACTIVE",
     efficiency: 100.0,
     directive: "Enforce hard max drawdowns, audit slippage deviations, verify counterparty margin parameters.",
-    lastAction: "Verified 100% compliance with safe capital deployment limits."
+    lastAction: "Awaiting execution mode + compliance sync."
+  },
+  {
+    id: "kraken_broker",
+    name: "Kraken Broker Execution",
+    status: "ACTIVE",
+    efficiency: 98.2,
+    directive:
+      "Route paper/live orders through the Kraken broker path, enforce autonomy gates, and report fill/reject telemetry.",
+    lastAction: "Awaiting execution mode + paper ledger sync."
   },
   {
     id: "predictive",
@@ -48,7 +57,7 @@ export const INITIAL_SUB_AGENTS: SubAgentState[] = [
     status: "STANDBY",
     efficiency: 96.2,
     directive: "Generate short-term price vectors, estimate volatility corridors, and project liquidations cascades.",
-    lastAction: "Refreshed 1-hour interval predictive vectors for top 5 index assets."
+    lastAction: "Awaiting live movers for vector refresh."
   },
   {
     id: "analytic",
@@ -56,6 +65,6 @@ export const INITIAL_SUB_AGENTS: SubAgentState[] = [
     status: "ACTIVE",
     efficiency: 98.7,
     directive: "Perform multi-asset portfolio optimization, compile performance histories, and evaluate yield curves.",
-    lastAction: "Generated daily execution analysis report; compiled composite profit factor metrics."
+    lastAction: "Awaiting paper ledger rows for analysis."
   }
 ];

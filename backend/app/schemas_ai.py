@@ -39,13 +39,17 @@ class AnalyzeTradesResponse(BaseModel):
 
 
 class TvapiOptimizeRequest(BaseModel):
-    strategy: Literal["smc", "bb_rsi_sl", "trailing"] = "smc"
+    strategy: str = "smc"
     symbol: str = "BTCUSD"
     timeframe: str = "5m"
     minTrades: int = 30
     primaryObjective: str = "profit_factor"
     secondaryObjective: str = "percent_profitable"
     parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class TvapiChartStrategiesRequest(BaseModel):
+    symbol: str = "BTCUSD"
 
 
 class TvapiAnalyzeChartRequest(BaseModel):

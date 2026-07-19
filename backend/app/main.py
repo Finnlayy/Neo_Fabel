@@ -14,17 +14,29 @@ from .database import SessionFactory, get_session
 from .integrations.alpha_vantage import AlphaVantageClient, AlphaVantageError
 from .integrations.ccxt_market import CcxtMarketClient, compact_pair, to_ccxt_symbol
 from .integrations.kraken_cli import KrakenCli, KrakenCliError
-from .integrations.kraken_public import KrakenPublicClient
+from .integrations.kraken_public import KrakenPublicClient, normalize_orderbook_levels
 from .integrations.paper_router import PaperExecutionRouter
 from .market.stream import get_market_stream_hub
 from .paper_orders import PaperOrderService
-from .schemas import MarketBatchItem, MarketBatchResponse, OhlcvBatchResponse, OhlcvItem, PaperOrderRequest, PaperOrderResponse, TickerResponse
+from .schemas import (
+    MarketBatchItem,
+    MarketBatchResponse,
+    OhlcvBatchResponse,
+    OhlcvItem,
+    OrderBookLevel,
+    OrderBookResponse,
+    PaperOrderRequest,
+    PaperOrderResponse,
+    TickerResponse,
+)
 from .settings import get_settings
+from .routers.academy import router as academy_router
 from .routers.ai import router as ai_router
 from .routers.market_stream import router as market_stream_router
 from .routers.telegram import router as telegram_router
 from .routers.tvapi import router as tvapi_router
 from .routers.vector import router as vector_router
+from .academy.training_loop import training_loop
 from .signals.mcp_server import mcp_router
 from .signals.router import router as signal_router
 from .signals.safety import assert_signals_module_imports
@@ -45,9 +57,12 @@ INTRADAY_INTERVALS = {"1min", "5min", "15min", "30min", "60min", "4h"}
 async def lifespan(_app: FastAPI):
     hub = get_market_stream_hub()
     await hub.start()
+    if settings.training_loop_auto_start and settings.training_loop_enabled:
+        await training_loop.start()
     try:
         yield
     finally:
+        training_loop.stop_now()
         await hub.stop()
 
 
@@ -130,6 +145,7 @@ app.include_router(tvapi_router)
 app.include_router(telegram_router)
 app.include_router(vector_router)
 app.include_router(market_stream_router)
+app.include_router(academy_router)
 
 # Fail import-time if signal modules reference live Kraken execution symbols.
 assert_signals_module_imports()
@@ -188,6 +204,30 @@ async def crypto_ticker_data(symbol: str) -> tuple[dict[str, Any], str]:
         return await kraken().ticker(symbol), "kraken-cli"
     except KrakenCliError:
         data = await kraken_public().ticker(symbol)
+        return data, "kraken-public"
+
+
+def _normalize_cli_orderbook(pair: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Normalize CLI orderbook payloads into {pair,bids,asks}."""
+    book = payload
+    if isinstance(payload.get("result"), dict):
+        book = next((value for value in payload["result"].values() if isinstance(value, dict)), payload)
+    bids_raw = book.get("bids") or book.get("Bids") or []
+    asks_raw = book.get("asks") or book.get("Asks") or []
+    return {
+        "pair": pair.strip().upper().replace("/", "").replace("-", ""),
+        "bids": normalize_orderbook_levels(bids_raw, reverse=True),
+        "asks": normalize_orderbook_levels(asks_raw, reverse=False),
+    }
+
+
+async def crypto_orderbook_data(symbol: str, *, count: int = 25) -> tuple[dict[str, Any], str]:
+    """Prefer CLI; fall back to Kraken public Depth (Windows-safe)."""
+    try:
+        raw = await kraken().orderbook(symbol, count=count)
+        return _normalize_cli_orderbook(symbol, raw if isinstance(raw, dict) else {}), "kraken-cli"
+    except KrakenCliError:
+        data = await kraken_public().orderbook(symbol, count=count)
         return data, "kraken-public"
 
 
@@ -274,6 +314,24 @@ async def ticker(pair: str, request: Request) -> TickerResponse:
     except KrakenCliError as exc:
         raise HTTPException(status_code=503, detail={"code": exc.category, "message": str(exc), "request_id": rid}) from exc
     return TickerResponse(pair=pair.upper(), data=result, as_of=datetime.now(UTC).isoformat(), request_id=rid)
+
+
+@app.get("/api/v1/market/orderbook/{pair}", response_model=OrderBookResponse)
+async def orderbook(pair: str, request: Request, count: int = 25) -> OrderBookResponse:
+    rid = request_id(request)
+    depth = max(1, min(count, 100))
+    try:
+        result, source = await crypto_orderbook_data(pair, count=depth)
+    except KrakenCliError as exc:
+        raise HTTPException(status_code=503, detail={"code": exc.category, "message": str(exc), "request_id": rid}) from exc
+    return OrderBookResponse(
+        pair=str(result.get("pair") or pair).upper(),
+        bids=[OrderBookLevel(**level) for level in result.get("bids") or []],
+        asks=[OrderBookLevel(**level) for level in result.get("asks") or []],
+        source=source,
+        as_of=datetime.now(UTC).isoformat(),
+        request_id=rid,
+    )
 
 
 def _batch_symbols(asset_class: str, symbols: str | None) -> dict[str, list[str]]:

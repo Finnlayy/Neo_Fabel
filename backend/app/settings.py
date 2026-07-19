@@ -92,6 +92,16 @@ class Settings(BaseSettings):
     qdrant_vector_size: int = Field(default=8, validation_alias="QDRANT_VECTOR_SIZE")
     qdrant_timeout_seconds: float = Field(default=10.0, validation_alias="QDRANT_TIMEOUT_SECONDS")
 
+    # Academy / training loop (synthetic drills only; never places live orders).
+    training_loop_enabled: bool = Field(default=True, validation_alias="TRAINING_LOOP_ENABLED")
+    training_loop_auto_start: bool = Field(default=False, validation_alias="TRAINING_LOOP_AUTO_START")
+    training_loop_night_mode: bool = Field(default=True, validation_alias="TRAINING_LOOP_NIGHT_MODE")
+    training_loop_night_start: str = Field(default="22:00", validation_alias="TRAINING_LOOP_NIGHT_START")
+    training_loop_night_end: str = Field(default="06:00", validation_alias="TRAINING_LOOP_NIGHT_END")
+    training_loop_drills_per_hour: float = Field(
+        default=12.0, validation_alias="TRAINING_LOOP_DRILLS_PER_HOUR"
+    )
+
     # Phase 2 — CCXT + WebSocket market stream (read-only; no live trading).
     market_stream_enabled: bool = Field(default=True, validation_alias="MARKET_STREAM_ENABLED")
     market_ccxt_enabled: bool = Field(default=True, validation_alias="MARKET_CCXT_ENABLED")

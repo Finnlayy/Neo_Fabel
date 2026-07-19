@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { SubAgentState, Trade } from "../types";
-import { ShieldCheck, Activity, Brain, Cpu, BarChart2, TrendingUp, AlertCircle, RefreshCw, Terminal, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Activity, Brain, Cpu, BarChart2, TrendingUp, AlertCircle, RefreshCw, Terminal, CheckCircle2, Landmark } from "lucide-react";
 import { ApiError } from "../api/client";
 import { postAnalyzeTrades } from "../api/ai";
 
@@ -32,13 +32,19 @@ const AGENT_DE: Record<string, { name: string; directive: string; lastAction: st
   },
   rna_smart: {
     name: "RNA Smartelligent-Agent",
-    directive: "Ausführung des tiefen neuronalen Netzes zur Mustererkennung, Echtzeit-Fraktalerkennung und Anomalie-Filterung.",
-    lastAction: "Bullish-Wedge-Formation auf dem SOL/USD 15-Minuten-Chart identifiziert."
+    directive: "Blindfold-Candlestick-Mustererkennung — nur Geometrie; kein Symbol, Zeitrahmen oder Absolutpreis.",
+    lastAction: "Blind-Pattern-Scan idle."
   },
   risk_gov: {
     name: "Risiko-Governor-Agent",
     directive: "Erzwingung harter maximaler Drawdowns, Prüfung von Slippage-Abweichungen und Validierung von Gegenpartei-Marginparametern.",
     lastAction: "100%ige Einhaltung der sicheren Kapitalallokationsgrenzen verifiziert."
+  },
+  kraken_broker: {
+    name: "Kraken-Broker-Ausführung",
+    directive:
+      "Routing von Paper/Live-Orders über den Kraken-Broker-Pfad, Enforce von Autonomy-Gates und Melden von Fill/Reject-Telemetrie.",
+    lastAction: "Warte auf Ausführungsmodus und Paper-Ledger-Sync."
   },
   predictive: {
     name: "Prädiktiver Modellierungs-Agent",
@@ -59,7 +65,7 @@ export default function SubAgentsSection({
   onOptimizeThresholds,
   isComplianceActive,
   onToggleCompliance,
-  language = "en"
+  language = "en",
 }: SubAgentsSectionProps) {
   const [riskMultiplier, setRiskMultiplier] = useState(1.35);
   const [activeDiagnosticId, setActiveDiagnosticId] = useState<string | null>(null);
@@ -99,6 +105,8 @@ export default function SubAgentsSection({
         return <Brain className="w-4 h-4 text-purple-400 animate-pulse" />;
       case "risk_gov":
         return <ShieldCheck className="w-4 h-4 text-rose-400" />;
+      case "kraken_broker":
+        return <Landmark className="w-4 h-4 text-orange-400" />;
       case "predictive":
         return <TrendingUp className="w-4 h-4 text-blue-400" />;
       case "analytic":
@@ -172,7 +180,7 @@ export default function SubAgentsSection({
                 </div>
                 <div className="text-[10px] text-slate-300 flex items-start gap-1">
                   <span className="text-cyan-400 mt-0.5">»</span>
-                  <span>{language === "de" && AGENT_DE[agent.id] ? AGENT_DE[agent.id].lastAction : agent.lastAction}</span>
+                  <span>{agent.lastAction}</span>
                 </div>
               </div>
 
@@ -229,10 +237,10 @@ export default function SubAgentsSection({
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-purple-400 flex items-center gap-1">
                       <Brain className="w-3 h-3 text-purple-400" />
-                      {language === "de" ? "NEURALER FOKUS-LOCK:" : "NEURAL FOCUS LOCK:"}
+                      {language === "de" ? "BLINDFOLD-MODUS:" : "BLINDFOLD MODE:"}
                     </span>
                     <span className="bg-purple-950/30 border border-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded text-[9px] font-bold">
-                      FRACTAL_WEDGE_LOCK
+                      PATTERN GEOMETRY ONLY
                     </span>
                   </div>
                 )}

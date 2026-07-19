@@ -5,6 +5,64 @@ from __future__ import annotations
 from typing import Any
 
 
+def list_chart_strategies(symbol: str) -> dict[str, Any]:
+    """Return Pine strategies currently associated with the active chart layout.
+
+    Live TradingView study introspection is not wired yet (embed widgets cannot
+    expose user studies cross-origin). Returns the layout probe catalog so the UI
+    can let the user pick a loaded strategy to optimize.
+    """
+    sym = (symbol or "BTCUSD").upper()
+    strategies = [
+        {
+            "id": "neo_quantum_smc",
+            "name": "Neo-Quantum SMC [Cluster Optimized]",
+            "kind": "smc",
+            "pane": "overlay",
+            "inputs": {
+                "Structure Length": 5,
+                "Base Risk (%)": 1.0,
+                "Risk:Reward Ratio": 2.0,
+                "swingLength": 5,
+                "displacement": 1.0,
+            },
+        },
+        {
+            "id": "bb_rsi_hard_sl",
+            "name": "BB / RSI Hard SL Sweep",
+            "kind": "bb_rsi_sl",
+            "pane": "overlay",
+            "inputs": {
+                "in_0": 14,
+                "in_1": 2.5,
+                "in_2": 1.0,
+                "in_6": 14,
+            },
+        },
+        {
+            "id": "trailing_exit_sweep",
+            "name": "Trailing Exit Sweep",
+            "kind": "trailing",
+            "pane": "overlay",
+            "inputs": {
+                "in_3": 0.20,
+                "in_4": 0.10,
+                "trailPct": 0.8,
+            },
+        },
+    ]
+    return {
+        "success": True,
+        "symbol": sym,
+        "strategies": strategies,
+        "source": "chart-layout-probe",
+        "note": (
+            "Strategies listed from chart layout probe. Live TradingView study "
+            "enumeration requires a desktop/extension bridge (not available in V1)."
+        ),
+    }
+
+
 def run_deterministic_optimize(payload: dict[str, Any]) -> dict[str, Any]:
     """Grid-search a small parameter set and score by requested objectives.
 

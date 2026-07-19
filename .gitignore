@@ -13,6 +13,14 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 .runtime/
+backend/data/academy/*
+!backend/data/academy/.gitkeep
+backend/data/onnx/*
+!backend/data/onnx/.gitkeep
+backend/data/llm_spend/*
+!backend/data/llm_spend/.gitkeep
+backend/data/chronos/*
+!backend/data/chronos/.gitkeep
 secrets/
 .cursor/
 .agents/

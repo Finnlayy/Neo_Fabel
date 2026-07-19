@@ -27,6 +27,24 @@ Market-data endpoints:
 - `GET /api/v1/market/batch?asset_class=all` queries the curated common crypto, FX, and S&P 500 universe. Crypto uses the Kraken CLI; FX and equities use Alpha Vantage.
 - `GET /api/v1/market/ohlcv?asset_class=sp500&symbols=AAPL,MSFT&intervals=1min,5min,15min,60min,4h` requests OHLCV bars. Alpha Vantage's 60-minute data is deterministically aggregated into 4-hour bars. Missing provider entitlements are returned per item as explicit errors.
 
+### Agent Academy (training loop)
+
+Synthetic drills + career tracking for Neo sub-agents. **Paper / training only — never places live orders.** UI tab: **Academy** (hotkey `6`). Persistence: `backend/data/academy/` (gitignored).
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/academy/status` | Loop status, diversity, recent drills |
+| `POST /api/v1/academy/train/start\|stop\|cycle` | Control / run one training cycle |
+| `GET /api/v1/academy/agents/registry` | Remapped Neo agents + career stats |
+| `GET /api/v1/academy/drills/available?scout_name=` | Generate drills (`rna_smart` uses blind candle geometry) |
+| `POST /api/v1/academy/drill/evaluate` | Score a drill decision |
+
+Flags: `TRAINING_LOOP_ENABLED`, `TRAINING_LOOP_AUTO_START` (default off), night window + drills/hour — see `.env.example`.
+
+```powershell
+python -m pytest backend/tests/test_academy.py -q
+```
+
 Set `ALPHAVANTAGE_API_KEY` (or `ALPHA_VANTAGE_API_KEY`) in `.env.local`. Full equity batches use Alpha Vantage's bulk quote entitlement, so set `ALPHAVANTAGE_BULK_QUOTES_ENABLED=true` only when that entitlement is available. Intraday equity and crypto endpoints may also require a premium Alpha Vantage plan; the API never substitutes mock data.
 
 Docker path (required on Windows for paper trades — Kraken CLI is Linux-only):

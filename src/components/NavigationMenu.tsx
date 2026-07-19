@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { 
-  LayoutDashboard, Terminal, BrainCircuit, Users, Route
+  LayoutDashboard, Terminal, BrainCircuit, Users, Route, GraduationCap
 } from "lucide-react";
 import type { MainTab } from "../types";
 
@@ -53,6 +53,9 @@ export default function NavigationMenu({
         case "5":
           setActiveTab("signals");
           break;
+        case "6":
+          setActiveTab("academy");
+          break;
         default:
           break;
       }
@@ -104,6 +107,13 @@ export default function NavigationMenu({
       accent: "sky",
       desc: language === "de" ? "TradingView & MCP-Eingang" : "TradingView & MCP ingress"
     },
+    {
+      id: "academy",
+      label: language === "de" ? "Akademie" : "Academy",
+      icon: GraduationCap,
+      accent: "teal",
+      desc: language === "de" ? "Agenten-Training & Drills" : "Agent training & drills"
+    },
   ];
 
   const accentBar: Record<string, string> = {
@@ -112,6 +122,7 @@ export default function NavigationMenu({
     violet: "bg-purple-400",
     amber: "bg-amber-400",
     sky: "bg-sky-400",
+    teal: "bg-teal-400",
   };
   const accentText: Record<string, string> = {
     emerald: "text-emerald-400",
@@ -119,6 +130,7 @@ export default function NavigationMenu({
     violet: "text-purple-400",
     amber: "text-amber-400",
     sky: "text-sky-400",
+    teal: "text-teal-400",
   };
 
   return (

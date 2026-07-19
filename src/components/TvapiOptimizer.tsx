@@ -12,6 +12,7 @@ import {
   Cpu, 
   Sparkles, 
   ChevronRight,
+  ChevronDown,
   Database,
   RefreshCw,
   Upload,
@@ -21,21 +22,81 @@ import {
   ClipboardPaste
 } from "lucide-react";
 import { ApiError } from "../api/client";
-import { postTvapiAnalyzeChart, postTvapiOptimize } from "../api/ai";
+import {
+  type ChartStrategy,
+  fetchChartStrategies,
+  postTvapiAnalyzeChart,
+  postTvapiOptimize,
+} from "../api/ai";
 
 interface TvapiOptimizerProps {
   activeSymbol: string;
 }
 
+/** UI timeframes from 1s → 1d, with TradingView advanced-chart interval codes. */
+const TIMEFRAMES: { value: string; label: string; tvInterval: string }[] = [
+  { value: "1s", label: "1s", tvInterval: "1S" },
+  { value: "5s", label: "5s", tvInterval: "5S" },
+  { value: "10s", label: "10s", tvInterval: "10S" },
+  { value: "15s", label: "15s", tvInterval: "15S" },
+  { value: "30s", label: "30s", tvInterval: "30S" },
+  { value: "45s", label: "45s", tvInterval: "45S" },
+  { value: "1m", label: "1m", tvInterval: "1" },
+  { value: "2m", label: "2m", tvInterval: "2" },
+  { value: "3m", label: "3m", tvInterval: "3" },
+  { value: "5m", label: "5m", tvInterval: "5" },
+  { value: "10m", label: "10m", tvInterval: "10" },
+  { value: "15m", label: "15m", tvInterval: "15" },
+  { value: "30m", label: "30m", tvInterval: "30" },
+  { value: "45m", label: "45m", tvInterval: "45" },
+  { value: "1h", label: "1h", tvInterval: "60" },
+  { value: "2h", label: "2h", tvInterval: "120" },
+  { value: "3h", label: "3h", tvInterval: "180" },
+  { value: "4h", label: "4h", tvInterval: "240" },
+  { value: "6h", label: "6h", tvInterval: "360" },
+  { value: "8h", label: "8h", tvInterval: "480" },
+  { value: "12h", label: "12h", tvInterval: "720" },
+  { value: "1d", label: "1d", tvInterval: "D" },
+];
+
+const TF_TO_TV_INTERVAL: Record<string, string> = Object.fromEntries(
+  TIMEFRAMES.map((tf) => [tf.value, tf.tvInterval]),
+);
+
 export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
-  const [strategy, setStrategy] = useState<"smc" | "bb_rsi_sl" | "trailing">("smc");
   const [symbol, setSymbol] = useState(activeSymbol || "BTCUSD");
+  const [chartStrategies, setChartStrategies] = useState<ChartStrategy[]>([]);
+  const [selectedStrategy, setSelectedStrategy] = useState<ChartStrategy | null>(null);
+  const [isReadingStrategies, setIsReadingStrategies] = useState(false);
+  const [strategyPickerOpen, setStrategyPickerOpen] = useState(false);
+  const [strategyReadError, setStrategyReadError] = useState<string | null>(null);
+  const strategyPickerRef = useRef<HTMLDivElement>(null);
+
+  const strategyKind = selectedStrategy?.kind ?? "";
 
   React.useEffect(() => {
     if (activeSymbol) {
       setSymbol(activeSymbol);
     }
   }, [activeSymbol]);
+
+  React.useEffect(() => {
+    setChartStrategies([]);
+    setSelectedStrategy(null);
+    setStrategyPickerOpen(false);
+    setStrategyReadError(null);
+  }, [symbol]);
+
+  React.useEffect(() => {
+    if (!strategyPickerOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (strategyPickerRef.current && !strategyPickerRef.current.contains(event.target as Node)) {
+        setStrategyPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [strategyPickerOpen]);
 
   const [timeframe, setTimeframe] = useState("5m");
   const [minTrades, setMinTrades] = useState(30);
@@ -91,21 +152,63 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
     "Base Risk (%)": 1
   };
 
+  const handleReadChartStrategies = async () => {
+    if (strategyPickerOpen) {
+      setStrategyPickerOpen(false);
+      return;
+    }
+
+    setStrategyPickerOpen(true);
+    setIsReadingStrategies(true);
+    setStrategyReadError(null);
+    try {
+      const data = await fetchChartStrategies(symbol);
+      if (!data.success) {
+        setChartStrategies([]);
+        setStrategyReadError(data.error || "Could not read strategies from chart");
+        return;
+      }
+      setChartStrategies(data.strategies ?? []);
+      if (!data.strategies?.length) {
+        setStrategyReadError("No strategies loaded on the TradingView chart");
+      }
+    } catch (err) {
+      setChartStrategies([]);
+      setStrategyReadError(err instanceof ApiError ? err.message : "Failed to read chart strategies");
+    } finally {
+      setIsReadingStrategies(false);
+    }
+  };
+
+  const handleSelectChartStrategy = (strategy: ChartStrategy) => {
+    setSelectedStrategy(strategy);
+    setStrategyPickerOpen(false);
+    setOptimizationResult(null);
+    if (strategy.inputs && Object.keys(strategy.inputs).length) {
+      setCurrentTVInputs((prev) => ({ ...prev, ...strategy.inputs }));
+    }
+  };
+
   // Run TVAPI Sweep Optimization
   const handleRunOptimization = async () => {
+    if (!selectedStrategy) return;
+
     setIsOptimizing(true);
     setOptimizationResult(null);
     setSetPipelineLog([]);
 
     try {
       const data = await postTvapiOptimize({
-        strategy,
+        strategy: selectedStrategy.kind || selectedStrategy.id,
         symbol,
         timeframe,
         minTrades,
         primaryObjective,
         secondaryObjective,
-        parameters: strategy === "smc" ? smcParams : {},
+        parameters:
+          strategyKind === "smc"
+            ? { ...smcParams, ...(selectedStrategy.inputs ?? {}) }
+            : { ...(selectedStrategy.inputs ?? {}) },
       });
       if (data.success) {
         setOptimizationResult(data);
@@ -137,9 +240,9 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
         
         // Find corresponding Input-ID
         let inputId = "unknown";
-        if (strategy === "bb_rsi_sl") {
+        if (strategyKind === "bb_rsi_sl") {
           inputId = paramKey === "in_0" ? "in_0" : paramKey === "in_1" ? "in_1" : paramKey === "in_2" ? "in_2" : "in_6";
-        } else if (strategy === "trailing") {
+        } else if (strategyKind === "trailing") {
           inputId = paramKey === "in_3" ? "in_3" : "in_4";
         } else {
           inputId = `smc_${paramKey.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
@@ -587,38 +690,72 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
           </p>
         </div>
 
-        {/* Configuration Type Selector */}
-        <div className="flex bg-slate-950/60 p-1 border border-white/5 rounded-xl self-start">
+        {/* Read strategies loaded on the TradingView chart, then pick one to optimize */}
+        <div className="relative self-start" ref={strategyPickerRef}>
           <button
-            onClick={() => setStrategy("smc")}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 ${
-              strategy === "smc" 
-                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20" 
-                : "text-slate-400 hover:text-slate-200"
-            }`}
+            type="button"
+            onClick={handleReadChartStrategies}
+            disabled={isReadingStrategies}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all duration-200 border ${
+              selectedStrategy
+                ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20"
+                : "bg-slate-950/60 text-slate-200 border-white/5 hover:border-cyan-500/40 hover:text-white"
+            } disabled:opacity-50`}
           >
-            SMC Cluster
+            {isReadingStrategies ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Eye className="w-3.5 h-3.5" />
+            )}
+            <span className="max-w-[220px] truncate">
+              {isReadingStrategies
+                ? "Reading chart…"
+                : selectedStrategy
+                  ? selectedStrategy.name
+                  : "Read Chart Strategies"}
+            </span>
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${strategyPickerOpen ? "rotate-180" : ""}`} />
           </button>
-          <button
-            onClick={() => setStrategy("bb_rsi_sl")}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 ${
-              strategy === "bb_rsi_sl" 
-                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20" 
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            BB/RSI/SL Sweep
-          </button>
-          <button
-            onClick={() => setStrategy("trailing")}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 ${
-              strategy === "trailing" 
-                ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20" 
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Trailing Sweep
-          </button>
+
+          {strategyPickerOpen && (
+            <div className="absolute right-0 top-full mt-2 z-30 w-[300px] bg-slate-950 border border-white/10 rounded-xl shadow-xl shadow-black/40 overflow-hidden">
+              <div className="px-3 py-2 border-b border-white/5 text-[9px] uppercase tracking-wider text-slate-500 font-bold">
+                Strategies loaded on chart · {symbol}
+              </div>
+              {isReadingStrategies ? (
+                <div className="px-3 py-4 text-[10px] text-slate-400 flex items-center gap-2">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                  Probing TradingView chart layout…
+                </div>
+              ) : strategyReadError ? (
+                <div className="px-3 py-4 text-[10px] text-rose-300">{strategyReadError}</div>
+              ) : (
+                <ul className="max-h-56 overflow-y-auto py-1">
+                  {chartStrategies.map((item) => {
+                    const active = selectedStrategy?.id === item.id;
+                    return (
+                      <li key={item.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectChartStrategy(item)}
+                          className={`w-full text-left px-3 py-2.5 transition-colors ${
+                            active
+                              ? "bg-cyan-500/15 text-cyan-200"
+                              : "text-slate-300 hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          <div className="text-[11px] font-semibold truncate">{item.name}</div>
+                          <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">
+                            {item.pane || "overlay"} · {item.kind}
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -657,10 +794,11 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
                   onChange={(e) => setTimeframe(e.target.value)}
                   className="w-full bg-slate-900 border border-white/5 text-[10px] text-slate-300 p-2 rounded-lg focus:border-cyan-500 outline-none"
                 >
-                  <option value="5m">5m (Intraday)</option>
-                  <option value="15m">15m (Scalp)</option>
-                  <option value="1h">1h (Structure)</option>
-                  <option value="4h">4h (Macro)</option>
+                  {TIMEFRAMES.map((tf) => (
+                    <option key={tf.value} value={tf.value}>
+                      {tf.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -710,7 +848,7 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
             {/* Run Sweeps Trigger */}
             <button
               onClick={handleRunOptimization}
-              disabled={isOptimizing}
+              disabled={isOptimizing || !selectedStrategy}
               className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-[10px] uppercase tracking-wider py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10 disabled:opacity-50"
             >
               {isOptimizing ? (
@@ -721,7 +859,7 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
               ) : (
                 <>
                   <Play className="w-3.5 h-3.5" />
-                  Run Multi-Stage Sweep Scan
+                  {selectedStrategy ? "Run Multi-Stage Sweep Scan" : "Select a Chart Strategy First"}
                 </>
               )}
             </button>
@@ -740,7 +878,11 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
             </div>
 
             <div className="space-y-1.5 font-mono text-[10px] text-slate-400">
-              {strategy === "bb_rsi_sl" ? (
+              {!selectedStrategy ? (
+                <div className="text-slate-500 text-[10px] leading-relaxed">
+                  Read strategies from the TradingView chart, then select one to load its active inputs.
+                </div>
+              ) : strategyKind === "bb_rsi_sl" ? (
                 <>
                   <div className="flex justify-between border-b border-white/5 pb-1">
                     <span>in_0 (BB Length):</span>
@@ -759,7 +901,7 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
                     <span className="text-slate-200 font-bold">{currentTVInputs.in_6}</span>
                   </div>
                 </>
-              ) : strategy === "trailing" ? (
+              ) : strategyKind === "trailing" ? (
                 <>
                   <div className="flex justify-between border-b border-white/5 pb-1">
                     <span>in_3 (Trailing Activation):</span>
@@ -1001,19 +1143,19 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
                   Ready for Sweep Calibration
                 </h3>
                 <p className="text-[10px] text-slate-400 leading-relaxed">
-                  Select your Pine Strategy parameters in the left panel. Press **"Run Multi-Stage Sweep Scan"** to fetch rule-evaluated TradingView TVAPI backtest sweeps.
+                  Use <span className="text-slate-200">Read Chart Strategies</span> to load Pine scripts from the TradingView chart, select one, then run the multi-stage sweep scan.
                 </p>
               </div>
 
-              {strategy === "smc" && (
+              {selectedStrategy && strategyKind === "smc" && (
                 <div className="pt-4 border-t border-dashed border-white/5 w-full max-w-lg">
                   <div className="bg-slate-950/60 p-3 rounded-xl border border-white/5 text-left space-y-2">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" />
-                      Knowledge Base 05 - SMC Parameter Suite loaded:
+                      Chart strategy loaded for optimize:
                     </span>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[9px] text-slate-500">
-                      <div>Name: <span className="text-slate-300">Neo-Quantum SMC</span></div>
+                      <div>Name: <span className="text-slate-300">{selectedStrategy.name}</span></div>
                       <div>Structure Len: <span className="text-slate-300">5 Bars</span></div>
                       <div>Show Breaker Blocks: <span className="text-slate-300">TRUE</span></div>
                       <div>Risk:Reward Ratio: <span className="text-slate-300">2.0</span></div>
@@ -1131,7 +1273,7 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
                       src={`https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.html?locale=en#${encodeURIComponent(JSON.stringify({
                         autosize: true,
                         symbol: symbol === "BTCUSD" ? "BINANCE:BTCUSDT" : symbol === "ETHUSD" ? "BINANCE:ETHUSDT" : symbol === "SOLUSD" ? "BINANCE:SOLUSDT" : symbol === "AVAXUSD" ? "BINANCE:AVAXUSDT" : (symbol === "NIO" || symbol === "NIOUSD") ? "NYSE:NIO" : `BINANCE:${symbol}T`,
-                        interval: timeframe === "5m" ? "5" : timeframe === "15m" ? "15" : timeframe === "1h" ? "60" : "240",
+                        interval: TF_TO_TV_INTERVAL[timeframe] ?? "5",
                         timezone: "Etc/UTC",
                         theme: "dark",
                         style: "1",
