@@ -6,26 +6,32 @@ interface LiveMarketHeatmapProps {
   tickers: TickerData[];
   onSelectTicker: (symbol: string) => void;
   activeSymbol: string;
+  marketLive?: boolean;
 }
 
-export default function LiveMarketHeatmap({ tickers, onSelectTicker, activeSymbol }: LiveMarketHeatmapProps) {
+export default function LiveMarketHeatmap({ tickers, onSelectTicker, activeSymbol, marketLive = false }: LiveMarketHeatmapProps) {
   return (
     <div id="live-heatmap-card" className="bg-slate-900/40 border border-white/5 hover:border-white/10 rounded-xl p-5 font-mono text-xs space-y-4 transition-all duration-300">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 pb-3">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+          <span className={`w-2 h-2 rounded-full ${marketLive ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`}></span>
           <h3 className="text-white font-bold uppercase tracking-wider text-[11px]">
-            LIVE MARKET TELEMETRY TICKER
+            MARKET TELEMETRY TICKER
           </h3>
         </div>
-        <span className="text-[10px] text-slate-500 uppercase flex items-center gap-1 font-mono">
-          <RefreshCw className="w-3 h-3 animate-spin" />
-          REALTIME AGENT CHANNELS
+        <span className={`text-[10px] uppercase flex items-center gap-1 font-mono ${marketLive ? "text-emerald-400" : "text-amber-400"}`}>
+          <RefreshCw className={`w-3 h-3 ${marketLive ? "animate-spin" : ""}`} />
+          {marketLive ? "LIVE STREAM" : "STALE / EMPTY"}
         </span>
       </div>
 
       {/* Grid */}
+      {tickers.length === 0 ? (
+        <div className="border border-dashed border-white/10 rounded-lg p-6 text-slate-500 text-[11px]">
+          No ticker rows. Waiting for WS /api/v1/market/stream or GET /api/v1/market/batch.
+        </div>
+      ) : null}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {tickers.map((t) => {
           const isUp = t.change >= 0;

@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { GenerativePlan } from "../types";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { Sparkles, Compass, AlertCircle, Check, Loader2, HelpCircle } from "lucide-react";
+import { ApiError } from "../api/client";
+import { postOrchestrate } from "../api/ai";
 
 interface ResourceAllocationProps {
   allocation: { name: string; value: number }[];
@@ -25,20 +27,12 @@ export default function ResourceAllocation({ allocation, activePlan, onDeployPla
     setError(null);
 
     try {
-      const response = await fetch("/api/gemini/orchestrate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        onDeployPlan(data);
-      } else {
-        setError(data.error || "Failed to generate plan.");
-      }
-    } catch (err: any) {
-      setError(`Failed to connect to full-stack orchestrator endpoint: ${err.message}`);
+      const plan = await postOrchestrate(prompt);
+      onDeployPlan(plan);
+    } catch (err: unknown) {
+      const message =
+        err instanceof ApiError ? `${err.code}: ${err.message}` : err instanceof Error ? err.message : "Unknown error";
+      setError(`Orchestrator unavailable: ${message}`);
     } finally {
       setIsGenerating(false);
     }

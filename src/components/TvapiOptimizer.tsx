@@ -18,12 +18,10 @@ import {
   Eye,
   Camera,
   FileImage,
-  Youtube,
-  History,
-  Plus,
-  Trash2,
-  ExternalLink
+  ClipboardPaste
 } from "lucide-react";
+import { ApiError } from "../api/client";
+import { postTvapiAnalyzeChart, postTvapiOptimize } from "../api/ai";
 
 interface TvapiOptimizerProps {
   activeSymbol: string;
@@ -46,69 +44,16 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [activeTab, setActiveTab] = useState<"bericht" | "selbstprüfung" | "runs">("bericht");
 
-  // Vision states for chart pattern & backtesting control
-  const [chartMode, setChartMode] = useState<"live" | "presets" | "upload" | "youtube">("live");
+  // Vision: screenshot / image analysis only (video/YouTube deactivated).
+  const [chartMode, setChartMode] = useState<"live" | "presets" | "screenshot">("screenshot");
   const [visionImage, setVisionImage] = useState<string | null>(null);
   const [visionMimeType, setVisionMimeType] = useState<string>("image/png");
   const [visionMode, setVisionMode] = useState<"pattern" | "backtest">("pattern");
   const [isVisionAnalyzing, setIsVisionAnalyzing] = useState(false);
   const [visionAnalysisResult, setVisionAnalysisResult] = useState<string | null>(null);
+  const [pasteHint, setPasteHint] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // YouTube Coping Feature states
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [youtubeError, setYoutubeError] = useState<string | null>(null);
-  const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
-  const [youtubeHistory, setYoutubeHistory] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem("tvapi_youtube_history");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const getYouTubeId = (url: string): string | null => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-  };
-
-  const handleEmbedYoutube = (urlToEmbed?: string) => {
-    setYoutubeError(null);
-    const targetUrl = urlToEmbed !== undefined ? urlToEmbed : youtubeUrl;
-    if (!targetUrl || !targetUrl.trim()) {
-      setYoutubeError("Please enter a URL first");
-      return;
-    }
-
-    const vId = getYouTubeId(targetUrl);
-    if (vId) {
-      setYoutubeVideoId(vId);
-      const trimmed = targetUrl.trim();
-      const filtered = youtubeHistory.filter(link => link !== trimmed);
-      const updated = [trimmed, ...filtered].slice(0, 10);
-      setYoutubeHistory(updated);
-      localStorage.setItem("tvapi_youtube_history", JSON.stringify(updated));
-      if (urlToEmbed === undefined) {
-        setYoutubeUrl(""); // Reset input only on manual submit
-      }
-    } else {
-      setYoutubeError("Invalid YouTube URL. Please use standard video or stream link.");
-    }
-  };
-
-  const handleDeleteHistoryItem = (e: React.MouseEvent, indexToDelete: number) => {
-    e.stopPropagation();
-    const updated = youtubeHistory.filter((_, idx) => idx !== indexToDelete);
-    setYoutubeHistory(updated);
-    localStorage.setItem("tvapi_youtube_history", JSON.stringify(updated));
-  };
-
-  const handleClearHistory = () => {
-    setYoutubeHistory([]);
-    localStorage.removeItem("tvapi_youtube_history");
-  };
+  const pasteZoneRef = useRef<HTMLDivElement>(null);
 
   // Output results from optimization
   const [optimizationResult, setOptimizationResult] = useState<any>(null);
@@ -153,28 +98,22 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
     setSetPipelineLog([]);
 
     try {
-      const response = await fetch("/api/tvapi/optimize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          strategy,
-          symbol,
-          timeframe,
-          minTrades,
-          primaryObjective,
-          secondaryObjective,
-          parameters: strategy === "smc" ? smcParams : {}
-        })
+      const data = await postTvapiOptimize({
+        strategy,
+        symbol,
+        timeframe,
+        minTrades,
+        primaryObjective,
+        secondaryObjective,
+        parameters: strategy === "smc" ? smcParams : {},
       });
-
-      const data = await response.json();
       if (data.success) {
         setOptimizationResult(data);
       } else {
         console.error("Optimization failed:", data.error);
       }
     } catch (err) {
-      console.error("Error optimizing strategy:", err);
+      console.error("Error optimizing strategy:", err instanceof ApiError ? err.message : err);
     } finally {
       setIsOptimizing(false);
     }
@@ -409,19 +348,60 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
     }
   };
 
+  const loadImageFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setPasteHint("Only image files are supported (PNG, JPG, WEBP).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setVisionImage(event.target.result as string);
+        setVisionMimeType(file.type || "image/png");
+        setVisionAnalysisResult(null);
+        setPasteHint(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setVisionImage(event.target.result as string);
-          setVisionMimeType(file.type);
-          setVisionAnalysisResult(null);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (file) loadImageFile(file);
+  };
+
+  /** Prefer the native paste event — avoids Windows "requested action is invalid" from clipboard.read(). */
+  const ingestClipboardItems = (items: DataTransferItemList | null | undefined): boolean => {
+    if (!items?.length) return false;
+    for (const item of Array.from(items)) {
+      if (item.kind !== "file" || !item.type.startsWith("image/")) continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      loadImageFile(file);
+      return true;
     }
+    return false;
+  };
+
+  const handlePasteEvent = (event: React.ClipboardEvent) => {
+    const loaded = ingestClipboardItems(event.clipboardData?.items);
+    if (loaded) {
+      event.preventDefault();
+      setPasteHint(null);
+      return;
+    }
+    setPasteHint("No image in that paste. Copy a screenshot first (Win+Shift+S), then Ctrl+V here.");
+  };
+
+  const focusPasteZone = () => {
+    pasteZoneRef.current?.focus();
+    setPasteHint("Paste zone focused — press Ctrl+V (or Cmd+V) to load the screenshot.");
+  };
+
+  const handleDropScreenshot = (event: React.DragEvent) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (file) loadImageFile(file);
   };
 
   const getLiveChartCanvasDataUrl = (sym: string, tf: string): string => {
@@ -454,7 +434,7 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
     // Header Title
     ctx.fillStyle = "#f1f5f9";
     ctx.font = "bold 13px 'JetBrains Mono', monospace";
-    ctx.fillText(`BINANCE:${sym}T, ${tf} - LIVE CHART FEED [SMC OPTIMIZED]`, 20, 30);
+    ctx.fillText(`PREVIEW:${sym}T, ${tf} - DETERMINISTIC CANVAS (NOT LIVE FEED)`, 20, 30);
 
     // Technical Indicator Legends
     ctx.fillStyle = "#38bdf8"; // Light Blue
@@ -513,12 +493,13 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
     for (let i = 0; i < count; i++) {
       const x = startX + i * spacing;
       const open = currentClose;
-      const change = (Math.random() - 0.48) * 35; // Slight bullish bias
+      // Deterministic preview candles (not a live exchange feed).
+      const change = (Math.sin(i * 0.7) * 0.5 + 0.05) * 35;
       const close = open - change;
       currentClose = close;
 
-      const high = Math.min(open, close) - Math.random() * 15;
-      const low = Math.max(open, close) + Math.random() * 15;
+      const high = Math.min(open, close) - Math.abs(Math.cos(i * 0.9)) * 15;
+      const low = Math.max(open, close) + Math.abs(Math.sin(i * 1.1)) * 15;
 
       const isGreen = close < open; // Canvas Y coordinate is inverted: smaller value is higher price!
       ctx.strokeStyle = isGreen ? "#10b981" : "#ef4444";
@@ -567,24 +548,20 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
     setVisionAnalysisResult(null);
 
     try {
-      const response = await fetch("/api/tvapi/analyze-chart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          image: imgToUse,
-          mimeType: overrideImage ? "image/png" : visionMimeType,
-          promptMode: visionMode
-        })
+      const data = await postTvapiAnalyzeChart({
+        image: imgToUse,
+        mimeType: overrideImage ? "image/png" : visionMimeType,
+        promptMode: visionMode,
       });
-
-      const data = await response.json();
       if (data.success) {
-        setVisionAnalysisResult(data.analysis);
+        setVisionAnalysisResult(data.analysis ?? "");
       } else {
         setVisionAnalysisResult(`⚠️ Error: ${data.error || "Failed to analyze chart screenshot"}`);
       }
-    } catch (err: any) {
-      setVisionAnalysisResult(`⚠️ Error: ${err.message || "Failed to connect to chart analyzer endpoint"}`);
+    } catch (err: unknown) {
+      const message =
+        err instanceof ApiError ? `${err.code}: ${err.message}` : err instanceof Error ? err.message : "Failed to connect";
+      setVisionAnalysisResult(`⚠️ Error: ${message}`);
     } finally {
       setIsVisionAnalyzing(false);
     }
@@ -1062,15 +1039,15 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
                 <Camera className="w-4 h-4 animate-pulse" />
               </div>
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-100 flex items-center gap-2">
-                Human-Like AI Chart Vision & Pattern Guard
+                Chart Screenshot Analysis
                 <span className="text-[8px] bg-purple-500/10 border border-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded font-mono font-normal">
-                  GEMINI 3.1 PRO (HIGH THINKING)
+                  GEMINI VISION · IMAGES ONLY
                 </span>
               </h3>
             </div>
             <p className="text-[10px] text-slate-400 leading-relaxed max-w-3xl">
-              Upload a screenshot of your active TradingView chart, or choose one of our advanced SMC pattern presets to trigger the High-Thinking vision reasoning engine.
-              Reviews structure, breaker blocks, liquidity pools, and provides discretionary backtesting filters like a veteran analyst.
+              Analyze a PNG/JPG chart screenshot (upload, drag-and-drop, or paste from clipboard).
+              Reviews structure, breaker blocks, liquidity, and backtest quality from the still image.
             </p>
           </div>
 
@@ -1134,24 +1111,14 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
                     AI Presets
                   </button>
                   <button
-                    onClick={() => setChartMode("upload")}
+                    onClick={() => setChartMode("screenshot")}
                     className={`px-2 py-1 rounded text-[8px] font-bold uppercase tracking-wider transition-all duration-200 ${
-                      chartMode === "upload"
+                      chartMode === "screenshot"
                         ? "bg-purple-500/25 border border-purple-500/30 text-purple-300"
                         : "text-slate-500 hover:text-slate-300"
                     }`}
                   >
-                    Upload
-                  </button>
-                  <button
-                    onClick={() => setChartMode("youtube")}
-                    className={`px-2 py-1 rounded text-[8px] font-bold uppercase tracking-wider transition-all duration-200 ${
-                      chartMode === "youtube"
-                        ? "bg-purple-500/25 border border-purple-500/30 text-purple-300"
-                        : "text-slate-500 hover:text-slate-300"
-                    }`}
-                  >
-                    YouTube
+                    Screenshot
                   </button>
                 </div>
               </div>
@@ -1300,36 +1267,61 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
                 </div>
               )}
 
-              {chartMode === "upload" && (
+              {chartMode === "screenshot" && (
                 <div className="space-y-4">
-                  {/* Upload Drag & Drop Area */}
-                  <div 
+                  <div
+                    ref={pasteZoneRef}
+                    tabIndex={0}
+                    role="button"
+                    aria-label="Chart screenshot drop and paste zone"
                     onClick={() => fileInputRef.current?.click()}
-                    className="border border-dashed border-white/10 hover:border-purple-500/30 bg-slate-900/20 hover:bg-slate-900/40 rounded-xl p-4 text-center cursor-pointer transition-all duration-200 group"
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        fileInputRef.current?.click();
+                      }
+                    }}
+                    onPaste={handlePasteEvent}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={handleDropScreenshot}
+                    className="border border-dashed border-white/10 hover:border-purple-500/30 focus:border-purple-500/40 focus:outline-none focus:ring-1 focus:ring-purple-500/30 bg-slate-900/20 hover:bg-slate-900/40 rounded-xl p-4 text-center cursor-pointer transition-all duration-200 group"
                   >
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      onChange={handleImageUpload} 
-                      accept="image/*" 
-                      className="hidden" 
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleImageUpload}
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      className="hidden"
                     />
                     <Upload className="w-5 h-5 mx-auto text-slate-400 group-hover:text-purple-400 mb-2 transition-transform duration-200 group-hover:-translate-y-0.5" />
                     <span className="text-[10px] font-bold text-slate-300 block group-hover:text-purple-300">
-                      Upload custom chart screenshot
+                      Drop, browse, or Ctrl+V a chart screenshot
                     </span>
                     <span className="text-[8px] text-slate-500 mt-0.5 block">
-                      Drag and drop files here, or click to browse
+                      PNG / JPG / WEBP — still images only
                     </span>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={focusPasteZone}
+                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-bold text-[10px] uppercase tracking-wider py-2 rounded-lg flex items-center justify-center gap-1.5"
+                  >
+                    <ClipboardPaste className="w-3.5 h-3.5 text-purple-400" />
+                    Focus paste zone (then Ctrl+V)
+                  </button>
+                  {pasteHint && (
+                    <p className="text-[9px] text-amber-400/90">{pasteHint}</p>
+                  )}
 
                   {visionImage ? (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[9px] font-mono text-slate-400">
-                          Uploaded Snapshot Loaded:
+                          Screenshot ready:
                         </span>
                         <button
+                          type="button"
                           onClick={() => setVisionImage(null)}
                           className="text-[8px] text-red-400 font-bold hover:underline"
                         >
@@ -1337,33 +1329,32 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
                         </button>
                       </div>
                       <div className="border border-white/10 rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center relative aspect-[1.6]">
-                        <img 
-                          src={visionImage} 
-                          alt="TradingView Active Feed" 
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
+                        <img
+                          src={visionImage}
+                          alt="Chart screenshot for analysis"
+                          className="w-full h-full object-contain"
                         />
                         <div className="absolute top-2 right-2 bg-slate-950/80 border border-white/10 px-1.5 py-0.5 rounded text-[8px] font-mono text-slate-400 flex items-center gap-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-                          MANUAL SNAPSHOT
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                          SCREENSHOT
                         </div>
                       </div>
-                      
-                      {/* Action button */}
+
                       <button
-                        onClick={() => handleAnalyzeChart()}
+                        type="button"
+                        onClick={() => void handleAnalyzeChart()}
                         disabled={isVisionAnalyzing}
                         className="w-full bg-purple-500 hover:bg-purple-400 text-slate-950 font-black text-[10px] uppercase tracking-wider py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10 disabled:opacity-50"
                       >
                         {isVisionAnalyzing ? (
                           <>
                             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            AI high-thinking reasoning in progress...
+                            Analyzing screenshot…
                           </>
                         ) : (
                           <>
                             <Cpu className="w-3.5 h-3.5" />
-                            Run High-Thinking Vision Guard
+                            Analyze screenshot
                           </>
                         )}
                       </button>
@@ -1372,141 +1363,13 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
                     <div className="border border-white/5 bg-slate-950/20 rounded-xl aspect-[1.6] flex flex-col items-center justify-center p-6 text-center space-y-2">
                       <FileImage className="w-6 h-6 text-slate-600" />
                       <div className="space-y-0.5">
-                        <span className="text-[9px] font-bold text-slate-400 block">No Custom Upload</span>
-                        <span className="text-[8px] text-slate-500 block max-w-[200px] leading-relaxed">
-                          Drag and drop or upload a PNG/JPG screenshot of your custom chart to run diagnostic analysis.
+                        <span className="text-[9px] font-bold text-slate-400 block">No screenshot loaded</span>
+                        <span className="text-[8px] text-slate-500 block max-w-[220px] leading-relaxed">
+                          Capture your TradingView chart (Win+Shift+S), paste here, or upload the image file.
                         </span>
                       </div>
                     </div>
                   )}
-                </div>
-              )}
-
-              {chartMode === "youtube" && (
-                <div className="space-y-4">
-                  {/* Link Input Section */}
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] text-slate-500 uppercase tracking-wider font-bold block">
-                      YouTube Stream Link
-                    </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-grow">
-                        <Youtube className="w-3.5 h-3.5 text-red-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          value={youtubeUrl}
-                          onChange={(e) => {
-                            setYoutubeUrl(e.target.value);
-                            setYoutubeError(null);
-                          }}
-                          placeholder="https://www.youtube.com/watch?v=..."
-                          className="w-full bg-slate-900 border border-white/5 rounded-lg text-[10px] text-slate-300 pl-8 pr-3 py-2.5 focus:border-red-500/50 focus:outline-none placeholder:text-slate-600 transition-all duration-200"
-                        />
-                      </div>
-                      <button
-                        onClick={() => handleEmbedYoutube()}
-                        className="bg-red-600 hover:bg-red-500 text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-1 shrink-0"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Load
-                      </button>
-                    </div>
-                    {youtubeError && (
-                      <span className="text-[9px] text-red-400 font-medium block animate-pulse mt-1">
-                        ⚠️ {youtubeError}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Player Embed or Empty State */}
-                  {youtubeVideoId ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-mono text-slate-400 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                          Active Coping Stream:
-                        </span>
-                        <button
-                          onClick={() => setYoutubeVideoId(null)}
-                          className="text-[8px] text-red-400 font-bold hover:underline flex items-center gap-0.5"
-                        >
-                          <Trash2 className="w-3 h-3" /> Clear Player
-                        </button>
-                      </div>
-                      <div className="border border-white/10 rounded-xl overflow-hidden bg-slate-950 aspect-video relative">
-                        <iframe
-                          src={`https://www.youtube.com/embed/${youtubeVideoId}?autoplay=1&mute=1`}
-                          title="YouTube Coping Stream"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                          className="w-full h-full border-none"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="border border-white/5 bg-slate-950/20 rounded-xl aspect-[1.6] flex flex-col items-center justify-center p-6 text-center space-y-2">
-                      <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
-                        <Youtube className="w-5 h-5" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <span className="text-[9px] font-bold text-slate-400 block">No Stream Connected</span>
-                        <span className="text-[8px] text-slate-500 block max-w-[200px] leading-relaxed">
-                          Enter a YouTube stream link or charting webinar URL above to visualize charts side-by-side with your optimizer workspace.
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* History Section */}
-                  <div className="pt-2 border-t border-white/5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <History className="w-3.5 h-3.5 text-slate-500" />
-                        Stream Link History
-                      </span>
-                      {youtubeHistory.length > 0 && (
-                        <button
-                          onClick={handleClearHistory}
-                          className="text-[8px] text-slate-500 hover:text-red-400 font-bold transition-colors"
-                        >
-                          Clear All
-                        </button>
-                      )}
-                    </div>
-
-                    {youtubeHistory.length > 0 ? (
-                      <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1 scrollbar-thin">
-                        {youtubeHistory.map((link, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => handleEmbedYoutube(link)}
-                            className="flex items-center justify-between bg-slate-900/60 hover:bg-slate-900 border border-white/5 hover:border-red-500/20 px-2.5 py-2 rounded-lg cursor-pointer transition-all duration-200 group"
-                          >
-                            <div className="flex items-center gap-2 min-w-0 flex-grow mr-2">
-                              <Youtube className="w-3 h-3 text-red-500/60 group-hover:text-red-500 shrink-0" />
-                              <span className="text-[9px] text-slate-400 group-hover:text-slate-200 font-mono truncate">
-                                {link}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <ExternalLink className="w-3 h-3 text-slate-600 group-hover:text-slate-400" />
-                              <button
-                                onClick={(e) => handleDeleteHistoryItem(e, idx)}
-                                className="p-1 hover:bg-red-500/10 text-slate-600 hover:text-red-400 rounded transition-colors"
-                                title="Remove from history"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-[8px] text-slate-600 italic font-mono py-1">
-                        No previous stream links recorded.
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
             </div>

@@ -2,7 +2,11 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import {AuthProvider} from './auth/AuthProvider';
+import {redirectLoopbackIpToLocalhost} from './auth/firebase';
 import './index.css';
+
+// Firebase authorized domain is localhost, not 127.0.0.1 — bounce before auth UI mounts.
+const skipReactMount = redirectLoopbackIpToLocalhost();
 
 // Intercept performance.measure and performance.mark to prevent DataCloneError in iframe-based sandboxes
 if (typeof window !== 'undefined' && window.performance) {
@@ -101,11 +105,13 @@ if (typeof window !== 'undefined' && window.performance) {
   }
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
-  </StrictMode>,
-);
+if (!skipReactMount) {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </StrictMode>,
+  );
+}
 

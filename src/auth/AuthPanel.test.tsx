@@ -1,6 +1,6 @@
 import React from "react";
-import {fireEvent, render, screen, waitFor} from "@testing-library/react";
-import {beforeEach, describe, expect, it, vi} from "vitest";
+import {cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react";
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 
 const signInGoogle = vi.hoisted(() => vi.fn());
 const signOut = vi.hoisted(() => vi.fn());
@@ -12,6 +12,9 @@ const authState = vi.hoisted(() => ({
   displayName: null as string | null,
   photoUrl: null as string | null,
   error: null as string | null,
+  lastErrorCode: null as string | null,
+  originHint: null as string | null,
+  origin: "http://localhost:5173",
   user: null,
   signInGoogle,
   signOut,
@@ -22,6 +25,10 @@ vi.mock("./AuthProvider", () => ({useAuth: () => authState}));
 import AuthPanel from "./AuthPanel";
 
 describe("AuthPanel", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     authState.ready = true;
     authState.configured = true;
@@ -29,6 +36,8 @@ describe("AuthPanel", () => {
     authState.email = null;
     authState.displayName = null;
     authState.error = null;
+    authState.lastErrorCode = null;
+    authState.origin = "http://localhost:5173";
     signInGoogle.mockReset().mockResolvedValue(undefined);
     signOut.mockReset().mockResolvedValue(undefined);
   });
@@ -36,7 +45,20 @@ describe("AuthPanel", () => {
   it("starts the Firebase Google popup flow", async () => {
     render(<AuthPanel />);
     fireEvent.click(screen.getByRole("button", {name: "Continue with Google"}));
-    await waitFor(() => expect(signInGoogle).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(signInGoogle).toHaveBeenCalledWith({forceRedirect: false}));
+  });
+
+  it("offers redirect sign-in as a fallback", async () => {
+    render(<AuthPanel />);
+    fireEvent.click(screen.getByRole("button", {name: "Use redirect sign-in"}));
+    await waitFor(() => expect(signInGoogle).toHaveBeenCalledWith({forceRedirect: true}));
+  });
+
+  it("shows a visible auth status line while signed out", () => {
+    const {container} = render(<AuthPanel />);
+    const status = container.querySelector('[data-testid="auth-status-line"]');
+    expect(status?.textContent ?? "").toMatch(/Auth:\s*ready/);
+    expect(status?.textContent ?? "").toContain("localhost:5173");
   });
 
   it("offers logout for an authenticated user", async () => {

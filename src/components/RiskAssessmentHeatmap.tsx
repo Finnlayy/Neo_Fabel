@@ -20,18 +20,64 @@ interface WatchlistItem {
   custom: boolean;
 }
 
-export default function RiskAssessmentHeatmap({ tickers }: { tickers: TickerData[] }) {
-  // Combine pre-built cryptos and custom watchlist items
+function historyVolatilityPct(history: number[]): number {
+  if (history.length < 2) return 20;
+  const returns: number[] = [];
+  for (let i = 1; i < history.length; i++) {
+    const prev = history[i - 1];
+    const cur = history[i];
+    if (prev > 0) returns.push((cur - prev) / prev);
+  }
+  if (returns.length === 0) return 20;
+  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+  const variance = returns.reduce((a, b) => a + (b - mean) ** 2, 0) / returns.length;
+  const std = Math.sqrt(variance);
+  return Math.max(5, Math.min(99, std * 100 * 12));
+}
+
+function metricsFromTicker(ticker: TickerData | undefined, fallbackPrice: number): RiskMetrics {
+  const change = Math.abs(ticker?.change ?? 0);
+  const history = ticker?.history?.length ? ticker.history : [fallbackPrice];
+  const vol = historyVolatilityPct(history);
+  const drawdownFactor = Math.max(
+    1,
+    Math.min(95, Math.max(change * 1.4, (Math.max(...history) - Math.min(...history)) / Math.max(...history) * 100)),
+  );
+  const sentimentStress = Math.max(5, Math.min(99, change * 2.2 + vol * 0.35));
+  let levLimit = 20;
+  if (vol > 60) levLimit = 3;
+  else if (vol > 45) levLimit = 5;
+  else if (vol > 30) levLimit = 10;
+  const composite = Math.round(vol * 0.4 + drawdownFactor * 0.3 + sentimentStress * 0.3);
+  return {
+    volatility: Number(vol.toFixed(1)),
+    leverageLimit: levLimit,
+    drawdownFactor: Number(drawdownFactor.toFixed(1)),
+    sentimentStress: Number(sentimentStress.toFixed(1)),
+    compositeScore: composite,
+  };
+}
+
+export default function RiskAssessmentHeatmap({
+  tickers,
+  marketLive = false,
+  marketAsOf = null,
+}: {
+  tickers: TickerData[];
+  marketLive?: boolean;
+  marketAsOf?: string | null;
+}) {
+  // Seed symbols only — prices/risk come from live tickers (Kraken ~15s, AV equities hourly).
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([
-    { symbol: "BTC", name: "Bitcoin", basePrice: 92450, custom: false },
-    { symbol: "ETH", name: "Ethereum", basePrice: 3412, custom: false },
-    { symbol: "SOL", name: "Solana", basePrice: 184, custom: false },
-    { symbol: "MATIC", name: "Polygon", basePrice: 0.58, custom: false },
-    { symbol: "AVAX", name: "Avalanche", basePrice: 28.4, custom: false },
-    { symbol: "DOT", name: "Polkadot", basePrice: 4.85, custom: false },
-    { symbol: "XRP", name: "Ripple", basePrice: 0.62, custom: false },
-    { symbol: "ADA", name: "Cardano", basePrice: 0.38, custom: false },
-    { symbol: "NIO", name: "NIO Inc. (EV)", basePrice: 4.25, custom: false },
+    { symbol: "BTC", name: "Bitcoin", basePrice: 0, custom: false },
+    { symbol: "ETH", name: "Ethereum", basePrice: 0, custom: false },
+    { symbol: "SOL", name: "Solana", basePrice: 0, custom: false },
+    { symbol: "MATIC", name: "Polygon", basePrice: 0, custom: false },
+    { symbol: "AVAX", name: "Avalanche", basePrice: 0, custom: false },
+    { symbol: "DOT", name: "Polkadot", basePrice: 0, custom: false },
+    { symbol: "XRP", name: "Ripple", basePrice: 0, custom: false },
+    { symbol: "ADA", name: "Cardano", basePrice: 0, custom: false },
+    { symbol: "NIO", name: "NIO Inc. (EV)", basePrice: 0, custom: false },
   ]);
 
   // Input states for adding new watchlist members
@@ -51,65 +97,23 @@ export default function RiskAssessmentHeatmap({ tickers }: { tickers: TickerData
   // Keep a map of live generated risk parameters
   const [riskData, setRiskData] = useState<Record<string, RiskMetrics>>({});
 
-  // Generate deterministic but slightly fluctuating risk metrics for each asset
+  // Sync names/prices from live tickers and derive risk from real change/history
   useEffect(() => {
-    const generateRisk = () => {
-      const updated: Record<string, RiskMetrics> = {};
-      watchlist.forEach((item) => {
-        // Deterministic base risk based on symbol
-        let baseVol = 30;
-        let baseDrawdown = 12;
-        let baseStress = 40;
-
-        if (item.symbol === "BTC") { baseVol = 25; baseDrawdown = 8; baseStress = 30; }
-        else if (item.symbol === "ETH") { baseVol = 35; baseDrawdown = 15; baseStress = 42; }
-        else if (item.symbol === "SOL") { baseVol = 55; baseDrawdown = 22; baseStress = 58; }
-        else if (item.symbol === "AVAX") { baseVol = 62; baseDrawdown = 29; baseStress = 65; }
-        else if (item.symbol === "MATIC") { baseVol = 45; baseDrawdown = 18; baseStress = 45; }
-        else if (item.symbol === "DOT") { baseVol = 40; baseDrawdown = 20; baseStress = 50; }
-        else if (item.symbol === "XRP") { baseVol = 50; baseDrawdown = 25; baseStress = 55; }
-        else if (item.symbol === "ADA") { baseVol = 42; baseDrawdown = 19; baseStress = 48; }
-        else if (item.symbol === "NIO") { baseVol = 68; baseDrawdown = 32; baseStress = 72; }
-        else {
-          // Custom ones
-          baseVol = Math.floor(Math.random() * 50) + 30;
-          baseDrawdown = Math.floor(Math.random() * 30) + 10;
-          baseStress = Math.floor(Math.random() * 60) + 20;
-        }
-
-        // Add small live fluctuation
-        const volFluc = (Math.random() - 0.5) * 4;
-        const drawFluc = (Math.random() - 0.5) * 2;
-        const stressFluc = (Math.random() - 0.5) * 6;
-
-        const finalVol = Math.max(5, Math.min(99, baseVol + volFluc));
-        const finalDraw = Math.max(1, Math.min(95, baseDrawdown + drawFluc));
-        const finalStress = Math.max(5, Math.min(99, baseStress + stressFluc));
-
-        // Leverage limit is inversely proportional to volatility
-        let levLimit = 20;
-        if (finalVol > 60) levLimit = 3;
-        else if (finalVol > 45) levLimit = 5;
-        else if (finalVol > 30) levLimit = 10;
-
-        // Composite score
-        const composite = Math.round((finalVol * 0.4) + (finalDraw * 0.3) + (finalStress * 0.3));
-
-        updated[item.symbol] = {
-          volatility: Number(finalVol.toFixed(1)),
-          leverageLimit: levLimit,
-          drawdownFactor: Number(finalDraw.toFixed(1)),
-          sentimentStress: Number(finalStress.toFixed(1)),
-          compositeScore: composite
-        };
+    setWatchlist((prev) => {
+      const next = prev.map((item) => {
+        const live = tickers.find((t) => t.symbol === item.symbol);
+        if (!live) return item;
+        return {...item, name: live.name || item.name, basePrice: live.price};
       });
+      const updated: Record<string, RiskMetrics> = {};
+      for (const item of next) {
+        const live = tickers.find((t) => t.symbol === item.symbol);
+        updated[item.symbol] = metricsFromTicker(live, item.basePrice);
+      }
       setRiskData(updated);
-    };
-
-    generateRisk();
-    const interval = setInterval(generateRisk, 8000);
-    return () => clearInterval(interval);
-  }, [watchlist]);
+      return next;
+    });
+  }, [tickers]);
 
   // Handle adding custom watch items
   const handleAddWatchlist = (e: React.FormEvent) => {
@@ -137,6 +141,10 @@ export default function RiskAssessmentHeatmap({ tickers }: { tickers: TickerData
     };
 
     setWatchlist((prev) => [...prev, newItem]);
+    setRiskData((prev) => ({
+      ...prev,
+      [symbol]: metricsFromTicker(tickers.find((t) => t.symbol === symbol), newItem.basePrice),
+    }));
     setNewSymbol("");
     setNewName("");
   };
@@ -157,34 +165,20 @@ export default function RiskAssessmentHeatmap({ tickers }: { tickers: TickerData
     return { label: "LOW", color: "text-emerald-400 bg-emerald-950/40 border-emerald-500/40", bg: "bg-emerald-950/10" };
   };
 
-  // Active risk assessment audit trigger
+  // Honest local summary from derived metrics — no simulated Monte Carlo stream.
   const runDeepRiskAudit = (symbol: string) => {
     if (auditingSymbol) return;
+    const metrics = riskData[symbol];
     setAuditingSymbol(symbol);
-    setAuditProgress(0);
-    setAuditLogs([`Initiating FABLE 5 Neural Risk Assessment on ${symbol}/USD...`]);
-
-    const logs = [
-      "Securing connection with decentralized risk vaults...",
-      "Evaluating rolling volatility indicators on standard deviation corridors...",
-      "Simulating 10,000 Monte Carlo paths for liquidation threshold checks...",
-      "Analyzing active Order Book liquidity cushion and slippage vectors...",
-      "Auditing current multi-agent capital exposure margins...",
-      "Finalizing risk evaluation certificate under RNA Compliance rules."
-    ];
-
-    let currentStep = 0;
-    const interval = setInterval(() => {
-      currentStep++;
-      if (currentStep <= logs.length) {
-        setAuditProgress(Math.floor((currentStep / logs.length) * 100));
-        setAuditLogs((prev) => [...prev, `[AUDIT-LOG] ${logs[currentStep - 1]}`]);
-      } else {
-        clearInterval(interval);
-        setAuditingSymbol(null);
-        setAuditLogs((prev) => [...prev, `🎉 Audit completed for ${symbol}. Asset is verified under current compliance protocols.`]);
-      }
-    }, 800);
+    setAuditProgress(100);
+    setAuditLogs([
+      `Risk summary for ${symbol} from client-derived ticker metrics (not a remote audit service).`,
+      metrics
+        ? `volatility=${metrics.volatility} drawdownFactor=${metrics.drawdownFactor} sentimentStress=${metrics.sentimentStress} composite=${metrics.compositeScore} levLimit=${metrics.leverageLimit}x`
+        : "No metrics available for this symbol yet.",
+      "Remote Monte Carlo / vault audit is not implemented.",
+    ]);
+    setAuditingSymbol(null);
   };
 
   return (
@@ -199,9 +193,19 @@ export default function RiskAssessmentHeatmap({ tickers }: { tickers: TickerData
               Fable 5 Risk Assessment Heatmap // Tiles
             </h3>
             <p className="text-[9px] text-slate-500">
-              Interactive Windows-inspired tiles showcasing localized volatility, leverage bounds, and drawdown factors.
+              Crypto: Kraken public REST ~15s. Equities (e.g. NIO): Alpha Vantage batch once/hour. No Linux required.
             </p>
           </div>
+          <span
+            className={`text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase ${
+              marketLive
+                ? "text-emerald-400 border-emerald-500/30 bg-emerald-950/30"
+                : "text-amber-400 border-amber-500/30 bg-amber-950/30"
+            }`}
+            title={marketAsOf ?? undefined}
+          >
+            {marketLive ? `LIVE${marketAsOf ? ` · ${new Date(marketAsOf).toLocaleTimeString()}` : ""}` : "STALE / CACHED"}
+          </span>
         </div>
 
         {/* Filters */}

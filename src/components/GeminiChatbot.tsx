@@ -15,6 +15,8 @@ import {
   FileCode,
   LineChart
 } from "lucide-react";
+import { ApiError } from "../api/client";
+import { postChat } from "../api/ai";
 
 interface Message {
   role: "user" | "assistant";
@@ -74,23 +76,17 @@ export default function GeminiChatbot() {
         content: m.content
       }));
 
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: backendHistory,
-          modelSelection,
-          enableSearch
-        })
+      const data = await postChat({
+        messages: backendHistory,
+        modelSelection,
+        enableSearch
       });
-
-      const data = await response.json();
       if (data.success) {
         setMessages(prev => [
           ...prev,
           {
             role: "assistant",
-            content: data.reply,
+            content: data.reply ?? "",
             modelUsed: data.modelUsed,
             routeLabel: data.routeLabel,
             citations: data.citations,
@@ -107,12 +103,14 @@ export default function GeminiChatbot() {
           }
         ]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message =
+        err instanceof ApiError ? `${err.code}: ${err.message}` : err instanceof Error ? err.message : "Failed to reach backend core.";
       setMessages(prev => [
           ...prev,
           {
             role: "assistant",
-            content: `⚠️ Connectivity Error: ${err.message || "Failed to reach backend core."}`,
+            content: `⚠️ Connectivity Error: ${message}`,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           }
       ]);

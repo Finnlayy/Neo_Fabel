@@ -16,11 +16,20 @@ export default defineConfig(() => {
       include: ['src/**/*.test.{ts,tsx}'],
     },
     server: {
+      // Prefer localhost so Firebase's default authorized domain matches the page origin.
+      // 127.0.0.1 is a different origin and must be added separately in Firebase Console.
+      host: 'localhost',
+      port: 5173,
+      strictPort: true,
       proxy: {
-        '/api': 'http://127.0.0.1:8000',
+        '/api': {
+          target: 'http://127.0.0.1:8000',
+          changeOrigin: true,
+          ws: true,
+        },
       },
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},

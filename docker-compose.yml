@@ -15,6 +15,21 @@ services:
       timeout: 5s
       retries: 20
 
+  # Phase 1 — Qdrant vector DB (dev defaults; no API key required locally).
+  # REST: http://localhost:6333  |  gRPC: localhost:6334  |  dashboard: http://localhost:6333/dashboard
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   api:
     build:
       context: .
@@ -37,9 +52,22 @@ services:
       SIGNAL_CREDENTIAL_PEPPER: ${SIGNAL_CREDENTIAL_PEPPER:-}
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
       GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+      QDRANT_ENABLED: ${QDRANT_ENABLED:-true}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-neo_fabel_vectors}
+      QDRANT_VECTOR_SIZE: ${QDRANT_VECTOR_SIZE:-8}
+      MARKET_STREAM_ENABLED: ${MARKET_STREAM_ENABLED:-true}
+      MARKET_CCXT_ENABLED: ${MARKET_CCXT_ENABLED:-true}
+      MARKET_CCXT_EXCHANGE: ${MARKET_CCXT_EXCHANGE:-kraken}
+      MARKET_STREAM_INTERVAL_SECONDS: ${MARKET_STREAM_INTERVAL_SECONDS:-5}
     command: ["/bin/sh", "-c", "alembic -c backend/alembic.ini upgrade head && exec uvicorn backend.app.main:app --host 0.0.0.0 --port 8000"]
+    ports:
+      - "8000:8000"
     depends_on:
       postgres:
+        condition: service_healthy
+      qdrant:
         condition: service_healthy
     read_only: true
     tmpfs:
@@ -91,3 +119,4 @@ services:
 
 volumes:
   postgres-data:
+  qdrant-data:

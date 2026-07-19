@@ -69,35 +69,18 @@ export default function NeuralTracker({ currentPrice = 64250 }: NeuralTrackerPro
     setState(updatedInference);
   }, [currentPrice, selectedModel]);
 
-  // Periodically update the price history in live feed mode
+  // Append live ticker price when the parent feed updates — no random jitter.
   useEffect(() => {
-    if (activeSimulationMode !== 'live') return;
-
-    const interval = setInterval(() => {
-      if (!isTraining) {
-        const delta = Math.random() * 24 - 12;
-        const newPrice = currentPrice + delta;
-        
-        // Update inference state with active model config
-        const nextInference = NeuralOptimizationEngine.calculateInference(newPrice, selectedModel);
-        setState(nextInference);
-
-        // Update price buffer
-        setPriceHistory(prev => {
-          const updated = [...prev, newPrice];
-          if (updated.length > 15) {
-            updated.shift();
-          }
-          // Scan for pattern on updated buffer
-          const match = NeuralOptimizationEngine.detectPattern(updated);
-          setPatternResult(match);
-          return updated;
-        });
-      }
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [currentPrice, isTraining, activeSimulationMode, selectedModel]);
+    if (activeSimulationMode !== "live" || isTraining) return;
+    if (!Number.isFinite(currentPrice) || currentPrice <= 0) return;
+    setPriceHistory((prev) => {
+      const last = prev[prev.length - 1];
+      if (last === currentPrice) return prev;
+      const updated = [...prev, currentPrice].slice(-15);
+      setPatternResult(NeuralOptimizationEngine.detectPattern(updated));
+      return updated;
+    });
+  }, [activeSimulationMode, isTraining, currentPrice]);
 
   // Handle weight optimization training cycle
   const handleTrainCycle = () => {

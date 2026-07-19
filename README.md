@@ -29,10 +29,104 @@ Market-data endpoints:
 
 Set `ALPHAVANTAGE_API_KEY` (or `ALPHA_VANTAGE_API_KEY`) in `.env.local`. Full equity batches use Alpha Vantage's bulk quote entitlement, so set `ALPHAVANTAGE_BULK_QUOTES_ENABLED=true` only when that entitlement is available. Intraday equity and crypto endpoints may also require a premium Alpha Vantage plan; the API never substitutes mock data.
 
-Docker path:
+Docker path (required on Windows for paper trades — Kraken CLI is Linux-only):
 
-- `docker compose --env-file .env.local up --build`
-- Apply migrations from the API image: `docker compose run --rm api alembic -c backend/alembic.ini upgrade head`
+```powershell
+# Stop any native Windows uvicorn on :8000 first, then (from D:\Neo_Fabel):
+Copy-Item -Force .env.local .env   # Compose expects .env for ${VAR} substitution
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build api postgres
+```
+
+- API (Linux + `/usr/local/bin/kraken`): `http://127.0.0.1:8000`
+- Keep Vite on the host: `npm run dev` → `http://localhost:5173`
+- Do **not** run `python -m uvicorn` on Windows if you need paper orders — that process has no Kraken CLI.
+
+Apply migrations from the API image: `docker compose run --rm api alembic -c backend/alembic.ini upgrade head`
+
+## Phase 1 — Qdrant vector index
+
+Paper/dev vector storage for the Neural Vector Analyzer. **No live trading.**
+FastAPI owns the Qdrant client; the React UI calls `/api/v1/vector/*` (Vite proxies
+to port 8000) and falls back to an honest **RAM FALLBACK** label when Qdrant is down
+(never claims “live Qdrant” for in-memory mode).
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `QDRANT_ENABLED` | `true` | Feature gate |
+| `QDRANT_URL` | `http://localhost:6333` | Local Docker or Qdrant Cloud URL |
+| `QDRANT_API_KEY` | empty | Required for Qdrant Cloud; omit for local |
+| `QDRANT_COLLECTION` | `neo_fabel_vectors` | Collection name |
+| `QDRANT_VECTOR_SIZE` | `8` | Must match Neural Vector Analyzer dims |
+
+Local Compose (Postgres + Qdrant):
+
+```powershell
+docker compose up -d postgres qdrant
+```
+
+Ports: Postgres `5432`; Qdrant REST `6333` and gRPC `6334` are bound to
+`127.0.0.1` only. Containers access Qdrant over the internal Compose network.
+
+API endpoints:
+
+- `GET /api/v1/vector/health` — readiness probe (no auth)
+- `GET /api/v1/vector/ready` — 200 only when Qdrant is up
+- `POST /api/v1/vector/collections/ensure` — authenticated collection creation (cosine, size from env)
+- `POST /api/v1/vector/points` — authenticated point upsert
+- `POST /api/v1/vector/search` — authenticated cosine search
+- `GET /api/v1/vector/points` — authenticated list/scroll
+- `DELETE /api/v1/vector/points/{id}` — authenticated deletion by document id
+
+Smoke (after API is running with `.env.local`):
+
+```powershell
+curl http://127.0.0.1:8000/api/v1/vector/health
+# Supply a short-lived Firebase ID token obtained by the signed-in frontend.
+$token = "FIREBASE_ID_TOKEN"
+curl -X POST http://127.0.0.1:8000/api/v1/vector/collections/ensure -H "Authorization: Bearer $token"
+curl -X POST http://127.0.0.1:8000/api/v1/vector/points -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"points\":[{\"id\":\"VEC-SMOKE\",\"title\":\"Smoke\",\"category\":\"strategy\",\"vector\":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8],\"metadata\":{\"description\":\"phase1\"}}]}"
+curl -X POST http://127.0.0.1:8000/api/v1/vector/search -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"vector\":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8],\"top_k\":3,\"metric\":\"cosine\"}"
+```
+
+## Phase 2 — CCXT + WebSocket market stream
+
+Read-only live crypto tickers. FastAPI owns a CCXT (Kraken) poller that fans out
+over `WS /api/v1/market/stream`. The React UI prefers the WebSocket and falls
+back to `GET /api/v1/market/batch`. **No exchange API keys. No live trading.**
+TimescaleDB/Influx and Socket.io are deferred; history is an in-process ring buffer
+plus the existing Alpha Vantage OHLCV HTTP path for equities/FX.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MARKET_STREAM_ENABLED` | `true` | Start the stream hub + WS endpoint |
+| `MARKET_CCXT_ENABLED` | `true` | Prefer CCXT for crypto batch/stream |
+| `MARKET_CCXT_EXCHANGE` | `kraken` | CCXT exchange id (public only) |
+| `MARKET_STREAM_INTERVAL_SECONDS` | `5` | Poll cadence for the hub |
+| `MARKET_STREAM_SYMBOLS` | BTC/ETH/… | Comma-separated CCXT symbols |
+
+Endpoints:
+
+- `GET /api/v1/market/stream/health` — hub readiness (no auth)
+- `WS /api/v1/market/stream` — ticker snapshots `{type:"tickers", tickers:[…]}`
+- Existing `GET /api/v1/market/batch` — uses CCXT when enabled, else Kraken public REST
+
+Smoke (API on `:8000`):
+
+```powershell
+curl http://127.0.0.1:8000/api/v1/market/stream/health
+# Browser / Vite (`localhost:5173`) opens WS via the `/api` proxy (ws: true).
+```
+
+## Phase 3 — paper execution API
+
+Paper-only trade surface (live trading stays gated):
+
+| Path | Purpose |
+|------|---------|
+| `POST /api/v1/trade/execute` | Place paper order (alias of `/api/v1/paper/orders`) |
+| `GET /api/v1/trade/positions` | Paper status / fills (alias of `/api/v1/paper/status`) |
+
+Router order: **Kraken CLI** when present (Linux/Docker) → else **local paper ledger** (Windows without CLI). Postgres is used when available; if DB is down, orders still accept into the local ledger.
 
 Validation commands:
 
@@ -79,6 +173,30 @@ Docker worker (profile): `docker compose --profile signals up signal-worker`
 UI: main menu **Signal Routes** (shortcut `5`). Requires Firebase Auth sign-in
 plus a `signal_admin` custom claim for admin APIs. Bypass switches and credential
 rotation require recent auth.
+
+## AI / TVAPI / Telegram tabs
+
+Legacy `/api/*` routes (Vite proxies to FastAPI) power the chat, orchestrator,
+TVAPI optimizer, and Telegram feed. All mutating calls require Firebase Bearer
+auth (`require_user`).
+
+| Path | Purpose |
+|------|---------|
+| `GET /api/ai/health` | Gemini configured? (no auth) |
+| `POST /api/chat` | Gemini chat |
+| `POST /api/gemini/orchestrate` | Generative plan (bare JSON) |
+| `POST /api/gemini/analyze-trades` | Trade diagnostics |
+| `POST /api/tvapi/optimize` | Labeled deterministic parameter sweep (V1) |
+| `POST /api/tvapi/analyze-chart` | Gemini vision on chart image |
+| `GET/POST /api/telegram/*` | Bot config, messages, send, daemon status |
+
+Env (see `.env.example`): `GEMINI_API_KEY`, `AI_CHAT_ENABLED`,
+`AI_ALLOW_DETERMINISTIC_FALLBACK` (dev/tests only), `TVAPI_ENABLED`,
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ENABLED`.
+
+Keep local trading paper-first: `KRAKEN_AUTONOMY_LEVEL=2` and
+`KRAKEN_LIVE_TRADING_ENABLED=false`. If `/health/ready` reports
+`live-autonomous`, fix your `.env.local` — do not commit secrets.
 
 ### Firebase Auth setup
 

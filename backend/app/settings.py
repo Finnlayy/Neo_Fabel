@@ -30,7 +30,14 @@ class Settings(BaseSettings):
     kraken_max_trades_per_hour: int = Field(default=10, validation_alias="KRAKEN_MAX_TRADES_PER_HOUR")
     kraken_pair_allowlist: str = Field(default="BTCUSD,ETHUSD", validation_alias="KRAKEN_PAIR_ALLOWLIST")
     firebase_project_id: str | None = Field(default=None, validation_alias="FIREBASE_PROJECT_ID")
-    firebase_credentials_path: str | None = Field(default=None, validation_alias="GOOGLE_APPLICATION_CREDENTIALS")
+    firebase_credentials_path: str | None = Field(
+        default=None, validation_alias=AliasChoices("GOOGLE_APPLICATION_CREDENTIALS", "FIREBASE_CREDENTIALS_PATH")
+    )
+    # Local-only: allow loopback API calls without Firebase when credentials are missing.
+    # Forced off outside development. Never enable in production.
+    auth_dev_bypass: bool = Field(default=True, validation_alias="AUTH_DEV_BYPASS")
+    # Paper ledger without Kraken CLI (required on native Windows — CLI is Linux/macOS/WSL).
+    paper_local_ledger: bool = Field(default=True, validation_alias="PAPER_LOCAL_LEDGER")
     alphavantage_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("ALPHAVANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY"),
@@ -63,6 +70,67 @@ class Settings(BaseSettings):
     advisory_timeout_seconds: float = Field(default=5.0, validation_alias="ADVISORY_TIMEOUT_SECONDS")
     advisory_prompt_version: str = Field(default="v1", validation_alias="ADVISORY_PROMPT_VERSION")
     signal_policy_version: str = Field(default="v1", validation_alias="SIGNAL_POLICY_VERSION")
+
+    # AI chat / orchestrate / vision (Gemini via Generative Language API).
+    gemini_api_key: str | None = Field(default=None, validation_alias="GEMINI_API_KEY")
+    ai_chat_enabled: bool = Field(default=True, validation_alias="AI_CHAT_ENABLED")
+    ai_allow_deterministic_fallback: bool = Field(
+        default=False, validation_alias="AI_ALLOW_DETERMINISTIC_FALLBACK"
+    )
+    gemini_timeout_seconds: float = Field(default=45.0, validation_alias="GEMINI_TIMEOUT_SECONDS")
+    gemini_default_model: str = Field(default="gemini-2.0-flash", validation_alias="GEMINI_DEFAULT_MODEL")
+
+    # TVAPI / chart optimize (RapidAPI optional; deterministic sweep always available).
+    tradingview_rapidapi_key: str | None = Field(default=None, validation_alias="TRADINGVIEW_RAPIDAPI_KEY")
+    tvapi_enabled: bool = Field(default=True, validation_alias="TVAPI_ENABLED")
+
+    # Phase 1 — Qdrant vector index (paper/dev; no live trading).
+    qdrant_enabled: bool = Field(default=True, validation_alias="QDRANT_ENABLED")
+    qdrant_url: str = Field(default="http://localhost:6333", validation_alias="QDRANT_URL")
+    qdrant_api_key: str | None = Field(default=None, validation_alias="QDRANT_API_KEY")
+    qdrant_collection: str = Field(default="neo_fabel_vectors", validation_alias="QDRANT_COLLECTION")
+    qdrant_vector_size: int = Field(default=8, validation_alias="QDRANT_VECTOR_SIZE")
+    qdrant_timeout_seconds: float = Field(default=10.0, validation_alias="QDRANT_TIMEOUT_SECONDS")
+
+    # Phase 2 — CCXT + WebSocket market stream (read-only; no live trading).
+    market_stream_enabled: bool = Field(default=True, validation_alias="MARKET_STREAM_ENABLED")
+    market_ccxt_enabled: bool = Field(default=True, validation_alias="MARKET_CCXT_ENABLED")
+    market_ccxt_exchange: str = Field(default="kraken", validation_alias="MARKET_CCXT_EXCHANGE")
+    market_stream_interval_seconds: float = Field(
+        default=5.0, validation_alias="MARKET_STREAM_INTERVAL_SECONDS"
+    )
+    market_stream_symbols: str = Field(
+        default="BTC/USD,ETH/USD,SOL/USD,XRP/USD,ADA/USD,AVAX/USD,DOT/USD,POL/USD",
+        validation_alias="MARKET_STREAM_SYMBOLS",
+    )
+
+    # Telegram bot feed — primary chat defaults to Manus (MANUS_TELEGRAM_CHAT_ID).
+    telegram_bot_token: str | None = Field(default=None, validation_alias="TELEGRAM_BOT_TOKEN")
+    telegram_chat_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TELEGRAM_CHAT_ID", "MANUS_TELEGRAM_CHAT_ID"),
+    )
+    telegram_channel: str = Field(default="manus", validation_alias="TELEGRAM_CHANNEL")
+    telegram_enabled: bool = Field(default=True, validation_alias="TELEGRAM_ENABLED")
+    telegram_timeout_seconds: float = Field(default=20.0, validation_alias="TELEGRAM_TIMEOUT_SECONDS")
+    telegram_poll_limit: int = Field(default=50, validation_alias="TELEGRAM_POLL_LIMIT")
+    manus_telegram_chat_id: str | None = Field(default=None, validation_alias="MANUS_TELEGRAM_CHAT_ID")
+    glint_telegram_chat_id: str | None = Field(default=None, validation_alias="GLINT_TELEGRAM_CHAT_ID")
+
+    # Optional provider keys (stored for CLI/integrations; extra="ignore" alone would drop typing).
+    openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
+    openrouter_api_key: str | None = Field(default=None, validation_alias="OPENROUTER_API_KEY")
+    xai_api_key: str | None = Field(default=None, validation_alias="XAI_API_KEY")
+    finnhub_api_key: str | None = Field(default=None, validation_alias="FINNHUB_API_KEY")
+    kraken_api_key: str | None = Field(default=None, validation_alias="KRAKEN_API_KEY")
+    kraken_api_secret: str | None = Field(default=None, validation_alias="KRAKEN_API_SECRET")
+    bybit_api_key: str | None = Field(default=None, validation_alias="BYBIT_API_KEY")
+    bybit_api_secret: str | None = Field(default=None, validation_alias="BYBIT_API_SECRET")
+    pionex_api_key: str | None = Field(default=None, validation_alias="PIONEX_API_KEY")
+    pionex_api_secret: str | None = Field(default=None, validation_alias="PIONEX_API_SECRET")
+    pionex_signal_webhook_token: str | None = Field(
+        default=None, validation_alias="PIONEX_SIGNAL_WEBHOOK_TOKEN"
+    )
 
     @field_validator("kraken_autonomy_level")
     @classmethod
