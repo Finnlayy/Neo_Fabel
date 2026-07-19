@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
-import { 
-  LayoutDashboard, Terminal, BrainCircuit, Users, Route, GraduationCap
+import {
+  LayoutDashboard, Terminal, BrainCircuit, Users, Route, GraduationCap, Cpu, Hourglass, Briefcase
 } from "lucide-react";
 import type { MainTab } from "../types";
 
@@ -56,6 +56,15 @@ export default function NavigationMenu({
         case "6":
           setActiveTab("academy");
           break;
+        case "7":
+          setActiveTab("onnx");
+          break;
+        case "8":
+          setActiveTab("chronos");
+          break;
+        case "9":
+          setActiveTab("agency");
+          break;
         default:
           break;
       }
@@ -66,7 +75,7 @@ export default function NavigationMenu({
   }, [setActiveTab]);
 
   const tabs: Array<{
-    id: Exclude<MainTab, "full">;
+    id: MainTab;
     label: string;
     icon: typeof LayoutDashboard;
     desc: string;
@@ -114,6 +123,27 @@ export default function NavigationMenu({
       accent: "teal",
       desc: language === "de" ? "Agenten-Training & Drills" : "Agent training & drills"
     },
+    {
+      id: "onnx",
+      label: language === "de" ? "ONNX-Neuronales Kernmodul" : "ONNX Neural Core",
+      icon: Cpu,
+      accent: "lime",
+      desc: language === "de" ? "LSTM-Inferenz & Modell-Graph" : "LSTM inference & model graph"
+    },
+    {
+      id: "chronos",
+      label: language === "de" ? "Chronos-Agent" : "Chronos Agent",
+      icon: Hourglass,
+      accent: "cyan",
+      desc: language === "de" ? "K-Line-Sprachmodell & Optionen" : "K-Line language model & options"
+    },
+    {
+      id: "agency",
+      label: language === "de" ? "Agency" : "Agency",
+      icon: Briefcase,
+      accent: "amber",
+      desc: language === "de" ? "Rollen, Stufe & Lebensaufgaben" : "Roles, level & life tasks"
+    },
   ];
 
   const accentBar: Record<string, string> = {
@@ -123,6 +153,7 @@ export default function NavigationMenu({
     amber: "bg-amber-400",
     sky: "bg-sky-400",
     teal: "bg-teal-400",
+    lime: "bg-lime-400",
   };
   const accentText: Record<string, string> = {
     emerald: "text-emerald-400",
@@ -131,6 +162,7 @@ export default function NavigationMenu({
     amber: "text-amber-400",
     sky: "text-sky-400",
     teal: "text-teal-400",
+    lime: "text-lime-400",
   };
 
   return (

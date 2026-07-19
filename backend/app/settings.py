@@ -71,18 +71,80 @@ class Settings(BaseSettings):
     advisory_prompt_version: str = Field(default="v1", validation_alias="ADVISORY_PROMPT_VERSION")
     signal_policy_version: str = Field(default="v1", validation_alias="SIGNAL_POLICY_VERSION")
 
-    # AI chat / orchestrate / vision (Gemini via Generative Language API).
+    # AI chat / orchestrate / vision (multi-provider router; Gemini + OpenAI-compatible).
     gemini_api_key: str | None = Field(default=None, validation_alias="GEMINI_API_KEY")
     ai_chat_enabled: bool = Field(default=True, validation_alias="AI_CHAT_ENABLED")
     ai_allow_deterministic_fallback: bool = Field(
         default=False, validation_alias="AI_ALLOW_DETERMINISTIC_FALLBACK"
     )
+    # Ordered failover: free/local first; aiprimetech is paid (€/day budget).
+    ai_provider_order: str = Field(
+        default="gemini,openrouter,groq,cerebras,aiprimetech",
+        validation_alias="AI_PROVIDER_ORDER",
+    )
+    # When true, rotate the starting provider among the configured chain (still fail over in order).
+    ai_provider_rotate: bool = Field(default=False, validation_alias="AI_PROVIDER_ROTATE")
     gemini_timeout_seconds: float = Field(default=45.0, validation_alias="GEMINI_TIMEOUT_SECONDS")
-    gemini_default_model: str = Field(default="gemini-2.0-flash", validation_alias="GEMINI_DEFAULT_MODEL")
+    ai_llm_timeout_seconds: float = Field(default=45.0, validation_alias="AI_LLM_TIMEOUT_SECONDS")
+    # gemini-2.0-* / 2.5-* are legacy; Interactions API current default is 3.5 Flash.
+    gemini_default_model: str = Field(default="gemini-3.5-flash", validation_alias="GEMINI_DEFAULT_MODEL")
+    # Free OpenRouter model ids from cheahjs/free-llm-api-resources (:free suffix).
+    openrouter_default_model: str = Field(
+        default="qwen/qwen3-coder:free",
+        validation_alias="OPENROUTER_DEFAULT_MODEL",
+    )
+    groq_api_key: str | None = Field(default=None, validation_alias="GROQ_API_KEY")
+    groq_default_model: str = Field(
+        default="llama-3.1-8b-instant",
+        validation_alias="GROQ_DEFAULT_MODEL",
+    )
+    cerebras_api_key: str | None = Field(default=None, validation_alias="CEREBRAS_API_KEY")
+    cerebras_default_model: str = Field(
+        default="llama3.1-8b",
+        validation_alias="CEREBRAS_DEFAULT_MODEL",
+    )
+    # AIPrimeTech OpenAI-compatible gateway (https://aiprimetech.io/v1) — paid; €1/day default cap.
+    aiprimetech_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AIPRIMETECH_API_KEY", "OPENAI_API_KEY"),
+    )
+    aiprimetech_base_url: str = Field(
+        default="https://aiprimetech.io/v1",
+        validation_alias="AIPRIMETECH_BASE_URL",
+    )
+    aiprimetech_default_model: str = Field(
+        default="gpt-5.4-mini",
+        validation_alias="AIPRIMETECH_DEFAULT_MODEL",
+    )
+    aiprimetech_daily_budget_eur: float = Field(
+        default=1.0,
+        validation_alias="AIPRIMETECH_DAILY_BUDGET_EUR",
+        ge=0.0,
+        le=1000.0,
+    )
+    aiprimetech_eur_per_1m_input: float | None = Field(
+        default=None,
+        validation_alias="AIPRIMETECH_EUR_PER_1M_INPUT",
+    )
+    aiprimetech_eur_per_1m_output: float | None = Field(
+        default=None,
+        validation_alias="AIPRIMETECH_EUR_PER_1M_OUTPUT",
+    )
+    # Chat wire budget (display history may be longer; server trims before LLM).
+    ai_chat_max_messages: int = Field(default=12, validation_alias="AI_CHAT_MAX_MESSAGES")
+    ai_chat_max_chars: int = Field(default=12_000, validation_alias="AI_CHAT_MAX_CHARS")
+    ai_chat_max_content_chars: int = Field(default=4_000, validation_alias="AI_CHAT_MAX_CONTENT_CHARS")
 
-    # TVAPI / chart optimize (RapidAPI optional; deterministic sweep always available).
+    # TVAPI / chart optimize (RapidAPI optional; candle backtest + tvremix Pine read).
     tradingview_rapidapi_key: str | None = Field(default=None, validation_alias="TRADINGVIEW_RAPIDAPI_KEY")
     tvapi_enabled: bool = Field(default=True, validation_alias="TVAPI_ENABLED")
+    tvremix_api_key: str | None = Field(default=None, validation_alias="TVREMIX_API_KEY")
+    tvremix_mcp_url: str = Field(
+        default="https://tvremix.xyz/api/mcp/v1",
+        validation_alias="TVREMIX_MCP_URL",
+    )
+    tvremix_timeout_seconds: float = Field(default=45.0, validation_alias="TVREMIX_TIMEOUT_SECONDS")
+    tvremix_enabled: bool = Field(default=True, validation_alias="TVREMIX_ENABLED")
 
     # Phase 1 — Qdrant vector index (paper/dev; no live trading).
     qdrant_enabled: bool = Field(default=True, validation_alias="QDRANT_ENABLED")
@@ -93,7 +155,8 @@ class Settings(BaseSettings):
     qdrant_timeout_seconds: float = Field(default=10.0, validation_alias="QDRANT_TIMEOUT_SECONDS")
 
     # Academy / training loop (synthetic drills only; never places live orders).
-    training_loop_enabled: bool = Field(default=True, validation_alias="TRAINING_LOOP_ENABLED")
+    # Default off: manual /train/cycle still works; background loop requires explicit enable.
+    training_loop_enabled: bool = Field(default=False, validation_alias="TRAINING_LOOP_ENABLED")
     training_loop_auto_start: bool = Field(default=False, validation_alias="TRAINING_LOOP_AUTO_START")
     training_loop_night_mode: bool = Field(default=True, validation_alias="TRAINING_LOOP_NIGHT_MODE")
     training_loop_night_start: str = Field(default="22:00", validation_alias="TRAINING_LOOP_NIGHT_START")
@@ -128,7 +191,7 @@ class Settings(BaseSettings):
     glint_telegram_chat_id: str | None = Field(default=None, validation_alias="GLINT_TELEGRAM_CHAT_ID")
 
     # Optional provider keys (stored for CLI/integrations; extra="ignore" alone would drop typing).
-    openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
+    # NOTE: OPENAI_API_KEY also feeds aiprimetech via AliasChoices when AIPRIMETECH_API_KEY is unset.
     openrouter_api_key: str | None = Field(default=None, validation_alias="OPENROUTER_API_KEY")
     xai_api_key: str | None = Field(default=None, validation_alias="XAI_API_KEY")
     finnhub_api_key: str | None = Field(default=None, validation_alias="FINNHUB_API_KEY")

@@ -1,19 +1,53 @@
-"""TVAPI optimize: labeled deterministic parameter sweep (RapidAPI optional later)."""
+"""TVAPI optimize: candle backtest + tvremix Pine list/read."""
 
 from __future__ import annotations
 
 from typing import Any
 
+from backend.app.integrations.backtest.ema_grid import run_candle_optimize, synthetic_candles
+from backend.app.integrations.tvremix_client import (
+    TvremixClient,
+    TvremixError,
+    parse_pine_inputs,
+    scripts_to_strategies,
+)
+from backend.app.settings import get_settings
 
-def list_chart_strategies(symbol: str) -> dict[str, Any]:
-    """Return Pine strategies currently associated with the active chart layout.
 
-    Live TradingView study introspection is not wired yet (embed widgets cannot
-    expose user studies cross-origin). Returns the layout probe catalog so the UI
-    can let the user pick a loaded strategy to optimize.
-    """
-    sym = (symbol or "BTCUSD").upper()
-    strategies = [
+def _probe_strategies(symbol: str) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": "ltm_willy_v130",
+            "name": "Liquidity Trail Matrix [WillyAlgoTrader] v1.3",
+            "kind": "ltm",
+            "pane": "overlay",
+            "inputs": {
+                "bandPreset": "Balanced",
+                "flipBand": "Balanced (Band 3)",
+                "minScore": 80,
+                "retestWindow": 8,
+                "cooldown": 5,
+                "atrLen": 13,
+                "riskPreset": "Balanced",
+                "slMode": "Wick-Anchored",
+            },
+            "origin": "probe",
+            "hasSource": True,
+            "note": "Precision analyzer: ATR trail + scored retests (Neo LTM port)",
+        },
+        {
+            "id": "ema_cross_grid",
+            "name": "EMA Cross Grid (candle backtest)",
+            "kind": "ema_cross",
+            "pane": "overlay",
+            "inputs": {
+                "emaFast": 8,
+                "emaSlow": 21,
+                "takeProfitPct": 1.5,
+                "stopLossPct": 1.0,
+            },
+            "origin": "probe",
+        },
         {
             "id": "neo_quantum_smc",
             "name": "Neo-Quantum SMC [Cluster Optimized]",
@@ -26,6 +60,7 @@ def list_chart_strategies(symbol: str) -> dict[str, Any]:
                 "swingLength": 5,
                 "displacement": 1.0,
             },
+            "origin": "probe",
         },
         {
             "id": "bb_rsi_hard_sl",
@@ -38,6 +73,7 @@ def list_chart_strategies(symbol: str) -> dict[str, Any]:
                 "in_2": 1.0,
                 "in_6": 14,
             },
+            "origin": "probe",
         },
         {
             "id": "trailing_exit_sweep",
@@ -49,125 +85,214 @@ def list_chart_strategies(symbol: str) -> dict[str, Any]:
                 "in_4": 0.10,
                 "trailPct": 0.8,
             },
+            "origin": "probe",
         },
     ]
+
+
+async def list_chart_strategies(symbol: str) -> dict[str, Any]:
+    """List strategies: tvremix Pine (session/saved) + local probe catalog.
+
+    Both when tvremix is configured; probe-only fallback otherwise.
+    """
+    sym = (symbol or "BTCUSD").upper()
+    settings = get_settings()
+    probe = _probe_strategies(sym)
+    note_parts: list[str] = []
+    tvremix_rows: list[dict[str, Any]] = []
+    source = "chart-layout-probe"
+    error: str | None = None
+
+    if settings.tvremix_enabled and settings.tvremix_api_key:
+        client = TvremixClient(settings)
+        try:
+            scripts = await client.list_pine_scripts()
+            tvremix_rows = scripts_to_strategies(scripts)
+            if tvremix_rows:
+                source = "tvremix+probe"
+                note_parts.append(
+                    f"Loaded {len(tvremix_rows)} Pine script(s) via tvremix MCP "
+                    f"({settings.tvremix_mcp_url})."
+                )
+            else:
+                source = "probe+tvremix-empty"
+                note_parts.append(
+                    "tvremix connected but no Pine scripts returned "
+                    "(link TradingView in the tvremix extension for session/saved scripts, "
+                    "or ensure pine_list_* tools are enabled for your key)."
+                )
+        except TvremixError as exc:
+            error = str(exc)
+            source = "probe+tvremix-error"
+            note_parts.append(f"tvremix unavailable ({exc}); using probe catalog.")
+    else:
+        note_parts.append(
+            "Set TVREMIX_API_KEY (https://tvremix.xyz/account#api-keys) to list your "
+            "TradingView Pine strategies via MCP. Probe catalog remains available."
+        )
+
+    # tvremix first (user strategies), then probe fallbacks
+    merged = [*tvremix_rows, *probe]
     return {
         "success": True,
         "symbol": sym,
-        "strategies": strategies,
-        "source": "chart-layout-probe",
-        "note": (
-            "Strategies listed from chart layout probe. Live TradingView study "
-            "enumeration requires a desktop/extension bridge (not available in V1)."
-        ),
+        "strategies": merged,
+        "source": source,
+        "tvremixConfigured": bool(settings.tvremix_api_key),
+        "tvremixCount": len(tvremix_rows),
+        "note": " ".join(note_parts),
+        "error": error,
     }
+
+
+def list_chart_strategies_sync(symbol: str) -> dict[str, Any]:
+    """Sync probe-only helper for unit tests that avoid asyncio."""
+    sym = (symbol or "BTCUSD").upper()
+    return {
+        "success": True,
+        "symbol": sym,
+        "strategies": _probe_strategies(sym),
+        "source": "chart-layout-probe",
+        "note": "Sync probe catalog (no tvremix).",
+    }
+
+
+def _bars_from_ccxt(rows: list[list[Any]]) -> list[dict[str, float]]:
+    candles: list[dict[str, float]] = []
+    for row in rows:
+        if not isinstance(row, (list, tuple)) or len(row) < 5:
+            continue
+        candles.append(
+            {
+                "open": float(row[1]),
+                "high": float(row[2]),
+                "low": float(row[3]),
+                "close": float(row[4]),
+            }
+        )
+    return candles
+
+
+async def fetch_optimize_candles(symbol: str, timeframe: str, *, limit: int = 300) -> tuple[list[dict[str, float]], str]:
+    """Prefer tvremix OHLCV, then CCXT, then synthetic."""
+    settings = get_settings()
+    tf = (timeframe or "5m").lower().replace("min", "m")
+    if tf in {"1", "5", "15", "30", "60"}:
+        tf = f"{tf}m"
+    elif tf == "1h":
+        tf = "60m"
+
+    if settings.tvremix_enabled and settings.tvremix_api_key:
+        try:
+            client = TvremixClient(settings)
+            await client.initialize()
+            bars = await client.fetch_ohlcv_bars(symbol, interval=tf if tf != "60m" else "1h", count=limit)
+            if len(bars) >= 30:
+                return bars, "tvremix-ohlcv"
+        except Exception:  # noqa: BLE001
+            pass
+
+    client = None
+    try:
+        from backend.app.integrations.ccxt_market import CcxtMarketClient
+
+        client = CcxtMarketClient()
+        raw = await client.fetch_ohlcv(symbol, timeframe=tf, limit=limit)
+        candles = _bars_from_ccxt(raw)
+        if len(candles) >= 30:
+            return candles, "ccxt-ohlcv"
+    except Exception:  # noqa: BLE001
+        pass
+    finally:
+        if client is not None:
+            try:
+                await client._exchange.close()  # noqa: SLF001
+            except Exception:  # noqa: BLE001
+                pass
+
+    return synthetic_candles(symbol, n=limit), "synthetic-ohlcv"
+
+
+def _load_bundled_ltm_pine() -> str:
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[3] / "assets" / "strategies" / "liquidity_trail_matrix_v1_3_0.pine"
+    if path.is_file():
+        return path.read_text(encoding="utf-8")
+    return ""
+
+
+async def run_optimize(payload: dict[str, Any]) -> dict[str, Any]:
+    """Candle backtest; optionally bind Pine from tvremix by scriptId / pineSource."""
+    settings = get_settings()
+    symbol = str(payload.get("symbol") or "BTCUSD")
+    timeframe = str(payload.get("timeframe") or "5m")
+    script_id = str(payload.get("scriptId") or "").strip()
+    pine_name = str(payload.get("pineName") or "").strip()
+    pine_source = str(payload.get("pineSource") or "").strip()
+    parameters = dict(payload.get("parameters") or {})
+
+    # Bundled LTM gold strategy (always available offline)
+    wants_ltm = script_id in {"ltm_willy_v130", "ltm"} or str(payload.get("strategy") or "").lower() == "ltm"
+    if not pine_source and wants_ltm:
+        bundled = _load_bundled_ltm_pine()
+        if bundled:
+            pine_source = bundled
+            pine_name = pine_name or "Liquidity Trail Matrix [WillyAlgoTrader] v1.3"
+            script_id = script_id or "ltm_willy_v130"
+            payload = {**payload, "strategy": "ltm", "pineName": pine_name, "scriptId": script_id}
+
+    pine_meta: dict[str, Any] = {}
+    if pine_source:
+        pine_meta = {"id": script_id or "inline", "name": pine_name or "inline", "source": pine_source}
+    elif script_id and settings.tvremix_enabled and settings.tvremix_api_key:
+        try:
+            client = TvremixClient(settings)
+            pine_meta = await client.read_pine_script(script_id, name=pine_name or None)
+            pine_source = str(pine_meta.get("source") or "")
+        except TvremixError as exc:
+            pine_meta = {"error": str(exc), "id": script_id, "name": pine_name}
+
+    if pine_source:
+        parsed = parse_pine_inputs(pine_source)
+        # Parsed defaults first; explicit request parameters win.
+        parameters = {**parsed, **parameters}
+        payload = {**payload, "parameters": parameters}
+
+    injected = payload.get("candles")
+    if isinstance(injected, list) and len(injected) >= 30:
+        candles = [
+            {"close": float(c["close"]), "open": float(c.get("open", c["close"]))}
+            for c in injected
+            if isinstance(c, dict) and "close" in c
+        ]
+        source = "injected-ohlcv"
+    else:
+        candles, source = await fetch_optimize_candles(symbol, timeframe)
+
+    result = run_candle_optimize(payload, candles, candle_source=source)
+    if pine_meta.get("name") or pine_meta.get("id"):
+        label = pine_meta.get("name") or pine_meta.get("id")
+        if result.get("success"):
+            result["bericht"] = (
+                str(result.get("bericht") or "")
+                + f"\n- Pine strategy: **{label}** (tvremix read / inline)\n"
+                + f"- Parsed inputs: `{list((payload.get('parameters') or {}).keys())[:12]}`\n"
+            )
+            result["source"] = f"{result.get('source')}+tvremix-pine"
+            result["pine"] = {
+                "id": pine_meta.get("id"),
+                "name": pine_meta.get("name"),
+                "chars": len(pine_source),
+                "error": pine_meta.get("error"),
+            }
+        elif pine_meta.get("error"):
+            result["pine"] = pine_meta
+    return result
 
 
 def run_deterministic_optimize(payload: dict[str, Any]) -> dict[str, Any]:
-    """Grid-search a small parameter set and score by requested objectives.
-
-    This is explicitly *not* a live TradingView/Binance backtest. Results are
-    deterministic from the request so the UI can exercise the optimize flow.
-    """
-    strategy = str(payload.get("strategy") or "smc")
-    symbol = str(payload.get("symbol") or "BTCUSD").upper()
-    timeframe = str(payload.get("timeframe") or "5m")
-    min_trades = max(1, int(payload.get("minTrades") or 30))
-    primary = str(payload.get("primaryObjective") or "profit_factor")
-    secondary = str(payload.get("secondaryObjective") or "percent_profitable")
-    base_params = dict(payload.get("parameters") or {})
-
-    candidates: list[dict[str, Any]] = []
-    for idx, scale in enumerate((0.85, 1.0, 1.15, 1.3), start=1):
-        inputs = {**base_params}
-        if strategy == "smc":
-            inputs.setdefault("swingLength", 5)
-            inputs["swingLength"] = max(2, int(float(inputs["swingLength"]) * scale))
-            inputs.setdefault("displacement", 1.0)
-            inputs["displacement"] = round(float(inputs["displacement"]) * scale, 3)
-        elif strategy == "bb_rsi_sl":
-            inputs["rsiLength"] = max(5, int(14 * scale))
-            inputs["bbLength"] = max(5, int(20 * scale))
-        else:
-            inputs["trailPct"] = round(0.8 * scale, 3)
-
-        # Deterministic pseudo-metrics from symbol hash + scale (stable, not random).
-        seed = sum(ord(c) for c in f"{symbol}:{timeframe}:{strategy}:{idx}") % 97
-        profit_factor = round(0.9 + (seed / 100) + (scale - 1) * 0.4, 3)
-        win_rate = round(min(92.0, 42 + seed * 0.35 + scale * 8), 2)
-        net_profit = round((profit_factor - 1) * (120 + seed) * scale, 2)
-        trades = max(min_trades, int(min_trades * scale) + (seed % 7))
-        label = f"{strategy.upper()}-SET-{idx}"
-        candidates.append(
-            {
-                "rank": idx,
-                "label": label,
-                "profitFactor": profit_factor,
-                "winRate": win_rate,
-                "netProfit": net_profit,
-                "trades": trades,
-                "inputs": inputs,
-                "isDisqualified": trades < min_trades,
-            }
-        )
-
-    def score(row: dict[str, Any]) -> tuple[float, float]:
-        primary_val = {
-            "profit_factor": float(row["profitFactor"]),
-            "net_profit": float(row["netProfit"]),
-            "win_rate": float(row["winRate"]),
-        }.get(primary, float(row["profitFactor"]))
-        secondary_val = {
-            "percent_profitable": float(row["winRate"]),
-            "net_profit": float(row["netProfit"]),
-            "profit_factor": float(row["profitFactor"]),
-        }.get(secondary, float(row["winRate"]))
-        return (primary_val, secondary_val)
-
-    eligible = [c for c in candidates if not c["isDisqualified"]] or candidates
-    winner_row = max(eligible, key=score)
-    results: list[dict[str, Any]] = []
-    for row in sorted(candidates, key=score, reverse=True):
-        results.append(
-            {
-                "rank": len(results) + 1,
-                "label": row["label"],
-                "profitFactor": row["profitFactor"],
-                "winRate": row["winRate"],
-                "netProfit": row["netProfit"],
-                "trades": row["trades"],
-                "isWinner": row["label"] == winner_row["label"],
-                "isDisqualified": row["isDisqualified"],
-            }
-        )
-
-    winner = {
-        "label": winner_row["label"],
-        "profitFactor": winner_row["profitFactor"],
-        "netProfit": winner_row["netProfit"],
-        "winRate": winner_row["winRate"],
-        "trades": winner_row["trades"],
-        "inputs": winner_row["inputs"],
-    }
-
-    bericht = (
-        f"### Deterministic sweep (not live TV/Binance)\n"
-        f"- Symbol: `{symbol}` TF `{timeframe}` strategy `{strategy}`\n"
-        f"- Primary objective: `{primary}` / secondary `{secondary}`\n"
-        f"- Winner: **{winner['label']}** PF={winner['profitFactor']} "
-        f"WR={winner['winRate']}% NP={winner['netProfit']}\n"
-        f"- Source: `deterministic-sweep` (set TRADINGVIEW_RAPIDAPI_KEY for external TVAPI later)\n"
-    )
-    self_test = (
-        "PASS: parameter grid produced ranked results; minTrades filter applied; "
-        "labels mark deterministic-sweep so UI must not claim a live chart feed."
-    )
-
-    return {
-        "success": True,
-        "winner": winner,
-        "bericht": bericht,
-        "selfTest": self_test,
-        "results": results,
-        "source": "deterministic-sweep",
-    }
+    """Sync wrapper: synthetic candles only (no network). Prefer `run_optimize`."""
+    symbol = str(payload.get("symbol") or "BTCUSD")
+    candles = synthetic_candles(symbol, n=240)
+    return run_candle_optimize(payload, candles, candle_source="synthetic-ohlcv")

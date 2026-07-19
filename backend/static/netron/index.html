@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Netron (Neo Fabel stub)</title>
+    <style>
+      body {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        background: #0b1220;
+        color: #cbd5e1;
+        margin: 0;
+        padding: 2rem;
+        line-height: 1.5;
+      }
+      a { color: #a3e635; }
+      code { color: #7dd3fc; }
+    </style>
+  </head>
+  <body>
+    <h1>Netron viewer not bundled</h1>
+    <p>
+      Install the optional ONNX extra to embed upstream Netron:
+      <code>pip install -e ".[onnx]"</code>
+      then restart the API.
+    </p>
+    <p id="model-link">Loading model URL…</p>
+    <p>
+      Or open
+      <a href="https://netron.app" target="_blank" rel="noreferrer">netron.app</a>
+      and drop the downloaded <code>.onnx</code> file.
+    </p>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const url = params.get("url");
+      const el = document.getElementById("model-link");
+      if (url) {
+        el.innerHTML =
+          'Model file: <a href="' +
+          url +
+          '">' +
+          url +
+          "</a>";
+      } else {
+        el.textContent = "No ?url= model parameter provided.";
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "id": "swarm_handoff",
+  "scenario": "Depth OK; RNA engulfing geom; risk ON; no paper fills.",
+  "expected": "HANDOFF",
+  "directives": "market:keep depth; rna:geom only; risk:clear if DD<2%; kraken:await clear→paper limit",
+  "kraken": "DELEGATE paper after risk_gov; no live."
+}

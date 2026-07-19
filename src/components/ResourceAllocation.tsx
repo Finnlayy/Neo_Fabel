@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { GenerativePlan } from "../types";
+import { AgentStatusPacket, GenerativePlan } from "../types";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { Sparkles, Compass, AlertCircle, Check, Loader2, HelpCircle } from "lucide-react";
 import { ApiError } from "../api/client";
@@ -9,11 +9,17 @@ interface ResourceAllocationProps {
   allocation: { name: string; value: number }[];
   activePlan: GenerativePlan | null;
   onDeployPlan: (plan: GenerativePlan) => void;
+  agentStatusPackets?: AgentStatusPacket[];
 }
 
 const ALLOCATION_COLORS = ["#10b981", "#3b82f6", "#a855f7", "#eab308", "#ec4899", "#f43f5e"];
 
-export default function ResourceAllocation({ allocation, activePlan, onDeployPlan }: ResourceAllocationProps) {
+export default function ResourceAllocation({
+  allocation,
+  activePlan,
+  onDeployPlan,
+  agentStatusPackets = [],
+}: ResourceAllocationProps) {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +33,7 @@ export default function ResourceAllocation({ allocation, activePlan, onDeployPla
     setError(null);
 
     try {
-      const plan = await postOrchestrate(prompt);
+      const plan = await postOrchestrate(prompt, agentStatusPackets);
       onDeployPlan(plan);
     } catch (err: unknown) {
       const message =

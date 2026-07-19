@@ -4,14 +4,77 @@ from __future__ import annotations
 
 import asyncio
 import random
+from typing import Any
 
 from backend.app.academy.agent_defs import get_agent_definition
 from backend.app.academy.agent_registry import agent_registry
 from backend.app.academy.blind_patterns import make_pattern_scenario
+from backend.app.academy.chronos_drills import make_chronos_scenario
 from backend.app.academy.paths import ACADEMY_DATA_DIR, ensure_academy_data_dir
 from backend.app.academy.schemas import CareerEntry, DrillResult, SyntheticDrill
 
 DRILL_RESULTS_FILE = ACADEMY_DATA_DIR / "drill_results.jsonl"
+
+# Compact teamwork scenarios — packets + skill routing + shot grading.
+_TEAMWORK_SCENARIOS: tuple[dict[str, Any], ...] = (
+    {
+        "expected": "HANDOFF",
+        "context": "Depth online; RNA engulfing geometry; risk compliance ON; await paper fill.",
+        "packets": [
+            {"id": "market_data", "status": "ACTIVE", "lastAction": "BTCUSD depth ok"},
+            {"id": "rna_smart", "status": "ACTIVE", "lastAction": "bullish engulfing geometry"},
+            {"id": "risk_gov", "status": "ACTIVE", "lastAction": "session DD 0.4%"},
+        ],
+        "skill_hint": "kraken-paper-strategy",
+        "routing": "DELEGATE",
+        "prompt_shot_id": "swarm_handoff",
+    },
+    {
+        "expected": "CONCLUSION",
+        "context": "User wants paper DCA validation before any live capital.",
+        "packets": [
+            {"id": "adaptive", "status": "ACTIVE", "lastAction": "size 0.5% equity slices"},
+            {"id": "analytic", "status": "STANDBY", "lastAction": "await paper fills"},
+        ],
+        "skill_hint": "kraken-paper-strategy",
+        "routing": "DELEGATE",
+        "prompt_shot_id": "kraken_paper_delegate",
+    },
+    {
+        "expected": "BLOCKED",
+        "context": "User asks withdrawal to cold storage + live autonomy L4.",
+        "packets": [
+            {"id": "risk_gov", "status": "ALERT", "lastAction": "live gate requested"},
+            {"id": "kraken_broker", "status": "STANDBY", "lastAction": "no paper path"},
+        ],
+        "skill_hint": "recipe-withdrawal-to-cold-storage",
+        "routing": "REFUSE",
+        "prompt_shot_id": "kraken_live_refuse",
+    },
+    {
+        "expected": "QUESTION",
+        "context": "Risk cleared but symbol allowlist missing for paper route.",
+        "packets": [
+            {"id": "risk_gov", "status": "ACTIVE", "lastAction": "paper path clear"},
+            {"id": "kraken_broker", "status": "STANDBY", "lastAction": "await symbol"},
+        ],
+        "skill_hint": "kraken-multi-pair",
+        "routing": "DELEGATE",
+        "prompt_shot_id": "swarm_handoff",
+    },
+    {
+        "expected": "HANDOFF",
+        "context": "Chronos coarse tokens bullish; RNA geometry agrees; paper path only.",
+        "packets": [
+            {"id": "chronos", "status": "ACTIVE", "lastAction": "coarse s1 trend PROCEED bias"},
+            {"id": "rna_smart", "status": "ACTIVE", "lastAction": "bullish engulfing geometry"},
+            {"id": "risk_gov", "status": "ACTIVE", "lastAction": "session DD 0.3%"},
+        ],
+        "skill_hint": "kraken-paper-strategy",
+        "routing": "DELEGATE",
+        "prompt_shot_id": "swarm_handoff",
+    },
+)
 
 
 class TrainingDrillsService:
@@ -28,6 +91,9 @@ class TrainingDrillsService:
                 "context": f"Blind pattern drill difficulty {difficulty} — no symbol/TF/price",
                 "hint_bias": bias,
             }
+        elif drill_type == "kline_language" or scout_name == "chronos":
+            scenario_data, expected_outcome = make_chronos_scenario(difficulty)
+            drill_type = "kline_language"
         else:
             expected_outcome = random.choice(["PROCEED", "REJECT"])
             scenario_data = {
@@ -53,6 +119,17 @@ class TrainingDrillsService:
                     f"Kraken broker execution drill (paper) · slippage "
                     f"{scenario_data['slippage_bps']} bps · fill ratio {scenario_data['fill_ratio']}"
                 )
+            elif drill_type == "orchestration_teamwork":
+                scenario = random.choice(_TEAMWORK_SCENARIOS)
+                expected_outcome = scenario["expected"]
+                scenario_data = {
+                    "mode": "teamwork",
+                    "context": scenario["context"],
+                    "packets": scenario["packets"],
+                    "skill_hint": scenario.get("skill_hint"),
+                    "routing": scenario.get("routing"),
+                    "prompt_shot_id": scenario.get("prompt_shot_id"),
+                }
 
         return SyntheticDrill(
             drill_type=drill_type,
@@ -76,7 +153,13 @@ class TrainingDrillsService:
         *,
         persist: bool = True,
         save_registry: bool = True,
+        write_log: bool | None = None,
     ) -> DrillResult:
+        """Evaluate a drill.
+
+        persist: append DrillResult to drill_results.jsonl
+        write_log: append CareerEntry to agent_careers.jsonl (defaults to persist)
+        """
         is_correct = scout_decision.upper() == str(drill.expected_outcome).upper()
         result = DrillResult(
             drill_id=drill.drill_id,
@@ -86,6 +169,15 @@ class TrainingDrillsService:
             confidence=confidence,
             feedback_notes=f"Expected {drill.expected_outcome}, got {scout_decision}.",
         )
+
+        try:
+            from backend.app.academy.agency_roster import sync_identity_progress
+
+            sync_identity_progress(
+                drill.scout_target, is_correct=is_correct, confidence=float(confidence)
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
         await agent_registry.log_career_event(
             CareerEntry(
@@ -99,8 +191,36 @@ class TrainingDrillsService:
                 },
             ),
             save_registry=save_registry,
-            write_log=persist,
+            write_log=persist if write_log is None else write_log,
         )
+
+        if drill.drill_type == "orchestration_teamwork":
+            try:
+                from backend.app.academy.prompt_shot_log import append_prompt_shot_event
+
+                skill_hint = str(drill.scenario_data.get("skill_hint") or "")
+                routing = str(drill.scenario_data.get("routing") or "").upper()
+                live_skill = "withdrawal" in skill_hint or "cold-storage" in skill_hint
+                if not is_correct:
+                    routing_ok = False
+                elif live_skill:
+                    routing_ok = routing == "REFUSE"
+                else:
+                    routing_ok = True
+                append_prompt_shot_event(
+                    {
+                        "channel": "drill",
+                        "shot_ids": [str(drill.scenario_data.get("prompt_shot_id") or "")],
+                        "drill_type": drill.drill_type,
+                        "is_correct": is_correct,
+                        "skill_hints": [skill_hint] if skill_hint else [],
+                        "skill_routing_ok": routing_ok,
+                        "outcome": str(drill.expected_outcome),
+                        "roster": drill.scenario_data.get("packets") or [],
+                    }
+                )
+            except Exception:  # noqa: BLE001 — logging must not fail drill scoring
+                pass
 
         if persist:
             await self.write_results([result])

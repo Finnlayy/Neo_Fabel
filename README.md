@@ -27,9 +27,39 @@ Market-data endpoints:
 - `GET /api/v1/market/batch?asset_class=all` queries the curated common crypto, FX, and S&P 500 universe. Crypto uses the Kraken CLI; FX and equities use Alpha Vantage.
 - `GET /api/v1/market/ohlcv?asset_class=sp500&symbols=AAPL,MSFT&intervals=1min,5min,15min,60min,4h` requests OHLCV bars. Alpha Vantage's 60-minute data is deterministically aggregated into 4-hour bars. Missing provider entitlements are returned per item as explicit errors.
 
+### AI chat wire protocol (token budget)
+
+`POST /api/chat` no longer forwards the full UI transcript. The client builds a sliding window via `src/api/chatWire.ts` (last 12 substantive turns, 4k chars/message); the server trims again via `trim_chat_messages` (`AI_CHAT_MAX_MESSAGES` / `AI_CHAT_MAX_CHARS` / `AI_CHAT_MAX_CONTENT_CHARS`). Welcome/reset messages are `ephemeral` and excluded from the Gemini payload. `POST /api/gemini/analyze-trades` sends the last ~25 trades only. Orchestrate stays single-prompt (no history). Response may include `context: { trimmed, sent_chars, … }` for observability.
+
+### Master Orchestrator doctrine + prompt shots
+
+Paper-only coordinator brain under `backend/app/ai_prompts/`:
+
+- `orchestrator_doctrine.md` — roster, status packets, convergence signals, Kraken DELEGATE/REFUSE
+- `kraken_broker_skill_index.md` — slim 51-skill index (`paper_ok` | `live_gated`); never full plugin `SKILL.md` bodies
+- `prompt_shots/*.json` — ≤3 few-shot templates injected into systemInstruction (≤~6k chars total)
+
+`POST /api/gemini/orchestrate` and `POST /api/chat` with `mode: "orchestrator"` load doctrine + shots (+ index if budget). Optional `agentStatusPackets` carry compact `{id, status, lastAction≤200, directive≤280}` from the swarm UI. Usage is logged to `backend/data/academy/prompt_shot_log.jsonl`; `prompt_shot_optimizer` feeds `prompt_evolution` / A/B from careers, drills, and routing failures.
+
+```powershell
+python -m pytest backend/tests/test_prompt_shots.py backend/tests/test_academy.py -q
+```
+
 ### Agent Academy (training loop)
 
 Synthetic drills + career tracking for Neo sub-agents. **Paper / training only — never places live orders.** UI tab: **Academy** (hotkey `6`). Persistence: `backend/data/academy/` (gitignored).
+
+### ONNX Neural Core (Tab 7)
+
+Exclusive workspace (hotkey `7`) for LSTM/ONNX inference, training, and Netron graph viewing. Optional backend deps:
+
+```bash
+pip install -e "backend[onnx]"
+# or from backend/: pip install -e ".[onnx]"
+python -m backend.scripts.export_seed_models
+```
+
+APIs: `/api/v1/onnx/*` (status, models, train, infer). Static models for Netron: `/static/onnx/*.onnx`. Viewer: `/static/netron/` (upstream Netron when the `netron` package is installed, else a stub page). **Paper research only — never places live orders.**
 
 | Endpoint | Purpose |
 |---|---|
@@ -202,15 +232,24 @@ auth (`require_user`).
 |------|---------|
 | `GET /api/ai/health` | Gemini configured? (no auth) |
 | `POST /api/chat` | Gemini chat |
-| `POST /api/gemini/orchestrate` | Generative plan (bare JSON) |
+| `POST /api/gemini/orchestrate` | Generative plan (doctrine + prompt shots; optional status packets) |
+| `POST /api/chat` | Chat; `mode: assistant\|orchestrator` + optional packets |
 | `POST /api/gemini/analyze-trades` | Trade diagnostics |
-| `POST /api/tvapi/optimize` | Labeled deterministic parameter sweep (V1) |
-| `POST /api/tvapi/analyze-chart` | Gemini vision on chart image |
+| `POST /api/tvapi/optimize` | Candle OHLCV backtest (tv-extension-mvp); optional `scriptId` / `pineSource` via tvremix |
+| `POST /api/tvapi/chart-strategies` | tvremix Pine list (session/saved) **+** probe catalog when `TVREMIX_API_KEY` set |
+| `POST /api/tvapi/analyze-chart` | Gemini vision — **pattern only** (backtest mode rejected; use optimize) |
+
+**tvremix Pine → Optimizer:** set `TVREMIX_API_KEY` from [tvremix account API keys](https://tvremix.xyz/account#api-keys). FastAPI calls `https://tvremix.xyz/api/mcp/v1` (same hosted MCP as Cursor). “Read chart strategies” lists your scripts when Pine tools are available for the key; selecting one passes `scriptId` into optimize (read source + parse `input.*` defaults + candle grid). Cursor MCP server `user-tvremix` should use the same Bearer key if discovery fails.
+
+**LTM (Liquidity Trail Matrix):** bundled probe id `ltm_willy_v130` — Finn Powers / WillyAlgoTrader v1.3 precision analyzer (ATR trail bands + scored retests). Optimizer runs the Python port in `backend/app/integrations/backtest/ltm_analyzer.py`. Pine stub/full source: `assets/strategies/liquidity_trail_matrix_v1_3_0.pine` (paste complete TV script there when syncing).
 | `GET/POST /api/telegram/*` | Bot config, messages, send, daemon status |
 
-Env (see `.env.example`): `GEMINI_API_KEY`, `AI_CHAT_ENABLED`,
+Env (see `.env.example`): `GEMINI_API_KEY`, optional `OPENROUTER_API_KEY` /
+`GROQ_API_KEY` / `CEREBRAS_API_KEY`, `AI_PROVIDER_ORDER` (default
+`gemini,openrouter,groq,cerebras`), `AI_CHAT_ENABLED`,
 `AI_ALLOW_DETERMINISTIC_FALLBACK` (dev/tests only), `TVAPI_ENABLED`,
-`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ENABLED`.
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ENABLED`. Chat/orchestrate
+fail over on 429/5xx/timeout; vision (`analyze-chart`) stays Gemini-only.
 
 Keep local trading paper-first: `KRAKEN_AUTONOMY_LEVEL=2` and
 `KRAKEN_LIVE_TRADING_ENABLED=false`. If `/health/ready` reports

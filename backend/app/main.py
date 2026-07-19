@@ -5,8 +5,11 @@ from datetime import UTC, datetime
 from typing import Any, Literal, cast
 from uuid import uuid4
 
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import require_trading_admin, require_trading_admin_recent, require_user
@@ -32,10 +35,14 @@ from .schemas import (
 from .settings import get_settings
 from .routers.academy import router as academy_router
 from .routers.ai import router as ai_router
+from .routers.chronos import router as chronos_router
 from .routers.market_stream import router as market_stream_router
+from .routers.onnx import router as onnx_router
 from .routers.telegram import router as telegram_router
 from .routers.tvapi import router as tvapi_router
 from .routers.vector import router as vector_router
+from .integrations.onnx.paths import ensure_onnx_data_dir
+from .integrations.onnx.runtime import ensure_seed_models, netron_static_dir, onnx_deps_available
 from .academy.training_loop import training_loop
 from .signals.mcp_server import mcp_router
 from .signals.router import router as signal_router
@@ -146,6 +153,22 @@ app.include_router(telegram_router)
 app.include_router(vector_router)
 app.include_router(market_stream_router)
 app.include_router(academy_router)
+app.include_router(onnx_router)
+app.include_router(chronos_router)
+
+# ONNX artifacts for Netron iframe (no Bearer — same-origin static only).
+_onnx_dir = ensure_onnx_data_dir()
+if onnx_deps_available():
+    try:
+        ensure_seed_models()
+    except Exception:  # noqa: BLE001 — seed best-effort at import
+        pass
+app.mount("/static/onnx", StaticFiles(directory=str(_onnx_dir)), name="onnx_models")
+_netron_dir = netron_static_dir()
+if _netron_dir is None:
+    _netron_dir = Path(__file__).resolve().parents[1] / "static" / "netron"
+    _netron_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static/netron", StaticFiles(directory=str(_netron_dir), html=True), name="netron")
 
 # Fail import-time if signal modules reference live Kraken execution symbols.
 assert_signals_module_imports()

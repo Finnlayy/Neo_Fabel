@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { TickerData, Trade, SubAgentState, GenerativePlan, MainTab } from "./types";
+import { TickerData, Trade, SubAgentState, GenerativePlan, MainTab, AgentStatusPacket } from "./types";
 import SignalRoutesPage from "./features/signalRoutes/SignalRoutesPage";
 import AcademyPage from "./features/academy/AcademyPage";
+import OnnxPage from "./features/onnx/OnnxPage";
+import ChronosPage from "./features/chronos/ChronosPage";
+import AgencyPage from "./features/agency/AgencyPage";
 import AuthPanel from "./auth/AuthPanel";
 import { fetchCryptoTickers, fetchEquityTickers, fetchOrderBook, upsertTickerHistory } from "./api/market";
 import { connectMarketStream } from "./api/marketStream";
@@ -21,7 +24,6 @@ import LiveMarketHeatmap from "./components/LiveMarketHeatmap";
 import IntegratedConnectors from "./components/IntegratedConnectors";
 import TvapiOptimizer from "./components/TvapiOptimizer";
 import GeminiChatbot from "./components/GeminiChatbot";
-import NeuralTracker from "./components/NeuralTracker";
 import RiskAssessmentHeatmap from "./components/RiskAssessmentHeatmap";
 import CircularGauge from "./components/CircularGauge";
 import AgentTimeline from "./components/AgentTimeline";
@@ -59,7 +61,7 @@ const TRANSLATIONS = {
     close: "Close",
     soundVolume: "Sound volume",
     keyboardShortcuts: "Keyboard Shortcuts",
-    keyDesc: "Use hotkeys [1-5] to instantly snap views.",
+    keyDesc: "Use hotkeys [1-7] to switch workspaces.",
     auditoryFeedback: "Acoustic Telemetry",
     voicePack: "HoN Announcer",
     saveSettings: "Save Settings",
@@ -105,7 +107,7 @@ const TRANSLATIONS = {
     close: "Schließen",
     soundVolume: "Audio-Lautstärke",
     keyboardShortcuts: "Tastatur-Kurzbefehle",
-    keyDesc: "Verwenden Sie Hotkeys [1-5], um Ansichten sofort zu wechseln.",
+    keyDesc: "Verwenden Sie Hotkeys [1-7], um Arbeitsbereiche zu wechseln.",
     auditoryFeedback: "Akustische Telemetrie",
     voicePack: "HoN-Sprecher",
     saveSettings: "Einstellungen speichern",
@@ -662,6 +664,14 @@ export default function App() {
     );
   };
 
+  const agentStatusPackets = (): AgentStatusPacket[] =>
+    subAgents.map((agent) => ({
+      id: agent.id,
+      status: agent.status,
+      lastAction: (agent.lastAction || "").slice(0, 200),
+      directive: (agent.directive || "").slice(0, 280),
+    }));
+
   // Handle Deployment of Gemini-Generated Trading Plan
   const handleDeployPlan = (plan: GenerativePlan) => {
     setActivePlan(plan);
@@ -670,13 +680,18 @@ export default function App() {
     }
 
     // Update active sub-agent directives based on Gemini results!
+    const dirs = plan.subAgentDirectives;
     setSubAgents((prevAgents) =>
       prevAgents.map((agent) => {
         let directive = agent.directive;
-        if (agent.id === "market_data") directive = plan.subAgentDirectives.marketData;
-        if (agent.id === "adaptive") directive = plan.subAgentDirectives.adaptiveAgent;
-        if (agent.id === "rna_smart") directive = plan.subAgentDirectives.rnaSmartelligent;
-        if (agent.id === "risk_gov") directive = plan.subAgentDirectives.riskGovernor;
+        if (agent.id === "market_data") directive = dirs.marketData;
+        if (agent.id === "adaptive") directive = dirs.adaptiveAgent;
+        if (agent.id === "rna_smart") directive = dirs.rnaSmartelligent;
+        if (agent.id === "risk_gov") directive = dirs.riskGovernor;
+        if (agent.id === "kraken_broker" && dirs.krakenBroker) directive = dirs.krakenBroker;
+        if (agent.id === "predictive" && dirs.predictive) directive = dirs.predictive;
+        if (agent.id === "analytic" && dirs.analytic) directive = dirs.analytic;
+        if (agent.id === "orchestrator" && dirs.orchestrator) directive = dirs.orchestrator;
 
         return {
           ...agent,
@@ -993,7 +1008,7 @@ export default function App() {
             className="space-y-6"
           >
             {/* WORKSPACE A: OMNI-DASHBOARD */}
-            {(activeTab === "dashboard" || activeTab === "full") && (
+            {activeTab === "dashboard" && (
               <>
                 {/* Master Control and Signal Dial Row - Bento Styled */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 font-mono text-xs">
@@ -1261,6 +1276,7 @@ export default function App() {
                   allocation={allocation}
                   activePlan={activePlan}
                   onDeployPlan={handleDeployPlan}
+                  agentStatusPackets={agentStatusPackets()}
                 />
 
                 {/* Sub-workspace selector */}
@@ -1300,8 +1316,24 @@ export default function App() {
                       <TvapiOptimizer activeSymbol={activeSymbol} />
                     </div>
                     <div className="space-y-6">
-                      <GeminiChatbot />
-                      <NeuralTracker currentPrice={tickers.find(t => t.symbol === activeSymbol)?.price || 64250} />
+                      <GeminiChatbot agentStatusPackets={agentStatusPackets()} />
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("onnx")}
+                        className="w-full text-left bg-slate-900/50 border border-lime-500/20 hover:border-lime-400/40 rounded-xl p-4 font-mono transition-colors cursor-pointer"
+                      >
+                        <div className="text-[10px] uppercase tracking-widest text-lime-400 font-bold">
+                          {language === "de" ? "ONNX-Neuronales Kernmodul" : "ONNX Neural Core"}
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+                          {language === "de"
+                            ? "LSTM-Inferenz, Training und Netron-Graph sind in Tab 7 ausgelagert."
+                            : "LSTM inference, training, and Netron graph live in dedicated Tab 7."}
+                        </p>
+                        <span className="inline-block mt-3 text-[10px] text-lime-300 font-bold">
+                          {language === "de" ? "Tab 7 öffnen →" : "Open Tab 7 →"}
+                        </span>
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -1309,6 +1341,27 @@ export default function App() {
                 )}
               </>
             )}
+
+            {activeTab === "onnx" && (
+              <OnnxPage
+                currentPrice={tickers.find((t) => t.symbol === activeSymbol)?.price ?? 64250}
+                activeSymbol={activeSymbol}
+                marketLive={marketLive}
+                language={language}
+              />
+            )}
+
+            {activeTab === "chronos" && (
+              <ChronosPage
+                activeSymbol={activeSymbol}
+                language={language}
+                marketLive={marketLive}
+                subAgents={subAgents}
+                onUpdateAgentStatus={handleUpdateAgentStatus}
+              />
+            )}
+
+            {activeTab === "agency" && <AgencyPage language={language} />}
 
             {/* WORKSPACE D: SWARM GOVERNANCE */}
             {activeTab === "signals" && (
@@ -1462,96 +1515,6 @@ export default function App() {
               </>
             )}
 
-            {/* WORKSPACE E: FULL WORKSPACE (ORIGINAL SEQUENTIAL VIEW) */}
-            {activeTab === "full" && (
-              <>
-                <IntegratedConnectors 
-                  tradingExchange={tradingExchange}
-                  setTradingExchange={setTradingExchange}
-                />
-
-                <LiveMarketHeatmap 
-                  tickers={tickers} 
-                  onSelectTicker={(symbol) => {
-                    setActiveSymbol(symbol);
-                    setSubAgents(prev => prev.map(a => a.id === "market_data" ? { ...a, lastAction: `Incepted index focus update for ${symbol}/USD tickers.` } : a));
-                  }}
-                  activeSymbol={activeSymbol}
-                  marketLive={marketLive}
-                />
-
-                <div className="grid grid-cols-1 gap-6">
-                  <RiskAssessmentHeatmap tickers={tickers} marketLive={marketLive} marketAsOf={marketAsOf} />
-                  <AgentTimeline />
-                </div>
-
-                <SimulatedTrading 
-                  tickers={tickers}
-                  onExecuteTrade={handleExecuteTrade}
-                  isComplianceActive={isComplianceActive}
-                  tradingExchange={tradingExchange}
-                />
-
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                  <div className="xl:col-span-2">
-                    <TvapiOptimizer activeSymbol={activeSymbol} />
-                  </div>
-                  <div className="space-y-6">
-                    <GeminiChatbot />
-                    <NeuralTracker currentPrice={tickers.find(t => t.symbol === activeSymbol)?.price || 64250} />
-                  </div>
-                </div>
-
-                <ResourceAllocation 
-                  allocation={allocation}
-                  activePlan={activePlan}
-                  onDeployPlan={handleDeployPlan}
-                />
-
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                  <div className="xl:col-span-2">
-                    <ExecutedTradesSection trades={trades} chartData={chartData} />
-                  </div>
-                  <div>
-                    <TelegramFeed 
-                      onSignalAction={(prompt) => {
-                        const el = document.getElementById("generative-goal-planning-card");
-                        if (el) el.scrollIntoView({ behavior: "smooth" });
-                        handleDeployPlan({
-                          planTitle: "AI Signal Ingestion Blueprint",
-                          summary: `Orchestrating adaptive strategy optimized for alert directive: "${prompt}".`,
-                          subAgentDirectives: {
-                            marketData: `Scan volume corridors for confirmation matching the Telegram signal.`,
-                            adaptiveAgent: `Elevate multipliers if token momentum vectors match sentiment spikes.`,
-                            rnaSmartelligent: `Audit fractal pattern integrity to reject noise and bypass fake traps.`,
-                            riskGovernor: `Enforce a strict trailing drawdown constraint at 2.0% maximum allocation.`
-                          },
-                          resourceAllocation: [
-                            { name: "BTC", value: 30 },
-                            { name: "ETH", value: 25 },
-                            { name: "SOL", value: 30 },
-                            { name: "MATIC", value: 15 }
-                          ],
-                          suggestedRules: [
-                            "Verify signal authenticity across dual aggregated Telegram streams",
-                            "Suspend long positions instantly if composite signal score collapses below +40",
-                            "Scale execution volume dynamically with respect to active support walls"
-                          ]
-                        });
-                      }}
-                      onSimulateTradeSignal={(asset, type) => {
-                        const ticker = tickers.find(t => t.symbol === asset);
-                        const price = ticker ? ticker.price : 100;
-                        const size = asset === "BTC" ? 0.25 : asset === "ETH" ? 2.5 : 25;
-                        handleExecuteTrade({ asset, type, price, amount: size });
-                        const card = document.getElementById("executed-trades-card");
-                        if (card) card.scrollIntoView({ behavior: "smooth" });
-                      }}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
           </motion.div>
         </AnimatePresence>
 

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends
 
 from ..auth import require_user
 from ..integrations.gemini_client import AiNotConfigured, GeminiClient
-from ..integrations.tvapi_optimizer import list_chart_strategies, run_deterministic_optimize
+from ..integrations.tvapi_optimizer import list_chart_strategies, run_optimize
 from ..schemas_ai import TvapiAnalyzeChartRequest, TvapiChartStrategiesRequest, TvapiOptimizeRequest
 from ..settings import get_settings
 
@@ -20,13 +20,12 @@ async def tvapi_optimize(payload: TvapiOptimizeRequest, _user: dict = Depends(re
     settings = get_settings()
     if not settings.tvapi_enabled:
         return {"success": False, "error": "TVAPI is disabled (TVAPI_ENABLED=false)"}
-    # RapidAPI external backtest is not wired yet; always return a labeled deterministic sweep.
-    # TRADINGVIEW_RAPIDAPI_KEY is reserved for a future verified TV endpoint.
-    result = run_deterministic_optimize(payload.model_dump())
-    if settings.tradingview_rapidapi_key:
-        result["bericht"] += (
+    # Candle backtest from tv-extension-mvp EMA grid (OHLCV / synthetic). Not vision/YouTube.
+    result = await run_optimize(payload.model_dump())
+    if settings.tradingview_rapidapi_key and result.get("success"):
+        result["bericht"] = str(result.get("bericht") or "") + (
             "\n- Note: TRADINGVIEW_RAPIDAPI_KEY is set but external RapidAPI optimize is not "
-            "enabled in V1; deterministic-sweep results are returned instead.\n"
+            "enabled; candle-backtest results are returned instead.\n"
         )
     return result
 
@@ -38,7 +37,12 @@ async def tvapi_chart_strategies(
     settings = get_settings()
     if not settings.tvapi_enabled:
         return {"success": False, "error": "TVAPI is disabled (TVAPI_ENABLED=false)", "strategies": []}
-    return list_chart_strategies(payload.symbol)
+    result = await list_chart_strategies(payload.symbol)
+    if not payload.includeProbe and isinstance(result.get("strategies"), list):
+        result["strategies"] = [
+            s for s in result["strategies"] if isinstance(s, dict) and s.get("origin") != "probe"
+        ]
+    return result
 
 
 @router.post("/api/tvapi/analyze-chart")
@@ -48,21 +52,26 @@ async def tvapi_analyze_chart(
     settings = get_settings()
     if not settings.tvapi_enabled:
         return {"success": False, "error": "TVAPI is disabled (TVAPI_ENABLED=false)"}
-    mode = payload.promptMode
+    # Backtest metrics use /api/tvapi/optimize (candle engine). Vision is pattern-only.
+    if payload.promptMode == "backtest":
+        return {
+            "success": False,
+            "error": (
+                "Backtest Control uses the candle OHLCV engine via POST /api/tvapi/optimize "
+                "(tv-extension-mvp). Vision analyze-chart is pattern recognition only; "
+                "YouTube/video analysis is disabled."
+            ),
+        }
     prompt = (
-        (
-            "You are a BLINDFolded candlestick pattern analyst. "
-            "Ignore and do NOT mention ticker/symbol names, exchange labels, timeframes, axis numbers, "
-            "dollar/price levels, or numeric indicator values. "
-            "Focus ONLY on candle geometry and classic patterns "
-            "(Hammer, Inverted Hammer, Hanging Man, Shooting Star, Dragonfly/Gravestone Doji, Doji, "
-            "Bullish/Bearish Engulfing, Piercing Line, Dark Cloud Cover, Harami, Inside Bar, "
-            "Morning/Evening Star, Three White Soldiers, Three Black Crows, Marubozu, Flags/Wedges as pure shape). "
-            "Output: pattern name(s), bias (bullish/bearish/neutral), confidence 0-100, "
-            "and one sentence on geometry confluence. No prices. No symbol. No timeframe."
-        )
-        if mode == "pattern"
-        else "Review this backtest chart and summarize edge quality, drawdown, and overfitting risk."
+        "You are a BLINDFolded candlestick pattern analyst. "
+        "Ignore and do NOT mention ticker/symbol names, exchange labels, timeframes, axis numbers, "
+        "dollar/price levels, or numeric indicator values. "
+        "Focus ONLY on candle geometry and classic patterns "
+        "(Hammer, Inverted Hammer, Hanging Man, Shooting Star, Dragonfly/Gravestone Doji, Doji, "
+        "Bullish/Bearish Engulfing, Piercing Line, Dark Cloud Cover, Harami, Inside Bar, "
+        "Morning/Evening Star, Three White Soldiers, Three Black Crows, Marubozu, Flags/Wedges as pure shape). "
+        "Output: pattern name(s), bias (bullish/bearish/neutral), confidence 0-100, "
+        "and one sentence on geometry confluence. No prices. No symbol. No timeframe."
     )
     client = GeminiClient(settings)
     try:

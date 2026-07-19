@@ -8,11 +8,13 @@ import {
   fetchAcademyStatus,
   fetchAvailableDrills,
   fetchCurriculum,
+  fetchRecentCareers,
   runTrainingCycle,
   startTraining,
   stopTraining,
   type AcademyAgent,
   type AcademyStatus,
+  type CareerEntry,
   type DrillResult,
   type LeaderboardEntry,
   type SyntheticDrill,
@@ -29,6 +31,7 @@ export default function AcademyPage() {
   const [drills, setDrills] = useState<SyntheticDrill[]>([]);
   const [lastResult, setLastResult] = useState<DrillResult | null>(null);
   const [curriculum, setCurriculum] = useState<string>("");
+  const [careers, setCareers] = useState<CareerEntry[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -36,14 +39,16 @@ export default function AcademyPage() {
   const reload = useCallback(async () => {
     setError("");
     try {
-      const [st, ag, lb] = await Promise.all([
+      const [st, ag, lb, cr] = await Promise.all([
         fetchAcademyStatus(),
         fetchAcademyAgents(),
         fetchAcademyLeaderboard(),
+        fetchRecentCareers(16),
       ]);
       setStatus(st);
       setAgents(ag.agents);
       setLeaderboard(lb.leaderboard);
+      setCareers(cr.career);
       if (st.agents?.length && !st.agents.includes(scout)) {
         setScout(st.agents[0]);
       }
@@ -82,7 +87,29 @@ export default function AcademyPage() {
         setMessage("Training loop stopped");
       } else {
         const res = await startTraining();
-        setMessage(res.started ? "Training loop started" : `Not started: ${res.reason}`);
+        if (res.started) {
+          const nightNote =
+            res.night_mode && res.is_night_time === false
+              ? " (night mode on — further auto-cycles wait for the night window; use Run cycle anytime)"
+              : "";
+          setMessage(
+            res.session_enabled
+              ? `Training loop started (dev session-enabled)${nightNote}`
+              : `Training loop started${nightNote}`,
+          );
+        } else {
+          const hint =
+            res.hint ||
+            (res.reason === "TRAINING_LOOP_DISABLED"
+              ? "Set TRAINING_LOOP_ENABLED=true in .env.local and restart the API."
+              : "");
+          setError(
+            `Loop not started: ${res.reason || "unknown"}${res.error ? ` — ${res.error}` : ""}${
+              hint ? ` · ${hint}` : ""
+            }`,
+          );
+          setMessage("");
+        }
       }
       await reload();
     } catch (err) {
@@ -184,15 +211,45 @@ export default function AcademyPage() {
         <div className="rounded-lg border border-teal-500/20 bg-teal-500/5 text-teal-200/90 px-3 py-2">{message}</div>
       )}
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Stat label="Loop" value={status?.is_running ? "RUNNING" : "IDLE"} />
+        <Stat
+          label="Enabled"
+          value={
+            status?.enabled
+              ? status.session_enabled
+                ? "SESSION"
+                : "ENV"
+              : "OFF"
+          }
+        />
         <Stat label="Cycles" value={String(status?.cycles_completed ?? 0)} />
-        <Stat label="Night window" value={status?.is_night_time ? "YES" : "NO"} />
+        <Stat
+          label="Night window"
+          value={
+            status?.night_mode === false
+              ? "OFF"
+              : status?.is_night_time
+                ? "YES"
+                : "WAIT"
+          }
+        />
         <Stat
           label="Diversity"
           value={status?.diversity?.status?.toUpperCase() ?? "—"}
         />
       </section>
+      {status && !status.enabled && status.hint ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-200 px-3 py-2">
+          {status.hint}
+        </div>
+      ) : null}
+      {status?.last_skip_reason === "WAITING_FOR_NIGHT_WINDOW" ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-200 px-3 py-2">
+          Auto-cycles paused until night window. Use <span className="font-bold">Run cycle</span> anytime,
+          or set TRAINING_LOOP_NIGHT_MODE=false.
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <section className="xl:col-span-1 space-y-3">
@@ -249,6 +306,27 @@ export default function AcademyPage() {
                   <p className="text-[10px] text-amber-400/80 uppercase tracking-wide">
                     Pattern geometry only
                   </p>
+                )}
+                {d.scenario_data.mode === "chronos_kline" && (
+                  <div className="text-[10px] text-cyan-400/90 space-y-1 border border-cyan-500/15 rounded-md px-2 py-1.5 bg-cyan-500/5">
+                    <p className="uppercase tracking-wide text-cyan-300/80">Chronos K-line language</p>
+                    <p className="text-slate-400">
+                      bias={String(d.scenario_data.planted_bias ?? "—")} · L=
+                      {String(d.scenario_data.lookback ?? "—")} · pred=
+                      {String(d.scenario_data.pred_len ?? "—")}
+                    </p>
+                    {typeof d.scenario_data.forecast === "object" &&
+                    d.scenario_data.forecast !== null &&
+                    "pred_return" in (d.scenario_data.forecast as object) ? (
+                      <p className="text-slate-500">
+                        forecast ret{" "}
+                        {(
+                          Number((d.scenario_data.forecast as { pred_return?: number }).pred_return) * 100
+                        ).toFixed(2)}
+                        %
+                      </p>
+                    ) : null}
+                  </div>
                 )}
                 <div className="flex gap-2">
                   <button
@@ -310,7 +388,7 @@ export default function AcademyPage() {
               <h3 className="text-[11px] uppercase tracking-wider text-slate-400 font-bold pt-2">
                 Recent cycle drills
               </h3>
-              <ul className="space-y-1 max-h-48 overflow-y-auto text-[10px] text-slate-500">
+              <ul className="space-y-1 max-h-40 overflow-y-auto text-[10px] text-slate-500">
                 {status.recent_drills.slice(0, 12).map((d, i) => (
                   <li key={i}>
                     {String(d.scout_name)} · {d.is_correct ? "OK" : "MISS"} ·{" "}
@@ -320,6 +398,25 @@ export default function AcademyPage() {
               </ul>
             </>
           ) : null}
+          {careers.length > 0 && (
+            <>
+              <h3 className="text-[11px] uppercase tracking-wider text-slate-400 font-bold pt-2">
+                Career log
+              </h3>
+              <ul className="space-y-1 max-h-40 overflow-y-auto text-[10px] text-slate-500">
+                {careers.slice(0, 12).map((c) => (
+                  <li key={c.entry_id}>
+                    {c.scout_name} · {c.event_type}
+                    {c.details?.is_correct === true
+                      ? " · OK"
+                      : c.details?.is_correct === false
+                        ? " · MISS"
+                        : ""}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </section>
       </div>
     </div>

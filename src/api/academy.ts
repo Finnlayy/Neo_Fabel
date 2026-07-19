@@ -15,13 +15,17 @@ export type AcademyAgent = {
 export type AcademyStatus = {
   is_running: boolean;
   enabled: boolean;
+  env_enabled?: boolean;
+  session_enabled?: boolean;
   auto_start_enabled: boolean;
+  night_mode?: boolean;
   is_night_time: boolean;
   last_run_time: string | null;
   cycles_completed: number;
   next_interval_seconds: number;
   last_skip_reason: string | null;
   last_error: string | null;
+  hint?: string | null;
   recent_drills: Array<Record<string, unknown>>;
   diversity: {
     agreement_rate: number;
@@ -71,7 +75,15 @@ export function fetchAcademyLeaderboard(): Promise<{ leaderboard: LeaderboardEnt
   return apiRequest<{ leaderboard: LeaderboardEntry[] }>("/api/v1/academy/agents/leaderboard");
 }
 
-export function startTraining(): Promise<{ started: boolean; reason: string | null }> {
+export function startTraining(): Promise<{
+  started: boolean;
+  reason: string | null;
+  hint?: string;
+  error?: string;
+  session_enabled?: boolean;
+  night_mode?: boolean;
+  is_night_time?: boolean;
+}> {
   return apiRequest("/api/v1/academy/train/start", { method: "POST" });
 }
 
@@ -117,4 +129,17 @@ export function fetchCurriculum(scoutName: string): Promise<{
 
 export function fetchAbTests(): Promise<{ ab_tests: Array<Record<string, unknown>> }> {
   return apiRequest("/api/v1/academy/ab-tests");
+}
+
+export type CareerEntry = {
+  entry_id: string;
+  scout_name: string;
+  event_type: string;
+  timestamp: string;
+  details: Record<string, unknown>;
+};
+
+export function fetchRecentCareers(limit = 20): Promise<{ career: CareerEntry[]; count: number }> {
+  const q = new URLSearchParams({ limit: String(limit) });
+  return apiRequest(`/api/v1/academy/agents/careers/recent?${q}`);
 }

@@ -17,10 +17,10 @@ class AiNotConfigured(Exception):
 
 
 MODEL_MAP = {
-    "auto": "gemini-2.0-flash",
-    "flash": "gemini-2.0-flash",
-    "flash-lite": "gemini-2.0-flash-lite",
-    "pro-preview": "gemini-2.0-flash",
+    "auto": "gemini-3.5-flash",
+    "flash": "gemini-3.5-flash",
+    "flash-lite": "gemini-3.1-flash-lite",
+    "pro-preview": "gemini-3.1-pro-preview",
 }
 
 
@@ -189,8 +189,12 @@ def deterministic_plan(prompt: str) -> dict[str, Any]:
         "subAgentDirectives": {
             "marketData": "Poll Kraken paper tickers for BTC/ETH/SOL; ignore equities until AV configured.",
             "adaptiveAgent": "Stay flat unless 15m change exceeds 2% absolute on allowlisted pairs.",
-            "rnaSmartelligent": "Prefer mean-reversion on SOL; avoid leverage >1x in paper mode.",
+            "rnaSmartelligent": "Report blind geometry bias only; no prices/symbols in outputs.",
             "riskGovernor": "Hard stop at 2% session drawdown; max 3 open paper positions.",
+            "krakenBroker": "skill: kraken-paper-strategy — paper fills only; refuse live_gated.",
+            "predictive": "Flag short-horizon regime shift on allowlisted pairs; paper advisory.",
+            "analytic": "Track paper PnL and fee drag after fills; no live ledger claims.",
+            "orchestrator": "HANDOFF after risk clear; converge with CONCLUSION or BLOCKED.",
         },
         "resourceAllocation": [
             {"name": "BTC", "value": 40},
@@ -201,6 +205,7 @@ def deterministic_plan(prompt: str) -> dict[str, Any]:
         "suggestedRules": [
             "Paper orders only via /api/v1/paper/orders",
             "No live Kraken execution from this plan",
+            "Route Kraken via skill: names only — never paste SKILL.md bodies",
             f"User intent retained: {snippet}",
         ],
     }

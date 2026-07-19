@@ -7,11 +7,11 @@ import random
 from datetime import datetime
 from typing import Any
 
-from backend.app.academy.ab_testing import ab_testing
 from backend.app.academy.academy_curriculum import academy_curriculum
 from backend.app.academy.agent_defs import NEO_AGENT_NAMES
 from backend.app.academy.agent_registry import agent_registry
-from backend.app.academy.prompt_evolution import prompt_evolution
+from backend.app.academy.chronos_drills import chronos_auto_decision
+from backend.app.academy.prompt_shot_optimizer import prompt_shot_optimizer
 from backend.app.academy.training_drills import training_drills
 from backend.app.academy.schemas import DiversityMonitorStats
 from backend.app.settings import get_settings
@@ -28,9 +28,15 @@ class TrainingLoopService:
         self.errors_last_5min = 0
         self.last_error: str | None = None
         self.last_skip_reason: str | None = None
+        # Session override when Start is pressed in development with TRAINING_LOOP_ENABLED=false.
+        self._session_enabled: bool = False
 
     def _cfg(self) -> Any:
         return get_settings()
+
+    def _loop_allowed(self) -> bool:
+        cfg = self._cfg()
+        return bool(cfg.training_loop_enabled or self._session_enabled)
 
     def _parse_minutes(self, value: str, default: int) -> int:
         try:
@@ -64,20 +70,41 @@ class TrainingLoopService:
     async def start(self) -> dict[str, Any]:
         cfg = self._cfg()
         if not cfg.training_loop_enabled:
-            self.last_skip_reason = "TRAINING_LOOP_DISABLED"
-            return {"started": False, "reason": self.last_skip_reason}
+            # Local/dev: allow Start without editing env; production still requires the flag.
+            if (cfg.app_env or "").lower() == "development":
+                self._session_enabled = True
+            else:
+                self.last_skip_reason = "TRAINING_LOOP_DISABLED"
+                return {
+                    "started": False,
+                    "reason": self.last_skip_reason,
+                    "hint": "Set TRAINING_LOOP_ENABLED=true in .env.local and restart the API.",
+                }
         if self.is_running:
             return {"started": False, "reason": "ALREADY_RUNNING"}
 
         self.is_running = True
         self.last_skip_reason = None
-        await self._run_cycle()
+        try:
+            await self._run_cycle()
+        except Exception as exc:  # noqa: BLE001
+            self.is_running = False
+            self.last_error = str(exc)
+            self.last_skip_reason = "CYCLE_FAILED"
+            return {"started": False, "reason": "CYCLE_FAILED", "error": str(exc)}
         self.task = asyncio.create_task(self._loop_routine())
-        return {"started": True, "reason": None}
+        return {
+            "started": True,
+            "reason": None,
+            "session_enabled": self._session_enabled and not cfg.training_loop_enabled,
+            "night_mode": cfg.training_loop_night_mode,
+            "is_night_time": self._is_night_time(),
+        }
 
     async def stop(self) -> None:
         task = self.task
         self.is_running = False
+        self._session_enabled = False
         self.task = None
         if task and not task.done():
             task.cancel()
@@ -88,6 +115,7 @@ class TrainingLoopService:
 
     def stop_now(self) -> None:
         self.is_running = False
+        self._session_enabled = False
         if self.task and not self.task.done():
             self.task.cancel()
         self.task = None
@@ -122,18 +150,34 @@ class TrainingLoopService:
             identity = agent_registry.get_identity(scout)
             acc = identity.accuracy if identity and identity.accuracy > 0 else 0.5
 
-            if random.random() < acc:
+            # Chronos trains by running its own predictor (self-play) during cycles.
+            if scout == "chronos" or drill.drill_type == "kline_language":
+                model_vote = chronos_auto_decision(drill.scenario_data)
+                if model_vote and random.random() < max(acc, 0.55):
+                    scout_decision = str(model_vote)
+                elif random.random() < acc:
+                    scout_decision = str(drill.expected_outcome)
+                else:
+                    scout_decision = "PROCEED" if drill.expected_outcome == "REJECT" else "REJECT"
+            elif random.random() < acc:
                 scout_decision = str(drill.expected_outcome)
+            elif drill.drill_type == "orchestration_teamwork":
+                alts = ["HANDOFF", "BLOCKED", "QUESTION", "CONCLUSION"]
+                expected = str(drill.expected_outcome)
+                scout_decision = random.choice([a for a in alts if a != expected] or ["BLOCKED"])
             else:
                 scout_decision = "PROCEED" if drill.expected_outcome == "REJECT" else "REJECT"
             decisions.append(scout_decision)
 
+            # Batch drill_results.jsonl at end of cycle, but append careers immediately
+            # so POST /train/cycle satisfies the V1 disk contract for agent_careers.jsonl.
             result = await training_drills.evaluate_drill(
                 drill,
                 scout_decision,
                 confidence=random.uniform(0.5, 0.99),
                 persist=False,
                 save_registry=False,
+                write_log=True,
             )
             cycle_results.append(result)
             academy_curriculum.record_drill_result(
@@ -155,21 +199,13 @@ class TrainingLoopService:
         self.cycles_completed += 1
 
     async def _check_auto_evolution(self, scout_name: str) -> None:
-        ident = agent_registry.get_identity(scout_name)
-        if not ident:
-            return
-        if ident.total_calls > 20 and ident.accuracy < 0.6 and random.random() < 0.05:
-            new_version_id = f"v{ident.generation + 1}_auto_evolved"
-            prompt_evolution.create_version(
-                scout_name,
-                new_version_id,
-                f"Auto-evolved prompt for {scout_name} focusing on recent failures.",
-                parent_version=ident.born_from,
-                change_summary="Auto-correction from Training Loop",
-            )
-            ab_testing.start_test(scout_name, ident.born_from, new_version_id)
-            ident.generation += 1
-            agent_registry.save_registry()
+        # Optimizer-driven evolution from careers/drills/prompt-shot logs (not random stub).
+        # Never raise — a failed evolution must not abort the remaining scout drills.
+        try:
+            del scout_name
+            prompt_shot_optimizer.analyze_and_maybe_evolve("orchestrator")
+        except Exception as exc:  # noqa: BLE001
+            self.last_error = f"prompt_shot_optimizer: {exc}"
 
     def _update_diversity(self, decisions: list[str]) -> None:
         if not decisions:
@@ -195,10 +231,14 @@ class TrainingLoopService:
 
     def get_status(self) -> dict[str, Any]:
         cfg = self._cfg()
+        enabled = self._loop_allowed()
         return {
             "is_running": self.is_running,
             "auto_start_enabled": cfg.training_loop_auto_start,
-            "enabled": cfg.training_loop_enabled,
+            "enabled": enabled,
+            "env_enabled": bool(cfg.training_loop_enabled),
+            "session_enabled": self._session_enabled,
+            "night_mode": cfg.training_loop_night_mode,
             "is_night_time": self._is_night_time(),
             "last_run_time": self.last_run_time,
             "cycles_completed": self.cycles_completed,
@@ -210,6 +250,11 @@ class TrainingLoopService:
             "diversity": self.diversity_stats.model_dump(),
             "agents": list(NEO_AGENT_NAMES),
             "paper_only": True,
+            "hint": (
+                None
+                if enabled
+                else "Set TRAINING_LOOP_ENABLED=true in .env.local (or Start in development to session-enable)."
+            ),
         }
 
 

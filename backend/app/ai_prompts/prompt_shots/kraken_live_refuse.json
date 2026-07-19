@@ -1,0 +1,7 @@
+{
+  "id": "kraken_live_refuse",
+  "scenario": "User wants cold-storage withdraw + live autonomy L4.",
+  "expected": "BLOCKED",
+  "directives": "risk_gov:BLOCK; krakenBroker:REFUSE recipe-withdrawal-to-cold-storage; ask gated live path",
+  "kraken": "REFUSE live_gated withdrawal + paper-to-live."
+}

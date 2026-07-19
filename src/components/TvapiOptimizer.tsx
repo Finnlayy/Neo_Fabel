@@ -105,11 +105,11 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [activeTab, setActiveTab] = useState<"bericht" | "selbstprüfung" | "runs">("bericht");
 
-  // Vision: screenshot / image analysis only (video/YouTube deactivated).
+  // Vision: pattern screenshots only. Backtest = candle OHLCV (tv-extension-mvp). YouTube/video off.
   const [chartMode, setChartMode] = useState<"live" | "presets" | "screenshot">("screenshot");
   const [visionImage, setVisionImage] = useState<string | null>(null);
   const [visionMimeType, setVisionMimeType] = useState<string>("image/png");
-  const [visionMode, setVisionMode] = useState<"pattern" | "backtest">("pattern");
+  const [visionMode] = useState<"pattern">("pattern");
   const [isVisionAnalyzing, setIsVisionAnalyzing] = useState(false);
   const [visionAnalysisResult, setVisionAnalysisResult] = useState<string | null>(null);
   const [pasteHint, setPasteHint] = useState<string | null>(null);
@@ -170,7 +170,10 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
       }
       setChartStrategies(data.strategies ?? []);
       if (!data.strategies?.length) {
-        setStrategyReadError("No strategies loaded on the TradingView chart");
+        setStrategyReadError("No strategies returned (set TVREMIX_API_KEY or use probe catalog)");
+      } else if (data.note) {
+        // Surface tvremix/probe provenance without failing the picker
+        setStrategyReadError(data.tvremixConfigured ? null : data.note);
       }
     } catch (err) {
       setChartStrategies([]);
@@ -209,6 +212,9 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
           strategyKind === "smc"
             ? { ...smcParams, ...(selectedStrategy.inputs ?? {}) }
             : { ...(selectedStrategy.inputs ?? {}) },
+        // tvremix Pine: list → select → optimize reads source by scriptId
+        scriptId: selectedStrategy.origin && selectedStrategy.origin !== "probe" ? selectedStrategy.id : undefined,
+        pineName: selectedStrategy.origin && selectedStrategy.origin !== "probe" ? selectedStrategy.name : undefined,
       });
       if (data.success) {
         setOptimizationResult(data);
@@ -685,8 +691,9 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
             </h2>
           </div>
           <p className="text-[10px] text-slate-400 leading-relaxed max-w-2xl">
-            Integrates multi-stage TradingView TVAPI backtest sweeps with advanced Smart Money Concepts (SMC) guards. 
-            Automates rule-based ranking, sequential trailing exit sweeps, and commits parameters via secure input mapping.
+            Reads your TradingView Pine strategies via tvremix MCP when <code className="text-cyan-400">TVREMIX_API_KEY</code> is set,
+            then runs candle OHLCV backtests (tv-extension-mvp EMA grid). Probe strategies remain as fallback.
+            Vision is pattern screenshots only — YouTube/video backtest is disabled.
           </p>
         </div>
 
@@ -720,39 +727,52 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
           {strategyPickerOpen && (
             <div className="absolute right-0 top-full mt-2 z-30 w-[300px] bg-slate-950 border border-white/10 rounded-xl shadow-xl shadow-black/40 overflow-hidden">
               <div className="px-3 py-2 border-b border-white/5 text-[9px] uppercase tracking-wider text-slate-500 font-bold">
-                Strategies loaded on chart · {symbol}
+                tvremix Pine + probe · {symbol}
               </div>
               {isReadingStrategies ? (
                 <div className="px-3 py-4 text-[10px] text-slate-400 flex items-center gap-2">
                   <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-                  Probing TradingView chart layout…
+                  Reading strategies via tvremix MCP…
                 </div>
-              ) : strategyReadError ? (
-                <div className="px-3 py-4 text-[10px] text-rose-300">{strategyReadError}</div>
               ) : (
-                <ul className="max-h-56 overflow-y-auto py-1">
-                  {chartStrategies.map((item) => {
-                    const active = selectedStrategy?.id === item.id;
-                    return (
-                      <li key={item.id}>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectChartStrategy(item)}
-                          className={`w-full text-left px-3 py-2.5 transition-colors ${
-                            active
-                              ? "bg-cyan-500/15 text-cyan-200"
-                              : "text-slate-300 hover:bg-white/5 hover:text-white"
-                          }`}
-                        >
-                          <div className="text-[11px] font-semibold truncate">{item.name}</div>
-                          <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">
-                            {item.pane || "overlay"} · {item.kind}
-                          </div>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <>
+                  {strategyReadError && (
+                    <div className="px-3 py-2 text-[10px] text-amber-300/90 border-b border-white/5">
+                      {strategyReadError}
+                    </div>
+                  )}
+                  <ul className="max-h-56 overflow-y-auto py-1">
+                    {chartStrategies.map((item) => {
+                      const active = selectedStrategy?.id === item.id;
+                      const fromTv = item.origin && item.origin !== "probe";
+                      return (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectChartStrategy(item)}
+                            className={`w-full text-left px-3 py-2.5 transition-colors ${
+                              active
+                                ? "bg-cyan-500/15 text-cyan-200"
+                                : "text-slate-300 hover:bg-white/5 hover:text-white"
+                            }`}
+                          >
+                            <div className="text-[11px] font-semibold truncate flex items-center gap-1.5">
+                              {item.name}
+                              {fromTv && (
+                                <span className="text-[8px] text-emerald-400 border border-emerald-500/30 px-1 rounded">
+                                  TVREMIX
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">
+                              {item.origin || "probe"} · {item.kind}
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
               )}
             </div>
           )}
@@ -1188,31 +1208,26 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
               </h3>
             </div>
             <p className="text-[10px] text-slate-400 leading-relaxed max-w-3xl">
-              Analyze a PNG/JPG chart screenshot (upload, drag-and-drop, or paste from clipboard).
-              Reviews structure, breaker blocks, liquidity, and backtest quality from the still image.
+              Pattern recognition from a PNG/JPG screenshot (upload, drag-and-drop, or paste).
+              Numeric backtests use the candle OHLCV engine (tv-extension-mvp EMA grid) via Run Optimization above — not vision or YouTube.
             </p>
           </div>
 
-          {/* Mode Selector */}
-          <div className="flex bg-slate-950/60 p-1 border border-white/5 rounded-xl self-start">
-            <button
-              onClick={() => setVisionMode("pattern")}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 ${
-                visionMode === "pattern" 
-                  ? "bg-purple-500 text-slate-950 shadow-md shadow-purple-500/20" 
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
+          <div className="flex bg-slate-950/60 p-1 border border-white/5 rounded-xl self-start gap-1">
+            <span className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-purple-500 text-slate-950 shadow-md shadow-purple-500/20 flex items-center gap-1.5">
               <Eye className="w-3.5 h-3.5" />
               Pattern Recognition
-            </button>
+            </span>
             <button
-              onClick={() => setVisionMode("backtest")}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 ${
-                visionMode === "backtest" 
-                  ? "bg-purple-500 text-slate-950 shadow-md shadow-purple-500/20" 
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
+              type="button"
+              onClick={() => {
+                const el = document.getElementById("tvapi-optimizer-panel");
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                void handleRunOptimization();
+              }}
+              disabled={!selectedStrategy || isOptimizing}
+              className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-emerald-300 border border-transparent hover:border-emerald-500/30 transition-all duration-200 flex items-center gap-1.5 disabled:opacity-40"
+              title="Runs candle OHLCV backtest (tv-extension-mvp), not Gemini vision"
             >
               <Sliders className="w-3.5 h-3.5" />
               Backtest Control

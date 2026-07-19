@@ -1,0 +1,50 @@
+//@version=6
+// ══════════════════════════════════════════════════════════
+// LIQUIDITY Hunter [PowerTrader] / Liquidity Trail Matrix
+// Author:  Finn Powers · Version: 1.3.0 · WillyAlgoTrader
+// Neo_Fabel bundles this for optimizer binding (scriptId=ltm_willy_v130).
+// Full visual/profile/dashboard body lives on the TradingView chart —
+// replace this file with the complete Pine when syncing from TV.
+// Runtime analysis/backtest uses backend LTM Python port (ltm_analyzer.py).
+// ══════════════════════════════════════════════════════════
+
+indicator(
+     title            = "Liquidity Trail Matrix [WillyAlgoTrader]",
+     shorttitle       = "LTM [WillyAlgoTrader]",
+     overlay          = true,
+     max_lines_count  = 500,
+     max_labels_count = 500,
+     max_boxes_count  = 500,
+     max_bars_back    = 5000)
+
+GRP_MAIN   = "⚙️ Trend Engine"
+GRP_SIG    = "🎯 Signals"
+GRP_RISK   = "🛡️ Risk Management"
+INDICATOR_VERSION = "v1.3.0"
+
+bandPresetInput = input.string("Balanced", "Band Width Preset",
+     options = ["Scalping", "Balanced", "Deep Trend", "Custom"], group = GRP_MAIN)
+baseMultInput = input.float(5.0, "Base Multiplier (×ATR)", minval = 0.5, maxval = 15.0, step = 0.1, group = GRP_MAIN)
+bandStepInput = input.float(0.25, "Band Spacing (proportional step)", minval = 0.05, maxval = 1.0, step = 0.05, group = GRP_MAIN)
+atrLenInput = input.int(13, "ATR Length", minval = 5, maxval = 100, group = GRP_MAIN)
+srcInput = input.source(close, "Source", group = GRP_MAIN)
+flipBandStr = input.string("Balanced (Band 3)", "Flip Band",
+     options = ["Fast (Band 2)", "Balanced (Band 3)", "Deep (Band 4)"], group = GRP_MAIN)
+htfInput = input.timeframe("", "Higher Timeframe Bias", group = GRP_MAIN)
+
+minScoreInput = input.int(80, "Min Retest Score (0-100)", minval = 0, maxval = 100, group = GRP_SIG)
+retestWindowInput = input.int(8, "Retest Window (bars)", minval = 1, maxval = 30, group = GRP_SIG)
+cooldownInput = input.int(5, "Signal Cooldown (bars)", minval = 0, maxval = 100, group = GRP_SIG)
+
+riskPresetInput = input.string("Balanced", "Risk Preset",
+     options = ["Conservative", "Balanced", "Aggressive", "Scalping", "Custom"], group = GRP_RISK)
+slModeInput = input.string("Wick-Anchored", "SL Mode", options = ["Wick-Anchored", "ATR"], group = GRP_RISK)
+atrLenRiskInput = input.int(14, "ATR Length (Risk)", minval = 5, maxval = 50, group = GRP_RISK)
+slMultInput = input.float(1.5, "SL Multiplier (×ATR)", minval = 0.5, maxval = 5.0, step = 0.1, group = GRP_RISK)
+tp1MultInput = input.float(1.0, "TP1 Multiplier (×Risk)", minval = 0.5, maxval = 5.0, step = 0.1, group = GRP_RISK)
+tp2MultInput = input.float(2.0, "TP2 Multiplier (×Risk)", minval = 1.0, maxval = 10.0, step = 0.1, group = GRP_RISK)
+tp3MultInput = input.float(3.0, "TP3 Multiplier (×Risk)", minval = 1.5, maxval = 15.0, step = 0.1, group = GRP_RISK)
+beInput = input.bool(true, "Break-Even After TP1", group = GRP_RISK)
+
+// Stub plot so the script compiles as a placeholder until the full LTM body is pasted.
+plot(close, "LTM placeholder — paste full Liquidity Trail Matrix body from TradingView", display = display.none)
