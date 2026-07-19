@@ -1,5 +1,6 @@
 import React, {createContext, useContext, useEffect, useMemo, useState} from "react";
 import type {User} from "firebase/auth";
+import {setApiTokenProvider} from "../api/client";
 import {
   authOriginHint,
   consumeRedirectResult,
@@ -94,6 +95,24 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       unsubscribe();
     };
   }, [configured]);
+
+  // Always attach the signed-in user's ID token to API calls (Telegram/paper/AI).
+  // Do not rely on a separate Auth.currentUser lookup that can race after popup/redirect.
+  useEffect(() => {
+    if (!user) {
+      setApiTokenProvider(null);
+      return;
+    }
+    setApiTokenProvider(async () => {
+      try {
+        return await user.getIdToken();
+      } catch (err) {
+        console.error("[auth] getIdToken failed:", err);
+        return null;
+      }
+    });
+    return () => setApiTokenProvider(null);
+  }, [user]);
 
   const value = useMemo<AuthState>(
     () => ({

@@ -56,10 +56,14 @@ async def require_user(request: Request) -> dict[str, Any]:
                 detail={"code": "auth_unconfigured", "message": "Firebase Auth is not configured"},
             )
         firebase_auth, firebase_app = firebase_context
+        # Revocation checks need a service-account / ADC. Local .env often only has
+        # FIREBASE_PROJECT_ID — still verify signature + audience without check_revoked.
+        settings = get_settings()
+        check_revoked = bool(settings.firebase_credentials_path)
         user = await run_in_threadpool(
             firebase_auth.verify_id_token,
             token,
-            check_revoked=True,
+            check_revoked=check_revoked,
             app=firebase_app,
         )
         uid = str(user.get("uid", "")).strip()

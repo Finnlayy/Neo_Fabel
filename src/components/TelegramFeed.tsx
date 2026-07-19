@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useState} from "react";
 import {Send} from "lucide-react";
 import {ApiError} from "../api/client";
+import {useAuth} from "../auth/AuthProvider";
 import {
   fetchTelegramDaemonStatus,
   fetchTelegramMessages,
@@ -15,13 +16,22 @@ interface TelegramFeedProps {
 }
 
 export default function TelegramFeed({onSignalAction}: TelegramFeedProps) {
+  const auth = useAuth();
   const [inputText, setInputText] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [messages, setMessages] = useState<TelegramSignal[]>([]);
   const [daemon, setDaemon] = useState<TelegramDaemonStatus | null>(null);
+  const [authBlocked, setAuthBlocked] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(async () => {
+    if (!auth.uid) {
+      setAuthBlocked(true);
+      setDaemon(null);
+      setMessages([]);
+      setNotice("Sign in with Google to load the Telegram feed (API returns 401 without a session).");
+      return;
+    }
     try {
       const [nextMessages, status] = await Promise.all([
         fetchTelegramMessages(),
@@ -29,15 +39,24 @@ export default function TelegramFeed({onSignalAction}: TelegramFeedProps) {
       ]);
       setMessages(nextMessages);
       setDaemon(status);
+      setAuthBlocked(false);
       setNotice(null);
     } catch (error) {
-      const message =
+      const needsSignIn =
+        error instanceof ApiError && (error.status === 401 || error.code === "session_expired");
+      setAuthBlocked(needsSignIn);
+      if (needsSignIn) {
+        setDaemon(null);
+        setNotice("Sign in with Google — Telegram is gated behind Firebase Auth, not offline.");
+        return;
+      }
+      setNotice(
         error instanceof ApiError
           ? `${error.code}: ${error.message}`
-          : "Telegram API unavailable (sign in required).";
-      setNotice(message);
+          : "Telegram API unavailable.",
+      );
     }
-  }, []);
+  }, [auth.uid]);
 
   useEffect(() => {
     void reload();
@@ -48,6 +67,10 @@ export default function TelegramFeed({onSignalAction}: TelegramFeedProps) {
   const handleSendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!inputText.trim() || busy) return;
+    if (!auth.uid) {
+      setNotice("Sign in with Google before sending Telegram messages.");
+      return;
+    }
     setBusy(true);
     try {
       await sendTelegramMessage(inputText.trim());
@@ -63,11 +86,11 @@ export default function TelegramFeed({onSignalAction}: TelegramFeedProps) {
     }
   };
 
-  const statusLabel = daemon?.status ?? "UNKNOWN";
+  const statusLabel = authBlocked || !auth.uid ? "SIGN IN" : daemon?.status ?? "UNKNOWN";
   const statusClass =
     statusLabel === "ACTIVE"
       ? "text-emerald-400 border-emerald-500/20"
-      : statusLabel === "THROTTLED"
+      : statusLabel === "THROTTLED" || statusLabel === "SIGN IN"
         ? "text-amber-400 border-amber-500/20"
         : "text-slate-400 border-white/10";
 
@@ -85,10 +108,15 @@ export default function TelegramFeed({onSignalAction}: TelegramFeedProps) {
       )}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {messages.length === 0 ? (
+        {authBlocked || !auth.uid ? (
+          <div className="p-3 rounded border border-amber-500/20 bg-amber-950/20 text-xs text-amber-200/90">
+            Telegram bot token is configured on the server. Sign in with Google (top of the app) to unlock
+            the feed — same as when it worked before.
+          </div>
+        ) : messages.length === 0 ? (
           <div className="p-3 rounded border border-white/10 bg-slate-950/40 text-xs text-slate-400">
-            No Telegram messages yet. Configure TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID, then poll will
-            pull Bot API updates.
+            Signed in — waiting for Bot API updates. Message the bot in the configured chat, then this
+            panel will refresh within ~15s.
           </div>
         ) : (
           messages.map((signal) => (
