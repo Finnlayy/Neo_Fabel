@@ -40,9 +40,29 @@ class PromptEvolutionService:
                 self.create_version(
                     scout,
                     f"{scout}_v1_base",
-                    f"You are the {scout} review agent.",
+                    self._base_prompt_for(scout),
                     change_summary="Base version",
                 )
+
+    def _base_prompt_for(self, scout_name: str) -> str:
+        if scout_name == "orchestrator":
+            try:
+                from backend.app.ai_prompts.loader import load_doctrine
+
+                doctrine = load_doctrine().strip()
+                if doctrine:
+                    return doctrine[:4000]
+            except Exception:  # noqa: BLE001
+                pass
+        if scout_name == "chronos":
+            return (
+                "You are Chronos, Neo Fabel's K-line language agent (Kronos-inspired). "
+                "Work context-free: causal Z-score OHLCVA only — no asset IDs, no absolute price identity. "
+                "Read coarse (s1) tokens as macro regime and fine (s2) as wick/volume microstructure. "
+                "Decide PROCEED only for coherent bullish macro forecasts; REJECT chop/bearish/toxic noise. "
+                "Paper / research only — never authorize live order placement."
+            )
+        return f"You are the {scout_name} review agent."
 
     def save_registry(self) -> None:
         try:
