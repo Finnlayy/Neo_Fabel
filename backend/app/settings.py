@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     # Local-only: allow loopback API calls without Firebase when credentials are missing.
     # Forced off outside development. Never enable in production.
     auth_dev_bypass: bool = Field(default=True, validation_alias="AUTH_DEV_BYPASS")
+    # Paper ledger without Kraken CLI (required on native Windows — CLI is Linux/macOS/WSL).
+    paper_local_ledger: bool = Field(default=True, validation_alias="PAPER_LOCAL_LEDGER")
     alphavantage_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("ALPHAVANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY"),

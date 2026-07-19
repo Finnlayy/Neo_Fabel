@@ -10,11 +10,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import require_trading_admin, require_trading_admin_recent, require_user
-from .database import get_session
+from .database import SessionFactory, get_session
 from .integrations.alpha_vantage import AlphaVantageClient, AlphaVantageError
 from .integrations.ccxt_market import CcxtMarketClient, compact_pair, to_ccxt_symbol
 from .integrations.kraken_cli import KrakenCli, KrakenCliError
 from .integrations.kraken_public import KrakenPublicClient
+from .integrations.paper_router import PaperExecutionRouter
 from .market.stream import get_market_stream_hub
 from .paper_orders import PaperOrderService
 from .schemas import MarketBatchItem, MarketBatchResponse, OhlcvBatchResponse, OhlcvItem, PaperOrderRequest, PaperOrderResponse, TickerResponse
@@ -159,6 +160,10 @@ def kraken() -> KrakenCli:
         timeout_seconds=settings.kraken_timeout_seconds,
         allow_trade_commands=settings.trade_commands_enabled,
     )
+
+
+def paper_router() -> PaperExecutionRouter:
+    return PaperExecutionRouter(cli=kraken())
 
 
 def level4_session() -> Level4Session:
@@ -473,9 +478,57 @@ async def market_ohlcv(
 async def paper_status(request: Request, _user: dict = Depends(require_user)) -> dict:
     rid = request_id(request)
     try:
-        return {"mode": "paper", "data": await kraken().paper_status(), "request_id": rid}
+        data = await paper_router().paper_status()
+        return {"mode": "paper", "data": data, "request_id": rid, "execution": "paper-only"}
     except KrakenCliError as exc:
         raise HTTPException(status_code=503, detail={"code": exc.category, "message": str(exc), "request_id": rid}) from exc
+
+
+@app.get("/api/v1/trade/positions")
+async def trade_positions(request: Request, user: dict = Depends(require_user)) -> dict:
+    """Phase 3 alias — paper positions/status (no live trading)."""
+    return await paper_status(request, user)
+
+
+async def _place_paper_order(payload: PaperOrderRequest, user: dict, rid: str) -> PaperOrderResponse:
+    """Persist via Postgres when up; otherwise accept into the local paper ledger."""
+    router = paper_router()
+    try:
+        async with SessionFactory() as session:
+            service = PaperOrderService(sink=router)
+            return await service.place_manual(
+                session=session,
+                user_uid=str(user.get("uid", "")),
+                payload=payload,
+                request_id=rid,
+            )
+    except HTTPException as exc:
+        detail = exc.detail if isinstance(exc.detail, dict) else {}
+        if exc.status_code != 503 or detail.get("code") != "database_unavailable":
+            raise
+    except Exception:
+        # Connection refused / asyncpg / engine errors when Postgres is down.
+        pass
+
+    try:
+        result = await router.paper_order(
+            payload.side,
+            payload.pair,
+            payload.volume,
+            payload.order_type,
+            payload.price,
+        )
+    except (KrakenCliError, ValueError) as sink_exc:
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "paper_unavailable", "message": str(sink_exc), "request_id": rid},
+        ) from sink_exc
+    return PaperOrderResponse(
+        idempotency_key=payload.idempotency_key,
+        status="ACCEPTED",
+        result=result if isinstance(result, dict) else {"raw": result},
+        request_id=rid,
+    )
 
 
 @app.post("/api/v1/paper/orders", response_model=PaperOrderResponse)
@@ -483,13 +536,15 @@ async def paper_order(
     payload: PaperOrderRequest,
     request: Request,
     user: dict = Depends(require_user),
-    session: AsyncSession = Depends(get_session),
 ) -> PaperOrderResponse:
-    rid = request_id(request)
-    service = PaperOrderService(sink=kraken())
-    return await service.place_manual(
-        session=session,
-        user_uid=str(user.get("uid", "")),
-        payload=payload,
-        request_id=rid,
-    )
+    return await _place_paper_order(payload, user, request_id(request))
+
+
+@app.post("/api/v1/trade/execute", response_model=PaperOrderResponse)
+async def trade_execute(
+    payload: PaperOrderRequest,
+    request: Request,
+    user: dict = Depends(require_user),
+) -> PaperOrderResponse:
+    """Phase 3 alias — always paper-routed (live trading stays gated elsewhere)."""
+    return await _place_paper_order(payload, user, request_id(request))

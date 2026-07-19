@@ -29,10 +29,19 @@ Market-data endpoints:
 
 Set `ALPHAVANTAGE_API_KEY` (or `ALPHA_VANTAGE_API_KEY`) in `.env.local`. Full equity batches use Alpha Vantage's bulk quote entitlement, so set `ALPHAVANTAGE_BULK_QUOTES_ENABLED=true` only when that entitlement is available. Intraday equity and crypto endpoints may also require a premium Alpha Vantage plan; the API never substitutes mock data.
 
-Docker path:
+Docker path (required on Windows for paper trades — Kraken CLI is Linux-only):
 
-- `docker compose --env-file .env.local up --build`
-- Apply migrations from the API image: `docker compose run --rm api alembic -c backend/alembic.ini upgrade head`
+```powershell
+# Stop any native Windows uvicorn on :8000 first, then (from D:\Neo_Fabel):
+Copy-Item -Force .env.local .env   # Compose expects .env for ${VAR} substitution
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build api postgres
+```
+
+- API (Linux + `/usr/local/bin/kraken`): `http://127.0.0.1:8000`
+- Keep Vite on the host: `npm run dev` → `http://localhost:5173`
+- Do **not** run `python -m uvicorn` on Windows if you need paper orders — that process has no Kraken CLI.
+
+Apply migrations from the API image: `docker compose run --rm api alembic -c backend/alembic.ini upgrade head`
 
 ## Phase 1 — Qdrant vector index
 
@@ -108,7 +117,16 @@ curl http://127.0.0.1:8000/api/v1/market/stream/health
 # Browser / Vite (`localhost:5173`) opens WS via the `/api` proxy (ws: true).
 ```
 
-Phase 3 (broker execution / `/api/trade/*`) is **not** started here.
+## Phase 3 — paper execution API
+
+Paper-only trade surface (live trading stays gated):
+
+| Path | Purpose |
+|------|---------|
+| `POST /api/v1/trade/execute` | Place paper order (alias of `/api/v1/paper/orders`) |
+| `GET /api/v1/trade/positions` | Paper status / fills (alias of `/api/v1/paper/status`) |
+
+Router order: **Kraken CLI** when present (Linux/Docker) → else **local paper ledger** (Windows without CLI). Postgres is used when available; if DB is down, orders still accept into the local ledger.
 
 Validation commands:
 

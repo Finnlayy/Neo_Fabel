@@ -38,18 +38,20 @@ export default function SimulatedTrading({
     setStatus("submitting");
     setMessage("Submitting a paper order through FastAPI...");
     try {
-      await apiRequest<PaperOrderResponse>("/api/v1/paper/orders", {
+      const body = await apiRequest<PaperOrderResponse & {status?: string}>("/api/v1/trade/execute", {
         method: "POST",
         body: JSON.stringify({
-          pair: `${selectedAsset}/USD`,
+          pair: `${selectedAsset}USD`,
           side: tradeType.toLowerCase(),
           volume: amount,
           order_type: "market",
           idempotency_key: crypto.randomUUID(),
         }),
       });
+      const source =
+        typeof body.result?.source === "string" ? String(body.result.source) : "paper";
       setStatus("accepted");
-      setMessage("Paper order accepted by the Kraken CLI boundary.");
+      setMessage(`Paper order accepted (${source}).`);
       onExecuteTrade({asset: selectedAsset, type: tradeType, price: activePrice, amount: Number(amount)});
     } catch (error) {
       setStatus("error");
@@ -63,7 +65,7 @@ export default function SimulatedTrading({
         <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
           <div className="flex items-center gap-2 text-white font-bold uppercase tracking-wider text-[11px]">
             <ShieldCheck className="w-4 h-4 text-amber-400" />
-            Kraken CLI paper execution
+            Paper execution
           </div>
           <span className="text-[9px] text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded uppercase">
             PAPER ONLY
@@ -94,7 +96,7 @@ export default function SimulatedTrading({
           </label>
 
           <div className="text-slate-400 border border-white/5 bg-slate-950/60 rounded-sm p-3">
-            <div className="flex justify-between"><span>Source</span><span className="text-slate-200">{tradingExchange === "simulated" ? "Kraken paper" : "Kraken CLI paper"}</span></div>
+            <div className="flex justify-between"><span>Source</span><span className="text-slate-200">API paper router (CLI or local ledger)</span></div>
             <div className="flex justify-between mt-1"><span>Last known price</span><span className="text-slate-200">{activePrice ? `$${activePrice.toLocaleString()}` : "Unavailable"}</span></div>
           </div>
 
