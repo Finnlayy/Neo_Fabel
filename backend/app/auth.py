@@ -107,38 +107,7 @@ async def _verify_firebase_token(token: str) -> dict[str, Any]:
         if not uid:
             raise ValueError("verified Firebase token is missing uid")
         firebase_claims = user.get("firebase") if isinstance(user.get("firebase"), dict) else {}
-        provider = firebase_claims.get("sign_in_provider")
-        # Accept Google; also allow local/dev tokens that already passed signature checks.
-        if provider not in {"google.com", "custom"} and user.get("email_verified") is not True:
-            # Strict Google path for production-like tokens
-            if provider != "google.com" or user.get("email_verified") is not True:
-                raise HTTPException(
-                    status_code=403,
-                    detail={
-                        "code": "google_sign_in_required",
-                        "message": "A verified Google Firebase account is required",
-                    },
-                )
-        if provider == "google.com" and user.get("email_verified") is not True:
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "code": "google_sign_in_required",
-                    "message": "A verified Google Firebase account is required",
-                },
-            )
-        if provider not in {None, "google.com", "custom"} and provider != "google.com":
-            # Unknown provider — only allow when email is verified Google-linked.
-            if user.get("email_verified") is not True:
-                raise HTTPException(
-                    status_code=403,
-                    detail={
-                        "code": "google_sign_in_required",
-                        "message": "A verified Google Firebase account is required",
-                    },
-                )
-        # Keep original strict check for the common Google path:
-        if provider != "google.com" or user.get("email_verified") is not True:
+        if firebase_claims.get("sign_in_provider") != "google.com" or user.get("email_verified") is not True:
             raise HTTPException(
                 status_code=403,
                 detail={
