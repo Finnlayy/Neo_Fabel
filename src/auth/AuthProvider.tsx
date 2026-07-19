@@ -1,7 +1,11 @@
 import React, {createContext, useContext, useEffect, useMemo, useState} from "react";
 import type {User} from "firebase/auth";
 import {
+  authOriginHint,
+  consumeRedirectResult,
+  currentAuthOrigin,
   firebaseAuthErrorMessage,
+  getFirebaseAuth,
   isFirebaseConfigured,
   signInWithGoogle,
   signOut as firebaseSignOut,
@@ -16,18 +20,32 @@ type AuthState = {
   displayName: string | null;
   photoUrl: string | null;
   error: string | null;
+  lastErrorCode: string | null;
+  originHint: string | null;
+  origin: string;
   user: User | null;
-  signInGoogle: () => Promise<void>;
+  signInGoogle: (options?: {forceRedirect?: boolean}) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
+
+function readErrorCode(error: unknown): string | null {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    const code = (error as {code?: unknown}).code;
+    return typeof code === "string" && code ? code : null;
+  }
+  return null;
+}
 
 export function AuthProvider({children}: {children: React.ReactNode}) {
   const configured = isFirebaseConfigured();
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastErrorCode, setLastErrorCode] = useState<string | null>(null);
+  const [originHint] = useState<string | null>(() => authOriginHint());
+  const [origin] = useState(() => currentAuthOrigin());
 
   useEffect(() => {
     if (!configured) {
@@ -36,10 +54,45 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       return;
     }
 
-    return subscribeAuth((next) => {
-      setUser(next);
-      setReady(true);
-    });
+    let unsubscribe = () => undefined;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const redirected = await consumeRedirectResult();
+        if (!cancelled && redirected) {
+          setUser(redirected);
+          setError(null);
+          setLastErrorCode(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(firebaseAuthErrorMessage(err));
+          setLastErrorCode(readErrorCode(err));
+          console.error("[auth] Redirect result error:", err);
+        }
+      }
+
+      if (cancelled) return;
+
+      // Seed immediately from the Auth singleton in case the first observer tick is delayed.
+      const current = getFirebaseAuth()?.currentUser ?? null;
+      if (current) setUser(current);
+
+      unsubscribe = subscribeAuth((next) => {
+        setUser(next);
+        setReady(true);
+        if (next) {
+          setError(null);
+          setLastErrorCode(null);
+        }
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [configured]);
 
   const value = useMemo<AuthState>(
@@ -51,24 +104,39 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
       displayName: user?.displayName ?? null,
       photoUrl: user?.photoURL ?? null,
       error,
+      lastErrorCode,
+      originHint,
+      origin,
       user,
-      signInGoogle: async () => {
+      signInGoogle: async (options) => {
         setError(null);
+        setLastErrorCode(null);
         try {
-          const next = await signInWithGoogle();
-          setUser(next);
+          const result = await signInWithGoogle(options);
+          if (result.mode === "redirect") {
+            // Page is navigating to Google; keep busy UI via caller until unload.
+            return;
+          }
+          setUser(result.user);
+          setReady(true);
         } catch (err) {
-          setError(firebaseAuthErrorMessage(err));
+          const message = firebaseAuthErrorMessage(err);
+          setError(message);
+          setLastErrorCode(readErrorCode(err));
+          console.error("[auth] Google sign-in failed:", err);
+          // If the popup appeared to work but this tab has no user, keep signed-out UI honest.
+          if (!getFirebaseAuth()?.currentUser) setUser(null);
           throw err;
         }
       },
       signOut: async () => {
         setError(null);
+        setLastErrorCode(null);
         await firebaseSignOut();
         setUser(null);
       },
     }),
-    [configured, error, ready, user],
+    [configured, error, lastErrorCode, origin, originHint, ready, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

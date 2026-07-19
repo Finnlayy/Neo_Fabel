@@ -612,7 +612,7 @@ export default function App() {
             <span className="px-4 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-300 uppercase text-[10px] font-bold tracking-widest rounded-sm">
               Backend safety policy enforced
             </span>
-            <div className="hidden md:block max-w-xs text-left normal-case tracking-normal">
+            <div className="shrink-0 text-left normal-case tracking-normal">
               <AuthPanel compact />
             </div>
             <button
@@ -1302,6 +1302,15 @@ export default function App() {
 
               {/* Body */}
               <div className="p-6 space-y-5">
+                <div className="bg-slate-900/30 border border-white/5 p-4 rounded-lg space-y-3 normal-case tracking-normal">
+                  <div className="flex justify-between items-center">
+                    <span className="text-white font-bold uppercase tracking-wider text-[10px]">
+                      {language === "de" ? "Konto" : "Account"}
+                    </span>
+                    <span className="text-cyan-400 text-[9px]">FIREBASE AUTH</span>
+                  </div>
+                  <AuthPanel />
+                </div>
                 {/* Language selection card */}
                 <div className="bg-slate-900/30 border border-white/5 p-4 rounded-lg space-y-3">
                   <div className="flex justify-between items-center">
