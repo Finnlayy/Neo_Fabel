@@ -25,13 +25,6 @@ export default function TelegramFeed({onSignalAction}: TelegramFeedProps) {
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(async () => {
-    if (!auth.uid) {
-      setAuthBlocked(true);
-      setDaemon(null);
-      setMessages([]);
-      setNotice("Sign in with Google to load the Telegram feed (API returns 401 without a session).");
-      return;
-    }
     try {
       const [nextMessages, status] = await Promise.all([
         fetchTelegramMessages(),
@@ -47,7 +40,7 @@ export default function TelegramFeed({onSignalAction}: TelegramFeedProps) {
       setAuthBlocked(needsSignIn);
       if (needsSignIn) {
         setDaemon(null);
-        setNotice("Sign in with Google — Telegram is gated behind Firebase Auth, not offline.");
+        setNotice("API auth rejected the request. On localhost, restart the API (AUTH_DEV_BYPASS) or sign in with Google.");
         return;
       }
       setNotice(
@@ -67,10 +60,6 @@ export default function TelegramFeed({onSignalAction}: TelegramFeedProps) {
   const handleSendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!inputText.trim() || busy) return;
-    if (!auth.uid) {
-      setNotice("Sign in with Google before sending Telegram messages.");
-      return;
-    }
     setBusy(true);
     try {
       await sendTelegramMessage(inputText.trim());
@@ -86,11 +75,11 @@ export default function TelegramFeed({onSignalAction}: TelegramFeedProps) {
     }
   };
 
-  const statusLabel = authBlocked || !auth.uid ? "SIGN IN" : daemon?.status ?? "UNKNOWN";
+  const statusLabel = authBlocked ? "AUTH" : daemon?.status ?? "UNKNOWN";
   const statusClass =
     statusLabel === "ACTIVE"
       ? "text-emerald-400 border-emerald-500/20"
-      : statusLabel === "THROTTLED" || statusLabel === "SIGN IN"
+      : statusLabel === "THROTTLED" || statusLabel === "AUTH"
         ? "text-amber-400 border-amber-500/20"
         : "text-slate-400 border-white/10";
 
@@ -108,15 +97,14 @@ export default function TelegramFeed({onSignalAction}: TelegramFeedProps) {
       )}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {authBlocked || !auth.uid ? (
+        {authBlocked ? (
           <div className="p-3 rounded border border-amber-500/20 bg-amber-950/20 text-xs text-amber-200/90">
-            Telegram bot token is configured on the server. Sign in with Google (top of the app) to unlock
-            the feed — same as when it worked before.
+            Waiting for API auth. Localhost should unlock automatically after API restart.
           </div>
         ) : messages.length === 0 ? (
           <div className="p-3 rounded border border-white/10 bg-slate-950/40 text-xs text-slate-400">
-            Signed in — waiting for Bot API updates. Message the bot in the configured chat, then this
-            panel will refresh within ~15s.
+            Connected — waiting for Bot API updates. Message the bot in the configured chat; this panel
+            refreshes about every 15s.
           </div>
         ) : (
           messages.map((signal) => (

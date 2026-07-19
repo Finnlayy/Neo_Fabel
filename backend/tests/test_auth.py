@@ -18,7 +18,8 @@ async def test_require_user_verifies_firebase_bearer(monkeypatch):
         @staticmethod
         def verify_id_token(token: str, *, check_revoked: bool, app: object):
             assert token == "google-firebase-id-token"
-            assert check_revoked is True
+            # Without GOOGLE_APPLICATION_CREDENTIALS, revocation checks stay off.
+            assert check_revoked is False
             assert app is not None
             return {
                 "uid": "google-user",
