@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from ..auth import require_user
 from ..integrations.qdrant_store import QdrantStoreError, get_qdrant_store
 from ..schemas_vector import VectorSearchRequest, VectorUpsertRequest
 from ..settings import get_settings
@@ -27,7 +28,9 @@ async def vector_health() -> dict[str, Any]:
     store = get_qdrant_store()
     probe = await store.health()
     return {
-        **probe,
+        "status": probe.get("status"),
+        "enabled": bool(probe.get("enabled")),
+        "ready": bool(probe.get("ready")),
         "feature": "phase1-qdrant",
         "backend": "qdrant" if probe.get("ready") else ("disabled" if not settings.qdrant_enabled else "unavailable"),
     }
@@ -45,11 +48,11 @@ async def vector_ready() -> dict[str, Any]:
                 "enabled": probe.get("enabled"),
             },
         )
-    return {"status": "ok", "ready": True, "collection": probe.get("collection")}
+    return {"status": "ok", "ready": True}
 
 
 @router.post("/collections/ensure")
-async def vector_ensure_collection() -> dict[str, Any]:
+async def vector_ensure_collection(_user: dict[str, Any] = Depends(require_user)) -> dict[str, Any]:
     try:
         result = await get_qdrant_store().ensure_collection()
     except QdrantStoreError as exc:
@@ -58,7 +61,10 @@ async def vector_ensure_collection() -> dict[str, Any]:
 
 
 @router.post("/points")
-async def vector_upsert(payload: VectorUpsertRequest) -> dict[str, Any]:
+async def vector_upsert(
+    payload: VectorUpsertRequest,
+    _user: dict[str, Any] = Depends(require_user),
+) -> dict[str, Any]:
     points = [point.model_dump() for point in payload.points]
     try:
         result = await get_qdrant_store().upsert_points(points)
@@ -68,7 +74,10 @@ async def vector_upsert(payload: VectorUpsertRequest) -> dict[str, Any]:
 
 
 @router.post("/search")
-async def vector_search(payload: VectorSearchRequest) -> dict[str, Any]:
+async def vector_search(
+    payload: VectorSearchRequest,
+    _user: dict[str, Any] = Depends(require_user),
+) -> dict[str, Any]:
     if payload.metric != "cosine":
         raise HTTPException(
             status_code=422,
@@ -86,7 +95,10 @@ async def vector_search(payload: VectorSearchRequest) -> dict[str, Any]:
 
 
 @router.get("/points")
-async def vector_list_points(limit: int = Query(default=100, ge=1, le=500)) -> dict[str, Any]:
+async def vector_list_points(
+    limit: int = Query(default=100, ge=1, le=500),
+    _user: dict[str, Any] = Depends(require_user),
+) -> dict[str, Any]:
     try:
         result = await get_qdrant_store().list_points(limit=limit)
     except QdrantStoreError as exc:
@@ -95,7 +107,10 @@ async def vector_list_points(limit: int = Query(default=100, ge=1, le=500)) -> d
 
 
 @router.delete("/points/{document_id}")
-async def vector_delete_point(document_id: str) -> dict[str, Any]:
+async def vector_delete_point(
+    document_id: str,
+    _user: dict[str, Any] = Depends(require_user),
+) -> dict[str, Any]:
     try:
         result = await get_qdrant_store().delete_point(document_id)
     except QdrantStoreError as exc:

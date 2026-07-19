@@ -68,7 +68,7 @@ def run_deterministic_optimize(payload: dict[str, Any]) -> dict[str, Any]:
 
     eligible = [c for c in candidates if not c["isDisqualified"]] or candidates
     winner_row = max(eligible, key=score)
-    results = []
+    results: list[dict[str, Any]] = []
     for row in sorted(candidates, key=score, reverse=True):
         results.append(
             {

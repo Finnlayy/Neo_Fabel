@@ -10,6 +10,7 @@
 #>
 param(
     [string]$RepoRoot = "D:\Neo_Fabel",
+    [string]$FirebaseCredentialsHostPath = "",
     [switch]$SkipNpm,
     [switch]$SkipDockerBuild,
     [switch]$NoNgrok,
@@ -84,11 +85,12 @@ function Ensure-KrakenCli {
     $shim = Join-Path $shimDir "kraken.cmd"
     New-Item -ItemType Directory -Force -Path $shimDir | Out-Null
     if (-not (Test-Path $shim)) {
-        @"
-@echo off
-set "WSLENV=KRAKEN_API_KEY/u:KRAKEN_API_SECRET/u:%WSLENV%"
-wsl -e /root/.cargo/bin/kraken %*
-"@ | Set-Content -Path $shim -Encoding ASCII
+        $shimContent = @(
+            '@echo off',
+            'set "WSLENV=KRAKEN_API_KEY/u:KRAKEN_API_SECRET/u:%WSLENV%"',
+            'wsl -e /root/.cargo/bin/kraken %*'
+        ) -join "`r`n"
+        $shimContent | Set-Content -Path $shim -Encoding ASCII
     }
     $env:Path = "$shimDir;" + $env:Path
 
@@ -122,6 +124,25 @@ try {
         Write-Log "Created .env.local from .env.example" "Yellow"
     }
 
+    # Firebase Admin runs inside the Linux API container. A Windows host path
+    # must be mounted through docker-compose.firebase.yml; passing that path as
+    # GOOGLE_APPLICATION_CREDENTIALS alone would leave it unreadable in-container.
+    if ([string]::IsNullOrWhiteSpace($FirebaseCredentialsHostPath)) {
+        $FirebaseCredentialsHostPath = Get-DotEnvValue $envLocal "FIREBASE_CREDENTIALS_HOST_PATH"
+    }
+    if ([string]::IsNullOrWhiteSpace($FirebaseCredentialsHostPath)) {
+        $FirebaseCredentialsHostPath = Read-Host "Full path to the Firebase service-account JSON"
+    }
+    if ([string]::IsNullOrWhiteSpace($FirebaseCredentialsHostPath)) {
+        throw "Firebase credentials are required for signal_admin sign-in. Set FIREBASE_CREDENTIALS_HOST_PATH or pass -FirebaseCredentialsHostPath."
+    }
+    if (-not (Test-Path -LiteralPath $FirebaseCredentialsHostPath -PathType Leaf)) {
+        throw "Firebase service-account JSON not found: $FirebaseCredentialsHostPath"
+    }
+    $FirebaseCredentialsHostPath = (Resolve-Path -LiteralPath $FirebaseCredentialsHostPath).Path
+    Set-DotEnvValue $envLocal "FIREBASE_CREDENTIALS_HOST_PATH" $FirebaseCredentialsHostPath
+    Write-Log "Firebase service-account path validated for read-only container mount." "Green"
+
     # Paper-safe TradingView ingress defaults
     Set-DotEnvValue $envLocal "SIGNAL_ROUTES_ENABLED" "true"
     Set-DotEnvValue $envLocal "TRADINGVIEW_INGRESS_ENABLED" "true"
@@ -153,12 +174,14 @@ try {
 
     Write-Log "Starting Docker services (postgres, qdrant, api, signal-worker)..." "Cyan"
     $composeArgs = @(
-        "compose", "--env-file", ".env.local", "--profile", "signals",
-        "up", "-d", "postgres", "qdrant", "api", "signal-worker"
+        "compose", "--env-file", ".env.local",
+        "-f", "docker-compose.yml", "-f", "docker-compose.firebase.yml",
+        "--profile", "signals", "up", "-d"
     )
     if (-not $SkipDockerBuild) {
         $composeArgs += "--build"
     }
+    $composeArgs += @("postgres", "qdrant", "api", "signal-worker")
     & docker @composeArgs
     if ($LASTEXITCODE -ne 0) { throw "docker compose up failed" }
 
@@ -193,37 +216,37 @@ try {
                     $publicBase = $https.public_url.TrimEnd("/")
                     Write-Log "ngrok public URL: $publicBase" "Green"
                 } else {
-                    Write-Log "ngrok running but no https tunnel yet — check http://127.0.0.1:4040" "Yellow"
+                    Write-Log "ngrok running but no https tunnel yet - check http://127.0.0.1:4040" "Yellow"
                 }
             } catch {
                 Write-Log "Could not read ngrok API yet. Open http://127.0.0.1:4040" "Yellow"
             }
         } else {
-            Write-Log "ngrok not found — TradingView needs a public HTTPS URL. Install ngrok and re-run." "Yellow"
+            Write-Log "ngrok not found - TradingView needs a public HTTPS URL. Install ngrok and re-run." "Yellow"
         }
     }
 
-    $webhookTemplate = @"
-FABLE 5 / Neo_Fabel — TradingView webhook
-
-1) Public API base (use this host):
-   $publicBase
-
-2) In the Fabel UI (http://localhost:5173) open Signal Routes (shortcut 5),
-   sign in with a signal_admin Firebase user, create a route, rotate the
-   TradingView credential, and copy the path shown as:
-     /api/v1/webhooks/tradingview/<public_route_key>
-
-3) Full URL for TradingView alert webhook:
-   $publicBase/api/v1/webhooks/tradingview/<public_route_key>
-
-4) Alert JSON must include schema_version=1 and the rotated credential.
-   Execution target is kraken_paper (NOT live Kraken).
-
-Local API:  http://127.0.0.1:8000
-Local UI:   http://localhost:5173
-Log:        $LogFile
-"@
+    $webhookTemplate = @(
+        "FABLE 5 / Neo_Fabel - TradingView webhook",
+        "",
+        "1) Public API base (use this host):",
+        "   $publicBase",
+        "",
+        "2) In the Fabel UI (http://localhost:5173) open Signal Routes (shortcut 5),",
+        "   sign in with a signal_admin Firebase user, create a route, rotate the",
+        "   TradingView credential, and copy the path shown as:",
+        "     /api/v1/webhooks/tradingview/<public_route_key>",
+        "",
+        "3) Full URL for TradingView alert webhook:",
+        "   $publicBase/api/v1/webhooks/tradingview/<public_route_key>",
+        "",
+        "4) Alert JSON must include schema_version=1 and the rotated credential.",
+        "   Execution target is kraken_paper (NOT live Kraken).",
+        "",
+        "Local API:  http://127.0.0.1:8000",
+        "Local UI:   http://localhost:5173",
+        "Log:        $LogFile"
+    ) -join [Environment]::NewLine
     Set-Content -Path $UrlFile -Value $webhookTemplate -Encoding UTF8
     Write-Log "Wrote $UrlFile" "Green"
 

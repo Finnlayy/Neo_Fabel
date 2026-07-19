@@ -30,7 +30,12 @@ class Settings(BaseSettings):
     kraken_max_trades_per_hour: int = Field(default=10, validation_alias="KRAKEN_MAX_TRADES_PER_HOUR")
     kraken_pair_allowlist: str = Field(default="BTCUSD,ETHUSD", validation_alias="KRAKEN_PAIR_ALLOWLIST")
     firebase_project_id: str | None = Field(default=None, validation_alias="FIREBASE_PROJECT_ID")
-    firebase_credentials_path: str | None = Field(default=None, validation_alias="GOOGLE_APPLICATION_CREDENTIALS")
+    firebase_credentials_path: str | None = Field(
+        default=None, validation_alias=AliasChoices("GOOGLE_APPLICATION_CREDENTIALS", "FIREBASE_CREDENTIALS_PATH")
+    )
+    # Local-only: allow loopback API calls without Firebase when credentials are missing.
+    # Forced off outside development. Never enable in production.
+    auth_dev_bypass: bool = Field(default=True, validation_alias="AUTH_DEV_BYPASS")
     alphavantage_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("ALPHAVANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY"),

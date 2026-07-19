@@ -153,7 +153,8 @@ def _map_update(update: dict[str, Any]) -> dict[str, Any] | None:
     text = str(message.get("text") or message.get("caption") or "").strip()
     if not text:
         return None
-    chat = message.get("chat") if isinstance(message.get("chat"), dict) else {}
+    raw_chat = message.get("chat")
+    chat: dict[str, Any] = raw_chat if isinstance(raw_chat, dict) else {}
     channel = str(chat.get("title") or chat.get("username") or chat.get("id") or "telegram")
     sentiment = "NEUTRAL"
     if BULLISH_RE.search(text) and not BEARISH_RE.search(text):
@@ -162,6 +163,8 @@ def _map_update(update: dict[str, Any]) -> dict[str, Any] | None:
         sentiment = "BEARISH"
     stamp = message.get("date")
     try:
+        if not isinstance(stamp, (str, int, float)):
+            raise TypeError("Telegram date is not numeric")
         ts = datetime.fromtimestamp(int(stamp), tz=UTC).isoformat()
     except (TypeError, ValueError, OSError):
         ts = datetime.now(UTC).isoformat()

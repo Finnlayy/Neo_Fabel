@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.app.auth import require_user
 from backend.app.integrations import qdrant_store as store_module
 from backend.app.main import app
 from backend.app.routers import vector as vector_router
@@ -14,6 +15,17 @@ from backend.app.settings import get_settings
 
 
 client = TestClient(app)
+
+
+@pytest.fixture
+def authenticated_user() -> None:
+    app.dependency_overrides[require_user] = lambda: {
+        "uid": "vector-test-user",
+        "email_verified": True,
+        "firebase": {"sign_in_provider": "google.com"},
+    }
+    yield
+    app.dependency_overrides.pop(require_user, None)
 
 
 class FakeStore:
@@ -114,7 +126,7 @@ class FakeStore:
 
 
 @pytest.fixture
-def fake_store(monkeypatch: pytest.MonkeyPatch) -> FakeStore:
+def fake_store(monkeypatch: pytest.MonkeyPatch, authenticated_user: None) -> FakeStore:
     store = FakeStore()
     monkeypatch.setattr(vector_router, "get_qdrant_store", lambda: store)
     monkeypatch.setenv("QDRANT_ENABLED", "true")
@@ -144,6 +156,28 @@ def test_vector_ready_503_when_down(monkeypatch: pytest.MonkeyPatch) -> None:
     finally:
         get_settings.cache_clear()
         store_module.reset_qdrant_store_for_tests()
+
+
+def test_vector_data_operations_require_authentication() -> None:
+    response = client.post("/api/v1/vector/collections/ensure")
+    assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "auth_required"
+
+
+def test_vector_rejects_oversized_auxiliary_payload(authenticated_user: None) -> None:
+    response = client.post(
+        "/api/v1/vector/points",
+        json={
+            "points": [
+                {
+                    "id": "VEC-TOO-LARGE",
+                    "vector": [0.1] * 8,
+                    "metadata": {"description": "x" * (16 * 1024)},
+                }
+            ]
+        },
+    )
+    assert response.status_code == 422
 
 
 def test_ensure_upsert_search(fake_store: FakeStore) -> None:

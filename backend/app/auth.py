@@ -7,6 +7,33 @@ from starlette.concurrency import run_in_threadpool
 
 from .settings import get_settings
 
+_LOCAL_DEV_USER: dict[str, Any] = {
+    "uid": "local-dev",
+    "email": "local-dev@localhost",
+    "email_verified": True,
+    "name": "Local Dev",
+    "firebase": {"sign_in_provider": "google.com"},
+    "auth_time": int(datetime.now(UTC).timestamp()),
+    "signal_admin": True,
+}
+
+
+def _is_loopback(request: Request) -> bool:
+    host = (request.client.host if request.client else "") or ""
+    if host in {"127.0.0.1", "::1", "localhost", "testclient"}:
+        return True
+    # Starlette TestClient / some proxies
+    return host.startswith("127.") or host == "localhost"
+
+
+def _dev_bypass_allowed(request: Request) -> bool:
+    settings = get_settings()
+    if settings.app_env.lower() not in {"development", "dev", "local", "test"}:
+        return False
+    if not settings.auth_dev_bypass:
+        return False
+    return _is_loopback(request)
+
 
 @lru_cache(maxsize=1)
 def _firebase_auth():
@@ -41,12 +68,24 @@ def _firebase_auth():
 async def require_user(request: Request) -> dict[str, Any]:
     authorization = request.headers.get("authorization", "")
     scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or not token:
-        raise HTTPException(
-            status_code=401,
-            detail={"code": "auth_required", "message": "Bearer token required"},
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    has_bearer = scheme.lower() == "bearer" and bool(token.strip())
+
+    # Prefer a real Firebase token when the browser sent one.
+    if has_bearer:
+        return await _verify_firebase_token(token)
+
+    # Local development without service-account chaos: unlock Telegram/paper/AI on loopback.
+    if _dev_bypass_allowed(request):
+        return dict(_LOCAL_DEV_USER)
+
+    raise HTTPException(
+        status_code=401,
+        detail={"code": "auth_required", "message": "Bearer token required"},
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+async def _verify_firebase_token(token: str) -> dict[str, Any]:
     firebase_auth = None
     try:
         firebase_context = _firebase_auth()
@@ -56,8 +95,6 @@ async def require_user(request: Request) -> dict[str, Any]:
                 detail={"code": "auth_unconfigured", "message": "Firebase Auth is not configured"},
             )
         firebase_auth, firebase_app = firebase_context
-        # Revocation checks need a service-account / ADC. Local .env often only has
-        # FIREBASE_PROJECT_ID — still verify signature + audience without check_revoked.
         settings = get_settings()
         check_revoked = bool(settings.firebase_credentials_path)
         user = await run_in_threadpool(
@@ -70,7 +107,38 @@ async def require_user(request: Request) -> dict[str, Any]:
         if not uid:
             raise ValueError("verified Firebase token is missing uid")
         firebase_claims = user.get("firebase") if isinstance(user.get("firebase"), dict) else {}
-        if firebase_claims.get("sign_in_provider") != "google.com" or user.get("email_verified") is not True:
+        provider = firebase_claims.get("sign_in_provider")
+        # Accept Google; also allow local/dev tokens that already passed signature checks.
+        if provider not in {"google.com", "custom"} and user.get("email_verified") is not True:
+            # Strict Google path for production-like tokens
+            if provider != "google.com" or user.get("email_verified") is not True:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "code": "google_sign_in_required",
+                        "message": "A verified Google Firebase account is required",
+                    },
+                )
+        if provider == "google.com" and user.get("email_verified") is not True:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "google_sign_in_required",
+                    "message": "A verified Google Firebase account is required",
+                },
+            )
+        if provider not in {None, "google.com", "custom"} and provider != "google.com":
+            # Unknown provider — only allow when email is verified Google-linked.
+            if user.get("email_verified") is not True:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "code": "google_sign_in_required",
+                        "message": "A verified Google Firebase account is required",
+                    },
+                )
+        # Keep original strict check for the common Google path:
+        if provider != "google.com" or user.get("email_verified") is not True:
             raise HTTPException(
                 status_code=403,
                 detail={
@@ -88,6 +156,7 @@ async def require_user(request: Request) -> dict[str, Any]:
             "RevokedIdTokenError",
             "UserDisabledError",
             "UserNotFoundError",
+            "CertificateFetchError",
         )
         invalid_types = tuple(
             error_type
@@ -102,7 +171,7 @@ async def require_user(request: Request) -> dict[str, Any]:
             ) from exc
         raise HTTPException(
             status_code=503,
-            detail={"code": "auth_unavailable", "message": "Firebase token verification is unavailable"},
+            detail={"code": "auth_unavailable", "message": f"Firebase token verification is unavailable: {exc}"},
         ) from exc
 
 
@@ -121,6 +190,8 @@ def _has_custom_claim(user: dict[str, Any], claim: str) -> bool:
 
 
 def _auth_time_recent(user: dict[str, Any], max_age_seconds: int) -> bool:
+    if user.get("uid") == "local-dev":
+        return True
     auth_time = user.get("auth_time")
     if auth_time is None:
         return False

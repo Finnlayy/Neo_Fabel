@@ -27,4 +27,3 @@ describe("market parsers", () => {
     expect(merged.map((t) => t.symbol).sort()).toEqual(["BTC", "NIO"]);
   });
 });
-

@@ -55,25 +55,28 @@ Local Compose (Postgres + Qdrant):
 docker compose up -d postgres qdrant
 ```
 
-Ports: Postgres `5432`, Qdrant REST `6333`, Qdrant gRPC `6334`.
+Ports: Postgres `5432`; Qdrant REST `6333` and gRPC `6334` are bound to
+`127.0.0.1` only. Containers access Qdrant over the internal Compose network.
 
 API endpoints:
 
 - `GET /api/v1/vector/health` — readiness probe (no auth)
 - `GET /api/v1/vector/ready` — 200 only when Qdrant is up
-- `POST /api/v1/vector/collections/ensure` — create collection (cosine, size from env)
-- `POST /api/v1/vector/points` — upsert points
-- `POST /api/v1/vector/search` — cosine search
-- `GET /api/v1/vector/points` — list/scroll
-- `DELETE /api/v1/vector/points/{id}` — delete by document id
+- `POST /api/v1/vector/collections/ensure` — authenticated collection creation (cosine, size from env)
+- `POST /api/v1/vector/points` — authenticated point upsert
+- `POST /api/v1/vector/search` — authenticated cosine search
+- `GET /api/v1/vector/points` — authenticated list/scroll
+- `DELETE /api/v1/vector/points/{id}` — authenticated deletion by document id
 
 Smoke (after API is running with `.env.local`):
 
 ```powershell
 curl http://127.0.0.1:8000/api/v1/vector/health
-curl -X POST http://127.0.0.1:8000/api/v1/vector/collections/ensure
-curl -X POST http://127.0.0.1:8000/api/v1/vector/points -H "Content-Type: application/json" -d "{\"points\":[{\"id\":\"VEC-SMOKE\",\"title\":\"Smoke\",\"category\":\"strategy\",\"vector\":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8],\"metadata\":{\"description\":\"phase1\"}}]}"
-curl -X POST http://127.0.0.1:8000/api/v1/vector/search -H "Content-Type: application/json" -d "{\"vector\":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8],\"top_k\":3,\"metric\":\"cosine\"}"
+# Supply a short-lived Firebase ID token obtained by the signed-in frontend.
+$token = "FIREBASE_ID_TOKEN"
+curl -X POST http://127.0.0.1:8000/api/v1/vector/collections/ensure -H "Authorization: Bearer $token"
+curl -X POST http://127.0.0.1:8000/api/v1/vector/points -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"points\":[{\"id\":\"VEC-SMOKE\",\"title\":\"Smoke\",\"category\":\"strategy\",\"vector\":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8],\"metadata\":{\"description\":\"phase1\"}}]}"
+curl -X POST http://127.0.0.1:8000/api/v1/vector/search -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"vector\":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8],\"top_k\":3,\"metric\":\"cosine\"}"
 ```
 
 ## Phase 2 — CCXT + WebSocket market stream

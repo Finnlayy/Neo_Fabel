@@ -57,6 +57,12 @@ class KrakenCli:
                 "config",
                 "kraken CLI subprocess is unavailable on this event loop; use public REST fallback",
             ) from exc
+        except PermissionError as exc:
+            # Process creation can also fail with WinError 5 in restricted Windows hosts.
+            raise KrakenCliError(
+                "config",
+                "kraken CLI subprocess could not be started; use public REST fallback",
+            ) from exc
         except asyncio.TimeoutError as exc:
             process.kill()
             await process.wait()

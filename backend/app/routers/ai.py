@@ -130,7 +130,8 @@ async def analyze_trades(
 
 def _normalize_plan(plan: dict[str, Any], prompt: str) -> dict[str, Any]:
     base = deterministic_plan(prompt)
-    directives = plan.get("subAgentDirectives") if isinstance(plan.get("subAgentDirectives"), dict) else {}
+    raw_directives = plan.get("subAgentDirectives")
+    directives: dict[str, Any] = raw_directives if isinstance(raw_directives, dict) else {}
     allocation = plan.get("resourceAllocation")
     if not isinstance(allocation, list) or not allocation:
         allocation = base["resourceAllocation"]
