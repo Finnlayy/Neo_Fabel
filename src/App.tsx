@@ -3,6 +3,7 @@ import { TickerData, Trade, SubAgentState, GenerativePlan, MainTab } from "./typ
 import SignalRoutesPage from "./features/signalRoutes/SignalRoutesPage";
 import AuthPanel from "./auth/AuthPanel";
 import { fetchCryptoTickers, fetchEquityTickers, upsertTickerHistory } from "./api/market";
+import { connectMarketStream } from "./api/marketStream";
 import { fetchAiHealth } from "./api/ai";
 import { fetchReadyStatus, type ReadyStatus } from "./api/health";
 import { fetchPaperStatus, mapPaperStatusToTrades } from "./api/paper";
@@ -200,17 +201,19 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Live crypto tickers via Kraken public REST (~15s). No Linux/CLI required on Windows.
+  // Phase 2: prefer WebSocket market stream; fall back to HTTP batch polling.
   useEffect(() => {
     let cancelled = false;
-    const refresh = async () => {
+    let streamHealthy = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    const pollHttp = async () => {
+      if (cancelled || streamHealthy) return;
       const started = performance.now();
       try {
         const {tickers: live, asOf} = await fetchCryptoTickers();
-        if (!cancelled) {
-          setQueueLatencyMs(Math.round(performance.now() - started));
-        }
-        if (cancelled) return;
+        if (cancelled || streamHealthy) return;
+        setQueueLatencyMs(Math.round(performance.now() - started));
         if (live.length === 0) {
           setMarketLive(false);
           return;
@@ -219,17 +222,50 @@ export default function App() {
         setMarketAsOf(asOf);
         setMarketLive(true);
       } catch {
-        if (!cancelled) {
+        if (!cancelled && !streamHealthy) {
           setMarketLive(false);
           setQueueLatencyMs(Math.round(performance.now() - started));
         }
       }
     };
-    void refresh();
-    const timer = setInterval(() => void refresh(), 15000);
+
+    const disconnect = connectMarketStream({
+      onTickers: (live, asOf, source) => {
+        if (cancelled) return;
+        streamHealthy = true;
+        setTickers((prev) => upsertTickerHistory(prev, live));
+        setMarketAsOf(asOf);
+        setMarketLive(true);
+        setQueueLatencyMs(source.startsWith("ccxt") ? 5 : 15);
+        if (pollTimer !== null) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      },
+      onStatus: (status) => {
+        if (cancelled) return;
+        if (status === "open") {
+          streamHealthy = true;
+          return;
+        }
+        if (status === "closed" || status === "error") {
+          streamHealthy = false;
+          if (pollTimer === null) {
+            void pollHttp();
+            pollTimer = setInterval(() => void pollHttp(), 15000);
+          }
+        }
+      },
+    });
+
+    // Immediate HTTP seed until the first WS snapshot arrives.
+    void pollHttp();
+    pollTimer = setInterval(() => void pollHttp(), 15000);
+
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      disconnect();
+      if (pollTimer !== null) clearInterval(pollTimer);
     };
   }, []);
 

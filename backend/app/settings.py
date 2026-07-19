@@ -77,12 +77,38 @@ class Settings(BaseSettings):
     tradingview_rapidapi_key: str | None = Field(default=None, validation_alias="TRADINGVIEW_RAPIDAPI_KEY")
     tvapi_enabled: bool = Field(default=True, validation_alias="TVAPI_ENABLED")
 
-    # Telegram bot feed.
+    # Phase 1 — Qdrant vector index (paper/dev; no live trading).
+    qdrant_enabled: bool = Field(default=True, validation_alias="QDRANT_ENABLED")
+    qdrant_url: str = Field(default="http://localhost:6333", validation_alias="QDRANT_URL")
+    qdrant_api_key: str | None = Field(default=None, validation_alias="QDRANT_API_KEY")
+    qdrant_collection: str = Field(default="neo_fabel_vectors", validation_alias="QDRANT_COLLECTION")
+    qdrant_vector_size: int = Field(default=8, validation_alias="QDRANT_VECTOR_SIZE")
+    qdrant_timeout_seconds: float = Field(default=10.0, validation_alias="QDRANT_TIMEOUT_SECONDS")
+
+    # Phase 2 — CCXT + WebSocket market stream (read-only; no live trading).
+    market_stream_enabled: bool = Field(default=True, validation_alias="MARKET_STREAM_ENABLED")
+    market_ccxt_enabled: bool = Field(default=True, validation_alias="MARKET_CCXT_ENABLED")
+    market_ccxt_exchange: str = Field(default="kraken", validation_alias="MARKET_CCXT_EXCHANGE")
+    market_stream_interval_seconds: float = Field(
+        default=5.0, validation_alias="MARKET_STREAM_INTERVAL_SECONDS"
+    )
+    market_stream_symbols: str = Field(
+        default="BTC/USD,ETH/USD,SOL/USD,XRP/USD,ADA/USD,AVAX/USD,DOT/USD,POL/USD",
+        validation_alias="MARKET_STREAM_SYMBOLS",
+    )
+
+    # Telegram bot feed — primary chat defaults to Manus (MANUS_TELEGRAM_CHAT_ID).
     telegram_bot_token: str | None = Field(default=None, validation_alias="TELEGRAM_BOT_TOKEN")
-    telegram_chat_id: str | None = Field(default=None, validation_alias="TELEGRAM_CHAT_ID")
+    telegram_chat_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TELEGRAM_CHAT_ID", "MANUS_TELEGRAM_CHAT_ID"),
+    )
+    telegram_channel: str = Field(default="manus", validation_alias="TELEGRAM_CHANNEL")
     telegram_enabled: bool = Field(default=True, validation_alias="TELEGRAM_ENABLED")
     telegram_timeout_seconds: float = Field(default=20.0, validation_alias="TELEGRAM_TIMEOUT_SECONDS")
     telegram_poll_limit: int = Field(default=50, validation_alias="TELEGRAM_POLL_LIMIT")
+    manus_telegram_chat_id: str | None = Field(default=None, validation_alias="MANUS_TELEGRAM_CHAT_ID")
+    glint_telegram_chat_id: str | None = Field(default=None, validation_alias="GLINT_TELEGRAM_CHAT_ID")
 
     # Optional provider keys (stored for CLI/integrations; extra="ignore" alone would drop typing).
     openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")

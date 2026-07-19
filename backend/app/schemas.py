@@ -10,7 +10,7 @@ class TickerResponse(BaseModel):
 
     pair: str
     data: dict
-    source: Literal["kraken-cli", "kraken-public"] = "kraken-cli"
+    source: str = "kraken-cli"
     as_of: str
     request_id: str
 
@@ -19,7 +19,8 @@ class MarketBatchItem(BaseModel):
     symbol: str
     asset_class: Literal["crypto", "forex", "sp500"]
     status: Literal["ok", "error"]
-    source: Literal["kraken-cli", "kraken-public", "alpha-vantage", "alpha-vantage-bulk"]
+    # Phase 2: ccxt:<exchange> (e.g. ccxt:kraken) for read-only crypto batch.
+    source: str
     data: dict | None = None
     error: dict[str, str] | None = None
 

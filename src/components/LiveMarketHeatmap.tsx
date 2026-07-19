@@ -22,14 +22,14 @@ export default function LiveMarketHeatmap({ tickers, onSelectTicker, activeSymbo
         </div>
         <span className={`text-[10px] uppercase flex items-center gap-1 font-mono ${marketLive ? "text-emerald-400" : "text-amber-400"}`}>
           <RefreshCw className={`w-3 h-3 ${marketLive ? "animate-spin" : ""}`} />
-          {marketLive ? "LIVE BATCH" : "STALE / EMPTY"}
+          {marketLive ? "LIVE STREAM" : "STALE / EMPTY"}
         </span>
       </div>
 
       {/* Grid */}
       {tickers.length === 0 ? (
         <div className="border border-dashed border-white/10 rounded-lg p-6 text-slate-500 text-[11px]">
-          No ticker rows. Waiting for GET /api/v1/market/batch (Kraken CLI).
+          No ticker rows. Waiting for WS /api/v1/market/stream or GET /api/v1/market/batch.
         </div>
       ) : null}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

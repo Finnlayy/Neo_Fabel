@@ -1,5 +1,6 @@
 import asyncio
 import re
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any, Literal, cast
 from uuid import uuid4
@@ -11,13 +12,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .auth import require_trading_admin, require_trading_admin_recent, require_user
 from .database import get_session
 from .integrations.alpha_vantage import AlphaVantageClient, AlphaVantageError
+from .integrations.ccxt_market import CcxtMarketClient, compact_pair, to_ccxt_symbol
 from .integrations.kraken_cli import KrakenCli, KrakenCliError
+from .integrations.kraken_public import KrakenPublicClient
+from .market.stream import get_market_stream_hub
 from .paper_orders import PaperOrderService
 from .schemas import MarketBatchItem, MarketBatchResponse, OhlcvBatchResponse, OhlcvItem, PaperOrderRequest, PaperOrderResponse, TickerResponse
 from .settings import get_settings
 from .routers.ai import router as ai_router
+from .routers.market_stream import router as market_stream_router
 from .routers.telegram import router as telegram_router
 from .routers.tvapi import router as tvapi_router
+from .routers.vector import router as vector_router
 from .signals.mcp_server import mcp_router
 from .signals.router import router as signal_router
 from .signals.safety import assert_signals_module_imports
@@ -32,6 +38,16 @@ COMMON_SYMBOLS = {
 }
 SYMBOL_RE = re.compile(r"^[A-Z0-9]+(?:[.-][A-Z0-9]+)?$")
 INTRADAY_INTERVALS = {"1min", "5min", "15min", "30min", "60min", "4h"}
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    hub = get_market_stream_hub()
+    await hub.start()
+    try:
+        yield
+    finally:
+        await hub.stop()
 
 
 def _series_key(payload: dict) -> str | None:
@@ -96,12 +112,14 @@ def _aggregate_four_hour(payload: dict) -> dict:
             "volume": volume,
         })
     return {"bars": aggregated, "source_interval": "60min", "requested_interval": "4h", "aggregated": True}
-app = FastAPI(title="Neo Fabel API", version="1.0.0")
+
+
+app = FastAPI(title="Neo Fabel API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID"],
 )
 app.include_router(signal_router)
@@ -109,6 +127,8 @@ app.include_router(mcp_router)
 app.include_router(ai_router)
 app.include_router(tvapi_router)
 app.include_router(telegram_router)
+app.include_router(vector_router)
+app.include_router(market_stream_router)
 
 # Fail import-time if signal modules reference live Kraken execution symbols.
 assert_signals_module_imports()
@@ -151,6 +171,19 @@ def alpha_vantage() -> AlphaVantageClient:
         base_url=settings.alphavantage_base_url,
         timeout_seconds=settings.alphavantage_timeout_seconds,
     )
+
+
+def kraken_public() -> KrakenPublicClient:
+    return KrakenPublicClient(timeout_seconds=settings.kraken_timeout_seconds)
+
+
+async def crypto_ticker_data(symbol: str) -> tuple[dict[str, Any], str]:
+    """Prefer CLI; fall back to Kraken public REST (required on Windows uvicorn)."""
+    try:
+        return await kraken().ticker(symbol), "kraken-cli"
+    except KrakenCliError:
+        data = await kraken_public().ticker(symbol)
+        return data, "kraken-public"
 
 
 @app.get("/health/live")
@@ -232,7 +265,7 @@ async def trading_deadman(request: Request, _user: dict = Depends(require_tradin
 async def ticker(pair: str, request: Request) -> TickerResponse:
     rid = request_id(request)
     try:
-        result = await kraken().ticker(pair)
+        result, _source = await crypto_ticker_data(pair)
     except KrakenCliError as exc:
         raise HTTPException(status_code=503, detail={"code": exc.category, "message": str(exc), "request_id": rid}) from exc
     return TickerResponse(pair=pair.upper(), data=result, as_of=datetime.now(UTC).isoformat(), request_id=rid)
@@ -260,14 +293,64 @@ async def market_batch(
     symbol_groups = _batch_symbols(asset_class, symbols)
     items: list[MarketBatchItem] = []
 
-    async def crypto_item(symbol: str) -> MarketBatchItem:
-        try:
-            return MarketBatchItem(symbol=symbol, asset_class="crypto", status="ok", source="kraken-cli", data=await kraken().ticker(symbol))
-        except KrakenCliError as exc:
-            return MarketBatchItem(symbol=symbol, asset_class="crypto", status="error", source="kraken-cli", error={"code": exc.category, "message": str(exc)})
+    crypto_symbols = symbol_groups.get("crypto", [])
+    if crypto_symbols:
+        used_ccxt = False
+        if settings.market_ccxt_enabled:
+            client: CcxtMarketClient | None = None
+            try:
+                client = CcxtMarketClient(
+                    exchange_id=settings.market_ccxt_exchange,
+                    timeout_ms=int(settings.kraken_timeout_seconds * 1000),
+                )
+                rows = await client.ticker_rows(crypto_symbols)
+                by_pair = {str(row["pair"]): row for row in rows}
+                for symbol in crypto_symbols:
+                    pair = compact_pair(to_ccxt_symbol(symbol))
+                    row = by_pair.get(pair) or by_pair.get(symbol.upper().replace("/", ""))
+                    if row is None:
+                        continue
+                    items.append(
+                        MarketBatchItem(
+                            symbol=symbol,
+                            asset_class="crypto",
+                            status="ok",
+                            source=f"ccxt:{settings.market_ccxt_exchange}",
+                            data=row.get("data") or {
+                                "last": row["price"],
+                                "price": row["price"],
+                                "change_pct": row.get("change"),
+                                "symbol": row.get("symbol"),
+                            },
+                        )
+                    )
+                    used_ccxt = True
+            except Exception:  # noqa: BLE001 — fall back to public REST
+                used_ccxt = False
+            finally:
+                if client is not None:
+                    await client.close()
 
-    crypto_items = await asyncio.gather(*(crypto_item(symbol) for symbol in symbol_groups.get("crypto", [])))
-    items.extend(crypto_items)
+        if not used_ccxt:
+            # Public REST is the reliable fallback (Windows uvicorn cannot spawn kraken CLI).
+            for symbol, payload in await kraken_public().ticker_for_symbols(crypto_symbols):
+                if isinstance(payload, dict):
+                    items.append(
+                        MarketBatchItem(
+                            symbol=symbol, asset_class="crypto", status="ok", source="kraken-public", data=payload
+                        )
+                    )
+                else:
+                    err = payload if isinstance(payload, KrakenCliError) else KrakenCliError("api", str(payload))
+                    items.append(
+                        MarketBatchItem(
+                            symbol=symbol,
+                            asset_class="crypto",
+                            status="error",
+                            source="kraken-public",
+                            error={"code": err.category, "message": str(err)},
+                        )
+                    )
 
     av = alpha_vantage()
     for symbol, result in await av.forex_batch(symbol_groups.get("forex", []), settings.alphavantage_batch_concurrency):
@@ -279,15 +362,58 @@ async def market_batch(
 
     equities = symbol_groups.get("sp500", [])
     if equities:
-        try:
-            if not settings.alphavantage_bulk_quotes_enabled:
-                raise AlphaVantageError("config", "ALPHAVANTAGE_BULK_QUOTES_ENABLED must be true for the full equity batch")
-            result = await av.equity_bulk(equities)
-            for symbol in equities:
-                items.append(MarketBatchItem(symbol=symbol, asset_class="sp500", status="ok", source="alpha-vantage", data=result))
-        except AlphaVantageError as exc:
-            for symbol in equities:
-                items.append(MarketBatchItem(symbol=symbol, asset_class="sp500", status="error", source="alpha-vantage", error={"code": exc.category, "message": str(exc)}))
+        # Prefer per-symbol GLOBAL_QUOTE (works on free keys). Optional bulk when explicitly enabled.
+        if settings.alphavantage_bulk_quotes_enabled and len(equities) > 1:
+            try:
+                result = await av.equity_bulk(equities)
+                for symbol in equities:
+                    items.append(
+                        MarketBatchItem(
+                            symbol=symbol, asset_class="sp500", status="ok", source="alpha-vantage-bulk", data=result
+                        )
+                    )
+            except AlphaVantageError:
+                for symbol, result in await av.equity_quotes_batch(
+                    equities, concurrency=settings.alphavantage_batch_concurrency
+                ):
+                    if isinstance(result, Exception):
+                        category = result.category if isinstance(result, AlphaVantageError) else "provider"
+                        items.append(
+                            MarketBatchItem(
+                                symbol=symbol,
+                                asset_class="sp500",
+                                status="error",
+                                source="alpha-vantage",
+                                error={"code": category, "message": str(result)},
+                            )
+                        )
+                    else:
+                        items.append(
+                            MarketBatchItem(
+                                symbol=symbol, asset_class="sp500", status="ok", source="alpha-vantage", data=result
+                            )
+                        )
+        else:
+            for symbol, result in await av.equity_quotes_batch(
+                equities, concurrency=settings.alphavantage_batch_concurrency
+            ):
+                if isinstance(result, Exception):
+                    category = result.category if isinstance(result, AlphaVantageError) else "provider"
+                    items.append(
+                        MarketBatchItem(
+                            symbol=symbol,
+                            asset_class="sp500",
+                            status="error",
+                            source="alpha-vantage",
+                            error={"code": category, "message": str(result)},
+                        )
+                    )
+                else:
+                    items.append(
+                        MarketBatchItem(
+                            symbol=symbol, asset_class="sp500", status="ok", source="alpha-vantage", data=result
+                        )
+                    )
 
     return MarketBatchResponse(
         requested=len(items),

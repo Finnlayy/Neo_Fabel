@@ -34,6 +34,79 @@ Docker path:
 - `docker compose --env-file .env.local up --build`
 - Apply migrations from the API image: `docker compose run --rm api alembic -c backend/alembic.ini upgrade head`
 
+## Phase 1 — Qdrant vector index
+
+Paper/dev vector storage for the Neural Vector Analyzer. **No live trading.**
+FastAPI owns the Qdrant client; the React UI calls `/api/v1/vector/*` (Vite proxies
+to port 8000) and falls back to an honest **RAM FALLBACK** label when Qdrant is down
+(never claims “live Qdrant” for in-memory mode).
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `QDRANT_ENABLED` | `true` | Feature gate |
+| `QDRANT_URL` | `http://localhost:6333` | Local Docker or Qdrant Cloud URL |
+| `QDRANT_API_KEY` | empty | Required for Qdrant Cloud; omit for local |
+| `QDRANT_COLLECTION` | `neo_fabel_vectors` | Collection name |
+| `QDRANT_VECTOR_SIZE` | `8` | Must match Neural Vector Analyzer dims |
+
+Local Compose (Postgres + Qdrant):
+
+```powershell
+docker compose up -d postgres qdrant
+```
+
+Ports: Postgres `5432`, Qdrant REST `6333`, Qdrant gRPC `6334`.
+
+API endpoints:
+
+- `GET /api/v1/vector/health` — readiness probe (no auth)
+- `GET /api/v1/vector/ready` — 200 only when Qdrant is up
+- `POST /api/v1/vector/collections/ensure` — create collection (cosine, size from env)
+- `POST /api/v1/vector/points` — upsert points
+- `POST /api/v1/vector/search` — cosine search
+- `GET /api/v1/vector/points` — list/scroll
+- `DELETE /api/v1/vector/points/{id}` — delete by document id
+
+Smoke (after API is running with `.env.local`):
+
+```powershell
+curl http://127.0.0.1:8000/api/v1/vector/health
+curl -X POST http://127.0.0.1:8000/api/v1/vector/collections/ensure
+curl -X POST http://127.0.0.1:8000/api/v1/vector/points -H "Content-Type: application/json" -d "{\"points\":[{\"id\":\"VEC-SMOKE\",\"title\":\"Smoke\",\"category\":\"strategy\",\"vector\":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8],\"metadata\":{\"description\":\"phase1\"}}]}"
+curl -X POST http://127.0.0.1:8000/api/v1/vector/search -H "Content-Type: application/json" -d "{\"vector\":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8],\"top_k\":3,\"metric\":\"cosine\"}"
+```
+
+## Phase 2 — CCXT + WebSocket market stream
+
+Read-only live crypto tickers. FastAPI owns a CCXT (Kraken) poller that fans out
+over `WS /api/v1/market/stream`. The React UI prefers the WebSocket and falls
+back to `GET /api/v1/market/batch`. **No exchange API keys. No live trading.**
+TimescaleDB/Influx and Socket.io are deferred; history is an in-process ring buffer
+plus the existing Alpha Vantage OHLCV HTTP path for equities/FX.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MARKET_STREAM_ENABLED` | `true` | Start the stream hub + WS endpoint |
+| `MARKET_CCXT_ENABLED` | `true` | Prefer CCXT for crypto batch/stream |
+| `MARKET_CCXT_EXCHANGE` | `kraken` | CCXT exchange id (public only) |
+| `MARKET_STREAM_INTERVAL_SECONDS` | `5` | Poll cadence for the hub |
+| `MARKET_STREAM_SYMBOLS` | BTC/ETH/… | Comma-separated CCXT symbols |
+
+Endpoints:
+
+- `GET /api/v1/market/stream/health` — hub readiness (no auth)
+- `WS /api/v1/market/stream` — ticker snapshots `{type:"tickers", tickers:[…]}`
+- Existing `GET /api/v1/market/batch` — uses CCXT when enabled, else Kraken public REST
+
+Smoke (API on `:8000`):
+
+```powershell
+curl http://127.0.0.1:8000/api/v1/market/stream/health
+# Browser / Vite (`localhost:5173`) opens WS via the `/api` proxy (ws: true).
+```
+
+Phase 3 (broker execution / `/api/trade/*`) is **not** started here.
+
 Validation commands:
 
 - `npm run lint`
