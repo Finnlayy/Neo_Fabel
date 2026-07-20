@@ -274,6 +274,189 @@ class TvremixClient:
                 merged[tool] = raw
         return merged or None
 
+    async def search_pine_scripts(self, query: str, *, limit: int = 50) -> list[dict[str, Any]]:
+        """Search Pine sources for a string (e.g. alertcondition, strategy.entry)."""
+        q = (query or "").strip()
+        if not q:
+            return []
+        # Prefer native MCP search when the account exposes it.
+        for tool, args in (
+            ("pine_search_script", {"query": q, "limit": limit}),
+            ("pine_search_scripts", {"query": q, "limit": limit}),
+            ("search_scripts", {"query": q, "limit": limit}),
+        ):
+            try:
+                raw = await self.call_tool(tool, args)
+            except TvremixError:
+                continue
+            items = _coerce_script_list(raw)
+            if items:
+                return items[:limit]
+            if isinstance(raw, list):
+                return [x for x in raw if isinstance(x, dict)][:limit]
+
+        # Fallback: list + read + substring scan (slower; capped).
+        scripts = await self.list_pine_scripts()
+        hits: list[dict[str, Any]] = []
+        needle = q.lower()
+        for item in scripts[:40]:
+            sid = str(item.get("id") or item.get("scriptId") or item.get("script_id") or "")
+            name = str(item.get("name") or item.get("title") or sid)
+            try:
+                read = await self.read_pine_script(sid, name=name)
+            except TvremixError:
+                continue
+            source = read.get("source") or ""
+            if needle not in source.lower() and needle not in name.lower():
+                continue
+            lines = []
+            for i, line in enumerate(source.splitlines(), start=1):
+                if needle in line.lower():
+                    lines.append({"line": i, "text": line.strip()[:240]})
+                    if len(lines) >= 8:
+                        break
+            hits.append(
+                {
+                    "id": sid,
+                    "name": name,
+                    "match_count": len(lines),
+                    "matches": lines,
+                    "tool": "local_scan",
+                }
+            )
+            if len(hits) >= limit:
+                break
+        return hits
+
+    async def read_pine_lines(
+        self,
+        script_id: str,
+        *,
+        start_line: int,
+        end_line: int,
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        """Read a line slice of a Pine script (1-indexed, inclusive)."""
+        start = max(1, int(start_line))
+        end = max(start, int(end_line))
+        for tool, args in (
+            (
+                "pine_read_lines",
+                {"id": script_id, "start": start, "end": end},
+            ),
+            (
+                "pine_read_lines",
+                {"scriptId": script_id, "startLine": start, "endLine": end},
+            ),
+        ):
+            try:
+                raw = await self.call_tool(tool, args)
+            except TvremixError:
+                continue
+            source = _extract_source(raw)
+            if source:
+                return {
+                    "id": script_id,
+                    "name": name or script_id,
+                    "start_line": start,
+                    "end_line": end,
+                    "source": source,
+                    "tool": tool,
+                }
+        full = await self.read_pine_script(script_id, name=name)
+        lines = (full.get("source") or "").splitlines()
+        sliced = "\n".join(lines[start - 1 : end])
+        return {
+            "id": script_id,
+            "name": full.get("name") or name or script_id,
+            "start_line": start,
+            "end_line": min(end, len(lines)),
+            "source": sliced,
+            "tool": "pine_read_script+slice",
+            "total_lines": len(lines),
+        }
+
+    async def get_pine_errors(self, script_id: str | None = None, *, source: str | None = None) -> dict[str, Any]:
+        """Compile-check Pine via MCP when available."""
+        args_list: list[dict[str, Any]] = []
+        if script_id:
+            args_list.extend(
+                [
+                    {"id": script_id},
+                    {"scriptId": script_id},
+                    {"script_id": script_id},
+                ]
+            )
+        if source:
+            args_list.append({"source": source})
+            args_list.append({"code": source})
+        last_err: str | None = None
+        for tool in ("pine_get_errors", "pine_check", "pine_compile", "get_pine_errors"):
+            for args in args_list or [{}]:
+                try:
+                    raw = await self.call_tool(tool, args)
+                except TvremixError as exc:
+                    last_err = str(exc)
+                    continue
+                if raw is None:
+                    continue
+                if isinstance(raw, dict):
+                    return {"ok": not bool(raw.get("errors") or raw.get("diagnostics")), "tool": tool, "result": raw}
+                if isinstance(raw, list):
+                    return {"ok": len(raw) == 0, "tool": tool, "errors": raw}
+                return {"ok": True, "tool": tool, "result": raw}
+        return {
+            "ok": False,
+            "tool": None,
+            "error": last_err or "pine_get_errors not available on this tvremix account",
+        }
+
+    async def get_strategy_report(self, **kwargs: Any) -> dict[str, Any]:
+        try:
+            raw = await self.call_tool("get_strategy_report", kwargs)
+        except TvremixError as exc:
+            raise TvremixError(f"get_strategy_report unavailable: {exc}") from exc
+        if isinstance(raw, dict):
+            return raw
+        return {"raw": raw}
+
+    async def strategy_sweep(self, **kwargs: Any) -> dict[str, Any]:
+        for tool in ("strategy_sweep", "run_strategy_sweep", "pine_strategy_sweep"):
+            try:
+                raw = await self.call_tool(tool, kwargs)
+            except TvremixError:
+                continue
+            if isinstance(raw, dict):
+                return {"tool": tool, **raw}
+            return {"tool": tool, "raw": raw}
+        raise TvremixError("strategy_sweep not available on this tvremix account")
+
+    async def analyze_multi_timeframe(self, symbol: str, *, intervals: list[str] | None = None) -> dict[str, Any]:
+        tv_symbol = _to_tv_symbol(symbol)
+        ivals = intervals or ["5m", "15m", "1h", "4h"]
+        for tool, args in (
+            ("analyze_multi_timeframe", {"symbol": tv_symbol, "intervals": ivals}),
+            ("analyze_multi_timeframe", {"symbol": tv_symbol, "timeframes": ivals}),
+            ("get_multi_timeframe", {"symbol": tv_symbol, "intervals": ivals}),
+        ):
+            try:
+                raw = await self.call_tool(tool, args)
+            except TvremixError:
+                continue
+            if isinstance(raw, dict):
+                return {"tool": tool, "symbol": tv_symbol, **raw}
+            if raw is not None:
+                return {"tool": tool, "symbol": tv_symbol, "raw": raw}
+        # Soft fallback: technicals per interval
+        per: dict[str, Any] = {}
+        for iv in ivals:
+            tech = await self.fetch_technicals(symbol, interval=iv)
+            if tech:
+                per[iv] = tech
+        if not per:
+            raise TvremixError("analyze_multi_timeframe unavailable")
+        return {"tool": "get_technicals_rating*fallback", "symbol": tv_symbol, "by_interval": per}
+
 
 def parse_pine_inputs(source: str) -> dict[str, Any]:
     """Best-effort extract of input.* defaults from Pine v5 source."""

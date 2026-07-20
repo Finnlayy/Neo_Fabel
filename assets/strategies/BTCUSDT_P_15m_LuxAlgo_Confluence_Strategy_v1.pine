@@ -1,0 +1,224 @@
+//@version=6
+// BTCUSDT.P 15m high-frequency base with external LuxAlgo confluence.
+// Add LuxAlgo Signals & Overlays to the chart first, then map its exposed bullish/bearish plots
+// into the External LuxAlgo Sources inputs below. Pine cannot read private Lux internals directly.
+strategy(
+    title="BTCUSDT.P 15m LuxAlgo Confluence Strategy",
+    shorttitle="BTC15 Lux Conf",
+    overlay=true,
+    initial_capital=100,
+    currency=currency.USDT,
+    default_qty_type=strategy.cash,
+    default_qty_value=1,
+    pyramiding=0,
+    calc_on_every_tick=false,
+    process_orders_on_close=true,
+    commission_type=strategy.commission.percent,
+    commission_value=0.05,
+    slippage=2,
+    margin_long=0,
+    margin_short=0,
+    max_labels_count=100
+)
+
+string GRP_ENV = "Environment"
+bool lock_to_btc_15m = input.bool(true, "Lock to BTCUSDT.P 15m", group=GRP_ENV)
+string target_symbol = input.string("BTCUSDT.P", "Target symbol", group=GRP_ENV)
+bool show_status = input.bool(true, "Show status table", group=GRP_ENV)
+
+string GRP_BASE = "Base VWAP Setup"
+int fast_len = input.int(10, "Fast EMA", minval=2, maxval=100, group=GRP_BASE)
+int slow_len = input.int(48, "Slow EMA", minval=5, maxval=200, group=GRP_BASE)
+int regime_len = input.int(100, "Regime EMA", minval=20, maxval=400, group=GRP_BASE)
+int atr_len = input.int(14, "ATR Length", minval=2, maxval=50, group=GRP_BASE)
+int rsi_len = input.int(18, "RSI Length", minval=2, maxval=50, group=GRP_BASE)
+float rsi_long_max = input.float(45.0, "Long RSI <=", minval=1.0, maxval=60.0, step=1.0, group=GRP_BASE)
+float rsi_short_min = input.float(70.0, "Short RSI >=", minval=40.0, maxval=99.0, step=1.0, group=GRP_BASE)
+float vwap_atr_dist = input.float(1.28, "VWAP Distance ATR", minval=0.05, maxval=5.0, step=0.01, group=GRP_BASE)
+float min_atr_pct = input.float(0.156, "Min ATR %", minval=0.0, maxval=2.0, step=0.001, group=GRP_BASE)
+bool use_volume_filter = input.bool(false, "Use volume filter", group=GRP_BASE)
+int volume_len = input.int(60, "Volume MA Length", minval=5, maxval=200, group=GRP_BASE)
+float volume_mult = input.float(0.87, "Volume Multiplier", minval=0.1, maxval=5.0, step=0.01, group=GRP_BASE)
+
+string GRP_LUX = "LuxAlgo Confluence"
+bool require_lux_confluence = input.bool(true, "Require LuxAlgo confluence", group=GRP_LUX)
+bool lux_sources_mapped = input.bool(false, "Lux sources are mapped", group=GRP_LUX)
+string signal_source_mode = input.string("Separate flags", "Signals source mode", options=["Separate flags", "Signed direction"], group=GRP_LUX)
+string overlay_source_mode = input.string("Separate flags", "Overlays source mode", options=["Separate flags", "Signed direction"], group=GRP_LUX)
+float signal_bull_src = input.source(close, "Signals Bullish Flag", group=GRP_LUX)
+float signal_bear_src = input.source(close, "Signals Bearish Flag", group=GRP_LUX)
+float signal_dir_src = input.source(close, "Signals Signed Direction", group=GRP_LUX)
+float overlay_bull_src = input.source(close, "Overlays Bullish Flag", group=GRP_LUX)
+float overlay_bear_src = input.source(close, "Overlays Bearish Flag", group=GRP_LUX)
+float overlay_dir_src = input.source(close, "Overlays Signed Direction", group=GRP_LUX)
+float flag_threshold = input.float(0.5, "Flag threshold", minval=-10.0, maxval=10.0, step=0.1, group=GRP_LUX)
+float signed_threshold = input.float(0.5, "Signed direction threshold", minval=0.0, maxval=10.0, step=0.1, group=GRP_LUX)
+int signal_hold_bars = input.int(3, "Signal flag hold bars", minval=0, maxval=20, group=GRP_LUX)
+int overlay_hold_bars = input.int(3, "Overlay flag hold bars", minval=0, maxval=50, group=GRP_LUX)
+int signal_weight = input.int(55, "Signals weight", minval=0, maxval=100, group=GRP_LUX)
+int overlay_weight = input.int(45, "Overlays weight", minval=0, maxval=100, group=GRP_LUX)
+int min_lux_score = input.int(80, "Minimum Lux score", minval=0, maxval=200, group=GRP_LUX)
+bool block_opposite_lux = input.bool(true, "Block opposite Lux flag", group=GRP_LUX)
+
+string GRP_RISK = "Risk / Duration"
+float risk_pct = input.float(1.0, "Risk % of equity", minval=0.1, maxval=5.0, step=0.1, group=GRP_RISK)
+float sl_atr = input.float(0.41, "SL ATR", minval=0.1, maxval=5.0, step=0.01, group=GRP_RISK)
+float tp_atr = input.float(2.37, "TP ATR", minval=0.2, maxval=10.0, step=0.01, group=GRP_RISK)
+int min_hold_bars = input.int(6, "Min hold bars", minval=0, maxval=20, group=GRP_RISK)
+int max_hold_bars = input.int(8, "Max hold bars", minval=1, maxval=48, group=GRP_RISK)
+float emergency_sl_atr = input.float(1.80, "Emergency SL ATR before min hold", minval=0.5, maxval=8.0, step=0.01, group=GRP_RISK)
+float qty_step = input.float(0.001, "Qty step", minval=0.000001, step=0.001, group=GRP_RISK)
+
+string GRP_PIONEX = "Pionex Webhook"
+string pionex_uuid = input.string("", "Pionex Signal Bot UUID", group=GRP_PIONEX)
+bool send_close_alerts = input.bool(true, "Send close alerts", group=GRP_PIONEX)
+
+f_round_qty(float qty, float step) =>
+    step > 0 ? math.floor(qty / step) * step : qty
+
+f_symbol_ok(string target) =>
+    string target_up = str.upper(target)
+    string ticker_up = str.upper(syminfo.ticker)
+    string tickerid_up = str.upper(syminfo.tickerid)
+    ticker_up == target_up or str.contains(tickerid_up, target_up)
+
+f_payload() =>
+    "{\"data\":{\"action\":\"{{strategy.order.action}}\",\"contracts\":\"{{strategy.order.contracts}}\",\"position_size\":\"{{strategy.position_size}}\"},\"price\":\"{{close}}\",\"signal_param\":\"{}\",\"signal_type\":\"" + pionex_uuid + "\",\"symbol\":\"{{ticker}}\",\"time\":\"{{timenow}}\"}"
+
+f_recent(bool condition, int hold_bars) =>
+    int bars_since = ta.barssince(condition)
+    bool now = condition
+    bool recent = not na(bars_since) and bars_since <= hold_bars
+    hold_bars == 0 ? now : recent
+
+bool symbol_ok = f_symbol_ok(target_symbol)
+bool tf_ok = timeframe.isminutes and timeframe.multiplier == 15
+bool env_ok = not lock_to_btc_15m or (symbol_ok and tf_ok)
+bool confirmed = barstate.isconfirmed
+bool flat = strategy.position_size == 0
+string payload_message = str.length(pionex_uuid) > 0 ? f_payload() : ""
+
+float ema_fast = ta.ema(close, fast_len)
+float ema_slow = ta.ema(close, slow_len)
+float ema_regime = ta.ema(close, regime_len)
+float session_vwap = ta.vwap(hlc3)
+float atr_val = ta.atr(atr_len)
+float rsi_val = ta.rsi(close, rsi_len)
+float atr_pct = close != 0 ? atr_val / close * 100.0 : 0.0
+float volume_ma = ta.sma(volume, volume_len)
+bool atr_ok = atr_pct >= min_atr_pct
+bool volume_ok = not use_volume_filter or (volume_ma > 0 and volume >= volume_ma * volume_mult)
+bool trend_up = ema_fast > ema_slow and close > ema_regime
+bool trend_down = ema_fast < ema_slow and close < ema_regime
+bool vwap_long_zone = close <= session_vwap - atr_val * vwap_atr_dist
+bool vwap_short_zone = close >= session_vwap + atr_val * vwap_atr_dist
+
+bool signal_bull_raw = signal_source_mode == "Signed direction" ? signal_dir_src >= signed_threshold : signal_bull_src >= flag_threshold
+bool signal_bear_raw = signal_source_mode == "Signed direction" ? signal_dir_src <= -signed_threshold : signal_bear_src >= flag_threshold
+bool overlay_bull_raw = overlay_source_mode == "Signed direction" ? overlay_dir_src >= signed_threshold : overlay_bull_src >= flag_threshold
+bool overlay_bear_raw = overlay_source_mode == "Signed direction" ? overlay_dir_src <= -signed_threshold : overlay_bear_src >= flag_threshold
+
+bool signal_bull = lux_sources_mapped and f_recent(signal_bull_raw, signal_hold_bars)
+bool signal_bear = lux_sources_mapped and f_recent(signal_bear_raw, signal_hold_bars)
+bool overlay_bull = lux_sources_mapped and f_recent(overlay_bull_raw, overlay_hold_bars)
+bool overlay_bear = lux_sources_mapped and f_recent(overlay_bear_raw, overlay_hold_bars)
+
+int lux_long_score = (signal_bull ? signal_weight : 0) + (overlay_bull ? overlay_weight : 0)
+int lux_short_score = (signal_bear ? signal_weight : 0) + (overlay_bear ? overlay_weight : 0)
+bool lux_long_conflict = signal_bear or overlay_bear
+bool lux_short_conflict = signal_bull or overlay_bull
+bool lux_long_ok = not require_lux_confluence or (lux_sources_mapped and lux_long_score >= min_lux_score and (not block_opposite_lux or not lux_long_conflict))
+bool lux_short_ok = not require_lux_confluence or (lux_sources_mapped and lux_short_score >= min_lux_score and (not block_opposite_lux or not lux_short_conflict))
+
+bool core_long = confirmed and env_ok and flat and atr_ok and volume_ok and trend_up and vwap_long_zone and rsi_val <= rsi_long_max
+bool core_short = confirmed and env_ok and flat and atr_ok and volume_ok and trend_down and vwap_short_zone and rsi_val >= rsi_short_min
+bool long_signal = core_long and lux_long_ok
+bool short_signal = core_short and lux_short_ok
+
+float risk_cash = strategy.equity * risk_pct * 0.01
+float stop_dist = math.max(atr_val * sl_atr, syminfo.mintick)
+float risk_per_unit = stop_dist * syminfo.pointvalue
+float raw_qty = risk_per_unit > 0 ? risk_cash / risk_per_unit : 0.0
+float order_qty = math.max(qty_step, f_round_qty(raw_qty, qty_step))
+
+var float entry_atr = na
+var int entry_bar = na
+bool new_long = strategy.position_size > 0 and strategy.position_size[1] <= 0
+bool new_short = strategy.position_size < 0 and strategy.position_size[1] >= 0
+
+if new_long or new_short
+    entry_atr := atr_val
+    entry_bar := bar_index
+
+if strategy.position_size == 0 and strategy.position_size[1] != 0
+    entry_atr := na
+    entry_bar := na
+
+int bars_held = not na(entry_bar) ? bar_index - entry_bar : 0
+float active_atr = nz(entry_atr, atr_val)
+float long_stop = strategy.position_avg_price - active_atr * sl_atr
+float long_target = strategy.position_avg_price + active_atr * tp_atr
+float long_emergency = strategy.position_avg_price - active_atr * emergency_sl_atr
+float short_stop = strategy.position_avg_price + active_atr * sl_atr
+float short_target = strategy.position_avg_price - active_atr * tp_atr
+float short_emergency = strategy.position_avg_price + active_atr * emergency_sl_atr
+
+if long_signal
+    strategy.entry("Long", strategy.long, qty=order_qty, alert_message=payload_message)
+
+if short_signal
+    strategy.entry("Short", strategy.short, qty=order_qty, alert_message=payload_message)
+
+if strategy.position_size > 0
+    strategy.exit("Long Emergency", from_entry="Long", stop=long_emergency, alert_message=send_close_alerts ? payload_message : "")
+    if bars_held >= min_hold_bars
+        strategy.exit("Long Exit", from_entry="Long", stop=long_stop, limit=long_target, alert_message=send_close_alerts ? payload_message : "")
+    if bars_held >= max_hold_bars
+        strategy.exit("Long Time Exit", from_entry="Long", stop=close, limit=close, alert_message=send_close_alerts ? payload_message : "")
+
+if strategy.position_size < 0
+    strategy.exit("Short Emergency", from_entry="Short", stop=short_emergency, alert_message=send_close_alerts ? payload_message : "")
+    if bars_held >= min_hold_bars
+        strategy.exit("Short Exit", from_entry="Short", stop=short_stop, limit=short_target, alert_message=send_close_alerts ? payload_message : "")
+    if bars_held >= max_hold_bars
+        strategy.exit("Short Time Exit", from_entry="Short", stop=close, limit=close, alert_message=send_close_alerts ? payload_message : "")
+
+plot(ema_fast, "Fast EMA", color=color.new(color.teal, 15))
+plot(ema_slow, "Slow EMA", color=color.new(color.orange, 15))
+plot(ema_regime, "Regime EMA", color=color.new(color.gray, 35))
+plot(session_vwap, "Session VWAP", color=color.new(color.blue, 0))
+plot(session_vwap - atr_val * vwap_atr_dist, "VWAP Long Zone", color=color.new(color.teal, 65))
+plot(session_vwap + atr_val * vwap_atr_dist, "VWAP Short Zone", color=color.new(color.red, 65))
+plot(strategy.position_size > 0 ? long_stop : na, "Long Stop", color=color.red, style=plot.style_linebr)
+plot(strategy.position_size > 0 ? long_target : na, "Long Target", color=color.lime, style=plot.style_linebr)
+plot(strategy.position_size < 0 ? short_stop : na, "Short Stop", color=color.red, style=plot.style_linebr)
+plot(strategy.position_size < 0 ? short_target : na, "Short Target", color=color.lime, style=plot.style_linebr)
+
+plotshape(long_signal, title="Long Signal", style=shape.triangleup, location=location.belowbar, color=color.lime, size=size.small, text="L")
+plotshape(short_signal, title="Short Signal", style=shape.triangledown, location=location.abovebar, color=color.red, size=size.small, text="S")
+plotshape(core_long and not lux_long_ok, title="Long Blocked By Lux", style=shape.circle, location=location.belowbar, color=color.new(color.lime, 70), size=size.tiny)
+plotshape(core_short and not lux_short_ok, title="Short Blocked By Lux", style=shape.circle, location=location.abovebar, color=color.new(color.red, 70), size=size.tiny)
+bgcolor(not env_ok ? color.new(color.red, 88) : require_lux_confluence and not lux_sources_mapped ? color.new(color.orange, 90) : na)
+
+var table dash = table.new(position.top_right, 2, 10, bgcolor=color.new(color.black, 78), border_width=1)
+if show_status and barstate.islast
+    table.cell(dash, 0, 0, "BTC15 Lux", text_color=color.white, bgcolor=color.new(color.blue, 55))
+    table.cell(dash, 1, 0, syminfo.ticker + " " + timeframe.period, text_color=color.white, bgcolor=color.new(color.blue, 55))
+    table.cell(dash, 0, 1, "Env", text_color=color.white)
+    table.cell(dash, 1, 1, env_ok ? "OK" : "WRONG CHART", text_color=env_ok ? color.lime : color.red)
+    table.cell(dash, 0, 2, "Lux Map", text_color=color.white)
+    table.cell(dash, 1, 2, lux_sources_mapped ? "READY" : "MAP SOURCES", text_color=lux_sources_mapped ? color.lime : color.orange)
+    table.cell(dash, 0, 3, "Lux L/S", text_color=color.white)
+    table.cell(dash, 1, 3, str.tostring(lux_long_score) + " / " + str.tostring(lux_short_score), text_color=lux_long_score >= min_lux_score ? color.lime : lux_short_score >= min_lux_score ? color.red : color.white)
+    table.cell(dash, 0, 4, "Core", text_color=color.white)
+    table.cell(dash, 1, 4, core_long ? "LONG" : core_short ? "SHORT" : "WAIT", text_color=core_long ? color.lime : core_short ? color.red : color.gray)
+    table.cell(dash, 0, 5, "RSI", text_color=color.white)
+    table.cell(dash, 1, 5, str.tostring(rsi_val, "#.0"), text_color=rsi_val <= rsi_long_max ? color.lime : rsi_val >= rsi_short_min ? color.red : color.white)
+    table.cell(dash, 0, 6, "ATR %", text_color=color.white)
+    table.cell(dash, 1, 6, str.tostring(atr_pct, "#.###"), text_color=atr_ok ? color.white : color.orange)
+    table.cell(dash, 0, 7, "Held Bars", text_color=color.white)
+    table.cell(dash, 1, 7, str.tostring(bars_held), text_color=bars_held >= min_hold_bars and bars_held <= max_hold_bars ? color.lime : color.white)
+    table.cell(dash, 0, 8, "Pionex", text_color=color.white)
+    table.cell(dash, 1, 8, str.length(pionex_uuid) > 0 ? "UUID SET" : "UUID MISSING", text_color=str.length(pionex_uuid) > 0 ? color.lime : color.orange)
+    table.cell(dash, 0, 9, "Position", text_color=color.white)
+    table.cell(dash, 1, 9, strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "FLAT", text_color=strategy.position_size > 0 ? color.lime : strategy.position_size < 0 ? color.red : color.gray)

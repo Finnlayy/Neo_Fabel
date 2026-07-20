@@ -1,0 +1,162 @@
+//@version=6
+// BTCUSDT.P 15m optimized strategy.
+// Local optimizer target: PF > 2 and average duration 1-3 hours.
+// Local cache result on data_cache/BTCUSDT_15m_4000.json:
+// All: PF 3.25, 17 trades, avg duration 8.41 bars (~2.1h), max DD 4.95%.
+// OOS last 30%: PF 7.27, 4 trades, avg duration 7.75 bars.
+strategy(
+    title="BTCUSDT.P 15m PF2 Duration Strategy",
+    shorttitle="BTC15 PF2 Dur",
+    overlay=true,
+    initial_capital=100,
+    currency=currency.USDT,
+    default_qty_type=strategy.cash,
+    default_qty_value=1,
+    pyramiding=0,
+    calc_on_every_tick=false,
+    process_orders_on_close=true,
+    commission_type=strategy.commission.percent,
+    commission_value=0.05,
+    slippage=2,
+    margin_long=0,
+    margin_short=0,
+    max_labels_count=100
+)
+
+string GRP_ENV = "Environment"
+bool lock_to_btc_15m = input.bool(true, "Lock to BTCUSDT.P 15m", group=GRP_ENV)
+string target_symbol = input.string("BTCUSDT.P", "Target symbol", group=GRP_ENV)
+bool show_status = input.bool(true, "Show status table", group=GRP_ENV)
+
+string GRP_SIGNAL = "Optimized Signal"
+int bb_len = input.int(30, "BB Length", minval=5, maxval=100, group=GRP_SIGNAL)
+float bb_mult = input.float(1.80, "BB Multiplier", minval=0.5, maxval=4.0, step=0.05, group=GRP_SIGNAL)
+int rsi_len = input.int(18, "RSI Length", minval=2, maxval=50, group=GRP_SIGNAL)
+float rsi_long_max = input.float(25.0, "Long RSI <= ", minval=1, maxval=50, step=1, group=GRP_SIGNAL)
+float rsi_short_min = input.float(75.0, "Short RSI >= ", minval=50, maxval=99, step=1, group=GRP_SIGNAL)
+int atr_len = input.int(7, "ATR Length", minval=2, maxval=50, group=GRP_SIGNAL)
+float min_atr_pct = input.float(0.167, "Min ATR %", minval=0.0, maxval=2.0, step=0.001, group=GRP_SIGNAL)
+
+string GRP_RISK = "Risk / Duration"
+float risk_pct = input.float(1.0, "Risk % of equity", minval=0.1, maxval=5.0, step=0.1, group=GRP_RISK)
+float sl_atr = input.float(0.74, "SL ATR", minval=0.1, maxval=5.0, step=0.01, group=GRP_RISK)
+float tp_atr = input.float(3.91, "TP ATR", minval=0.2, maxval=10.0, step=0.01, group=GRP_RISK)
+int min_hold_bars = input.int(4, "Min hold bars", minval=0, maxval=20, group=GRP_RISK)
+int max_hold_bars = input.int(10, "Max hold bars", minval=1, maxval=48, group=GRP_RISK)
+float emergency_sl_atr = input.float(2.41, "Emergency SL ATR before min hold", minval=0.5, maxval=8.0, step=0.01, group=GRP_RISK)
+float qty_step = input.float(0.001, "Qty step", minval=0.000001, step=0.001, group=GRP_RISK)
+
+string GRP_PIONEX = "Pionex Webhook"
+string pionex_uuid = input.string("", "Pionex Signal Bot UUID", group=GRP_PIONEX)
+bool send_close_alerts = input.bool(true, "Send close alerts", group=GRP_PIONEX)
+
+f_round_qty(float qty, float step) =>
+    step > 0 ? math.floor(qty / step) * step : qty
+
+f_symbol_ok(string target) =>
+    string target_up = str.upper(target)
+    string ticker_up = str.upper(syminfo.ticker)
+    string tickerid_up = str.upper(syminfo.tickerid)
+    ticker_up == target_up or str.contains(tickerid_up, target_up)
+
+f_payload() =>
+    "{\"data\":{\"action\":\"{{strategy.order.action}}\",\"contracts\":\"{{strategy.order.contracts}}\",\"position_size\":\"{{strategy.position_size}}\"},\"price\":\"{{close}}\",\"signal_param\":\"{}\",\"signal_type\":\"" + pionex_uuid + "\",\"symbol\":\"{{ticker}}\",\"time\":\"{{timenow}}\"}"
+
+bool symbol_ok = f_symbol_ok(target_symbol)
+bool tf_ok = timeframe.isminutes and timeframe.multiplier == 15
+bool env_ok = not lock_to_btc_15m or (symbol_ok and tf_ok)
+bool confirmed = barstate.isconfirmed
+
+float basis = ta.sma(close, bb_len)
+float dev = ta.stdev(close, bb_len) * bb_mult
+float upper = basis + dev
+float lower = basis - dev
+float rsi_val = ta.rsi(close, rsi_len)
+float atr_val = ta.atr(atr_len)
+float atr_pct = close != 0 ? atr_val / close * 100.0 : 0.0
+bool atr_ok = atr_pct >= min_atr_pct
+bool flat = strategy.position_size == 0
+string payload_message = str.length(pionex_uuid) > 0 ? f_payload() : ""
+
+bool long_signal = confirmed and env_ok and flat and atr_ok and close < lower and rsi_val <= rsi_long_max
+bool short_signal = confirmed and env_ok and flat and atr_ok and close > upper and rsi_val >= rsi_short_min
+
+float risk_cash = strategy.equity * risk_pct * 0.01
+float stop_dist = math.max(atr_val * sl_atr, syminfo.mintick)
+float risk_per_unit = stop_dist * syminfo.pointvalue
+float raw_qty = risk_per_unit > 0 ? risk_cash / risk_per_unit : 0.0
+float order_qty = math.max(qty_step, f_round_qty(raw_qty, qty_step))
+
+var float entry_atr = na
+var int entry_bar = na
+bool new_long = strategy.position_size > 0 and strategy.position_size[1] <= 0
+bool new_short = strategy.position_size < 0 and strategy.position_size[1] >= 0
+
+if new_long or new_short
+    entry_atr := atr_val
+    entry_bar := bar_index
+
+if strategy.position_size == 0 and strategy.position_size[1] != 0
+    entry_atr := na
+    entry_bar := na
+
+int bars_held = not na(entry_bar) ? bar_index - entry_bar : 0
+float active_atr = nz(entry_atr, atr_val)
+
+float long_stop = strategy.position_avg_price - active_atr * sl_atr
+float long_target = strategy.position_avg_price + active_atr * tp_atr
+float long_emergency = strategy.position_avg_price - active_atr * emergency_sl_atr
+float short_stop = strategy.position_avg_price + active_atr * sl_atr
+float short_target = strategy.position_avg_price - active_atr * tp_atr
+float short_emergency = strategy.position_avg_price + active_atr * emergency_sl_atr
+
+if long_signal
+    strategy.entry("Long", strategy.long, qty=order_qty, alert_message=payload_message)
+
+if short_signal
+    strategy.entry("Short", strategy.short, qty=order_qty, alert_message=payload_message)
+
+if strategy.position_size > 0
+    strategy.exit("Long Emergency", from_entry="Long", stop=long_emergency, alert_message=send_close_alerts ? payload_message : "")
+    if bars_held >= min_hold_bars
+        strategy.exit("Long Exit", from_entry="Long", stop=long_stop, limit=long_target, alert_message=send_close_alerts ? payload_message : "")
+    if bars_held >= max_hold_bars
+        strategy.exit("Long Time Exit", from_entry="Long", stop=close, limit=close, alert_message=send_close_alerts ? payload_message : "")
+
+if strategy.position_size < 0
+    strategy.exit("Short Emergency", from_entry="Short", stop=short_emergency, alert_message=send_close_alerts ? payload_message : "")
+    if bars_held >= min_hold_bars
+        strategy.exit("Short Exit", from_entry="Short", stop=short_stop, limit=short_target, alert_message=send_close_alerts ? payload_message : "")
+    if bars_held >= max_hold_bars
+        strategy.exit("Short Time Exit", from_entry="Short", stop=close, limit=close, alert_message=send_close_alerts ? payload_message : "")
+
+plot(basis, "BB Basis", color=color.new(color.gray, 40))
+plot(upper, "BB Upper", color=color.new(color.red, 30))
+plot(lower, "BB Lower", color=color.new(color.teal, 30))
+plot(strategy.position_size > 0 ? long_stop : na, "Long Stop", color=color.red, style=plot.style_linebr)
+plot(strategy.position_size > 0 ? long_target : na, "Long Target", color=color.lime, style=plot.style_linebr)
+plot(strategy.position_size < 0 ? short_stop : na, "Short Stop", color=color.red, style=plot.style_linebr)
+plot(strategy.position_size < 0 ? short_target : na, "Short Target", color=color.lime, style=plot.style_linebr)
+
+plotshape(long_signal, title="Long Signal", style=shape.triangleup, location=location.belowbar, color=color.lime, size=size.small, text="L")
+plotshape(short_signal, title="Short Signal", style=shape.triangledown, location=location.abovebar, color=color.red, size=size.small, text="S")
+bgcolor(not env_ok ? color.new(color.red, 88) : str.length(pionex_uuid) == 0 ? color.new(color.orange, 94) : na)
+
+var table dash = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black, 78), border_width=1)
+if show_status and barstate.islast
+    table.cell(dash, 0, 0, "BTC 15m PF2", text_color=color.white, bgcolor=color.new(color.blue, 55))
+    table.cell(dash, 1, 0, syminfo.ticker + " " + timeframe.period, text_color=color.white, bgcolor=color.new(color.blue, 55))
+    table.cell(dash, 0, 1, "Env", text_color=color.white)
+    table.cell(dash, 1, 1, env_ok ? "OK" : "WRONG CHART", text_color=env_ok ? color.lime : color.red)
+    table.cell(dash, 0, 2, "RSI", text_color=color.white)
+    table.cell(dash, 1, 2, str.tostring(rsi_val, "#.0"), text_color=rsi_val <= rsi_long_max ? color.lime : rsi_val >= rsi_short_min ? color.red : color.white)
+    table.cell(dash, 0, 3, "ATR %", text_color=color.white)
+    table.cell(dash, 1, 3, str.tostring(atr_pct, "#.###"), text_color=atr_ok ? color.white : color.orange)
+    table.cell(dash, 0, 4, "Held Bars", text_color=color.white)
+    table.cell(dash, 1, 4, str.tostring(bars_held), text_color=bars_held >= min_hold_bars and bars_held <= max_hold_bars ? color.lime : color.white)
+    table.cell(dash, 0, 5, "Duration Target", text_color=color.white)
+    table.cell(dash, 1, 5, str.tostring(min_hold_bars * 15) + "-" + str.tostring(max_hold_bars * 15) + " min", text_color=color.white)
+    table.cell(dash, 0, 6, "Pionex", text_color=color.white)
+    table.cell(dash, 1, 6, str.length(pionex_uuid) > 0 ? "UUID SET" : "UUID MISSING", text_color=str.length(pionex_uuid) > 0 ? color.lime : color.orange)
+    table.cell(dash, 0, 7, "Position", text_color=color.white)
+    table.cell(dash, 1, 7, strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "FLAT", text_color=strategy.position_size > 0 ? color.lime : strategy.position_size < 0 ? color.red : color.gray)

@@ -22,6 +22,18 @@ the official `kraken` binary for market/paper smoke tests.
 4. Start FastAPI: `python -m uvicorn backend.app.main:app --reload --port 8000`
 5. Start Vite in a second terminal: `npm run dev`
 
+### OpenAPI → frontend types
+
+Frontend transport stays [`src/api/client.ts`](src/api/client.ts) (`apiRequest` + Firebase Bearer).
+Path/schema types are generated from the live FastAPI OpenAPI document:
+
+```powershell
+# API must be running on :8000
+npm run openapi:gen
+```
+
+That writes [`src/api/generated/schema.d.ts`](src/api/generated/schema.d.ts). Helpers live in [`src/api/paths.ts`](src/api/paths.ts); the paper module is the first consumer. Vite also proxies `/openapi.json`, `/docs`, and `/redoc` to the API.
+
 Market-data endpoints:
 
 - `GET /api/v1/market/batch?asset_class=all` queries the curated common crypto, FX, and S&P 500 universe. Crypto uses the Kraken CLI; FX and equities use Alpha Vantage.
@@ -218,6 +230,8 @@ Webhook:
 POST /api/v1/webhooks/tradingview/{public_route_key}
 ```
 
+Ingress accepts **natural TradingView JSON** (official placeholders already expanded by TV) and normalizes it to Kraken-ready fields (`pair`, `side`, `volume`, `ordertype`, `price`) via `backend/app/signals/tv_webhook_parser.py`. Unresolved `{{placeholders}}` are rejected. Dry-run: `POST /api/v1/signals/tv-parse-preview` (signal admin).
+
 Worker:
 
 ```powershell
@@ -226,6 +240,31 @@ $env:KRAKEN_AUTONOMY_LEVEL = "2"
 $env:KRAKEN_LIVE_TRADING_ENABLED = "false"
 python -m backend.app.signals
 ```
+
+## App Settings — API keys & passwords
+
+Open **Einstellungen / Settings** in the header. The integrations panel writes to a
+gitignored server vault (`backend/data/secrets/integrations.json`), applies values
+into the process environment, and reloads `Settings`. List endpoints return only
+configured/masked status; reveal + mutate require recent trading-admin auth.
+
+## tvremix MCP (Pine + market tools)
+
+Hosted client: `backend/app/integrations/tvremix_client.py`. HTTP surface:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/tvremix/status` | Key configured + tool list |
+| `GET /api/v1/tvremix/scripts` | `pine_list_*` |
+| `POST /api/v1/tvremix/search` | `pine_search_script` (+ local scan fallback) |
+| `POST /api/v1/tvremix/read-lines` | `pine_read_lines` |
+| `POST /api/v1/tvremix/errors` | `pine_get_errors` |
+| `POST /api/v1/tvremix/strategy-report` | `get_strategy_report` |
+| `POST /api/v1/tvremix/strategy-sweep` | `strategy_sweep` |
+| `POST /api/v1/tvremix/mtf` | `analyze_multi_timeframe` |
+| `GET/POST /api/v1/tvremix/ledger*` | Pine SHA256 change detection |
+
+Dashboard: **Command Overview** KPIs + equity sparkline; **3D orderbook heatmap** (`three.js`) on ADAUSD.
 
 Docker worker (profile): `docker compose --profile signals up signal-worker`
 
@@ -316,6 +355,32 @@ credentials, stop the worker, preserve audit/event rows, reconcile any
 
 Defaults stay safe: `KRAKEN_AUTONOMY_LEVEL=2` and `KRAKEN_LIVE_TRADING_ENABLED=false`.
 
+### Capital policy (hard rules)
+
+- **No external replenish:** CLI deposit / withdraw / transfer / funding / earn paths are blocked in-process. The bot cannot top up from outside Kraken.
+- **No debt / no below $0:** Live buys must fit available cash (USD/EUR/stables including `ZEUR`); sells cannot exceed held inventory (no shorts). Leverage &gt; 1 and non-reduce-only futures opens are rejected.
+- **Max notional:** `KRAKEN_MAX_NOTIONAL` (default `2`) caps quote size per live trade for small accounts.
+- **Supervised-first:** Manual Positions live desk can work with live trading on; unattended **Live algo** switch also needs `KRAKEN_LIVE_ALGO_ENABLED=true`.
+- **Kill switch:** `POST /api/v1/loops/kill` (header **Kill**) stops loops and attempts cancel-all. Audit: `backend/data/trading/live_audit.jsonl`.
+- **Status memory:** Full https://status.kraken.com component list is stored in `backend/data/kraken/status_components.json` (index: `status_index.json`). Live orders refuse if REST/Websocket/Kraken API or the pair’s asset component is degraded. Refresh: `POST /api/v1/kraken/status/refresh`. Agents use `.cursor/rules/kraken-status-memory.mdc`.
+
+### Global UI switches (header)
+
+Always-visible controls in the app header:
+
+| Switch | Behavior |
+|--------|----------|
+| **Paper loop** | `POST /api/v1/loops/paper/start\|stop` — starts/stops the in-process FableEngine paper path |
+| **Live algo** | `POST /api/v1/loops/live/start\|stop` — arms deadman + live session loop **only if** env gates already allow Level 4 |
+
+The Live switch never flips `KRAKEN_LIVE_TRADING_ENABLED` from the browser. If gates are off it shows **Blocked** with the reason.
+
+Status: `GET /api/v1/loops/status`
+
+### Positions control desk
+
+Positions tab can open/close (including partial + limit close), cancel / cancel-all / amend live orders, and place protective SL / TP / trailing stops. Order types mirror Kraken spot (`market`, `limit`, `stop-loss`, `stop-loss-limit`, `take-profit`, `take-profit-limit`, `trailing-stop`, `trailing-stop-limit`) plus futures place/edit/cancel via `/api/v1/orders*`. Manual live actions require autonomy ≥ 3 and live trading enabled; the algo loop still requires autonomy ≥ 4.
+
 Guardrail env vars (enforced in agent code, not by the CLI):
 
 | Variable | Default | Purpose |
@@ -323,7 +388,8 @@ Guardrail env vars (enforced in agent code, not by the CLI):
 | `KRAKEN_MAX_ORDER_SIZE` | `0.01` | Max volume per order |
 | `KRAKEN_MAX_OPEN_POSITIONS` | `3` | Cap concurrent open orders/positions |
 | `KRAKEN_MAX_TRADES_PER_HOUR` | `10` | Frequency limit |
-| `KRAKEN_PAIR_ALLOWLIST` | `BTCUSD,ETHUSD` | Only these pairs |
+| `KRAKEN_MIN_TRADE_INTERVAL_SECONDS` | `30` | Min seconds between new trades |
+| `KRAKEN_PAIR_ALLOWLIST` | `ADAUSD,XRPUSD` | Only these pairs |
 | `KRAKEN_DEADMAN_SECONDS` | `600` | Auto-cancel open orders if agent dies |
 
 API:

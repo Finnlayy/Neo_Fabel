@@ -8,6 +8,9 @@ import AgencyPage from "./features/agency/AgencyPage";
 import PaperPerformancePage from "./features/paper/PaperPerformancePage";
 import PositionsPage from "./features/positions/PositionsPage";
 import AuthPanel from "./auth/AuthPanel";
+import IntegrationsSettingsPanel from "./features/settings/IntegrationsSettingsPanel";
+import CommandOverview from "./components/CommandOverview";
+import OrderbookHeatmap3D from "./components/OrderbookHeatmap3D";
 import { fetchCryptoTickers, fetchEquityTickers, fetchOrderBook, upsertTickerHistory } from "./api/market";
 import { connectMarketStream } from "./api/marketStream";
 import { fetchAiHealth } from "./api/ai";
@@ -25,6 +28,7 @@ import ExecutedTradesSection from "./components/ExecutedTradesSection";
 import ResourceAllocation from "./components/ResourceAllocation";
 import LiveMarketHeatmap from "./components/LiveMarketHeatmap";
 import IntegratedConnectors from "./components/IntegratedConnectors";
+import TradingLoopSwitches from "./components/TradingLoopSwitches";
 import TvapiOptimizer from "./components/TvapiOptimizer";
 import GeminiChatbot from "./components/GeminiChatbot";
 import RiskAssessmentHeatmap from "./components/RiskAssessmentHeatmap";
@@ -974,6 +978,8 @@ export default function App() {
                 {isComplianceActive ? t("enforced") : t("unguarded")}
               </span>
             </div>
+
+            <TradingLoopSwitches language={language} />
             
             {/* All-Time Realized P&L Widget */}
             <div id="all-time-pnl-widget" className="flex flex-col lg:items-end bg-white/5 border border-white/10 px-3 py-1 rounded-sm shadow-[0_0_15px_rgba(0,0,0,0.4)] min-w-[125px] transition-all hover:border-white/20">
@@ -1032,6 +1038,10 @@ export default function App() {
             {/* WORKSPACE A: OMNI-DASHBOARD */}
             {activeTab === "dashboard" && (
               <>
+                <CommandOverview
+                  language={language}
+                  onNavigate={(tab) => setActiveTab(tab)}
+                />
                 {/* Master Control and Signal Dial Row - Bento Styled */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 font-mono text-xs">
                   {/* Master Orchestrator Agent Panel */}
@@ -1237,6 +1247,15 @@ export default function App() {
                   }}
                   activeSymbol={activeSymbol}
                   marketLive={marketLive}
+                />
+
+                <OrderbookHeatmap3D
+                  pair={
+                    activeSymbol === "ADA" || activeSymbol === "XRP"
+                      ? `${activeSymbol}USD`
+                      : "ADAUSD"
+                  }
+                  language={language}
                 />
 
                 <SimulatedTrading 
@@ -1620,7 +1639,7 @@ export default function App() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className="w-full max-w-lg bg-slate-950 border border-cyan-500/30 rounded-xl overflow-hidden font-mono text-xs text-slate-300 shadow-2xl shadow-cyan-950/20"
+              className="w-full max-w-2xl max-h-[90vh] flex flex-col bg-slate-950 border border-cyan-500/30 rounded-xl overflow-hidden font-mono text-xs text-slate-300 shadow-2xl shadow-cyan-950/20"
             >
               {/* Header */}
               <div className="flex items-center justify-between bg-slate-900/60 px-5 py-4 border-b border-white/10">
@@ -1639,7 +1658,7 @@ export default function App() {
               </div>
 
               {/* Body */}
-              <div className="p-6 space-y-5">
+              <div className="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
                 <div className="bg-slate-900/30 border border-white/5 p-4 rounded-lg space-y-3 normal-case tracking-normal">
                   <div className="flex justify-between items-center">
                     <span className="text-white font-bold uppercase tracking-wider text-[10px]">
@@ -1649,6 +1668,9 @@ export default function App() {
                   </div>
                   <AuthPanel />
                 </div>
+
+                <IntegrationsSettingsPanel language={language} />
+
                 {/* Language selection card */}
                 <div className="bg-slate-900/30 border border-white/5 p-4 rounded-lg space-y-3">
                   <div className="flex justify-between items-center">

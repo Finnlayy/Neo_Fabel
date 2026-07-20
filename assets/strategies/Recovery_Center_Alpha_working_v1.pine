@@ -1,0 +1,105 @@
+//@version=6
+strategy('Recovery Center Alpha Working v1', overlay = true, initial_capital = 10000, pyramiding = 0)
+
+// Risk controls
+risk_pct = input.float(1.0, 'Risk per Trade (%)', minval = 0.1, maxval = 5.0, step = 0.1)
+max_qty_cap = input.float(5.0, 'Max Position Size', minval = 0.001, step = 0.001)
+fractal_len = input.int(2, 'Fractal Length', minval = 1, maxval = 10)
+hold_bars_before_exit = input.int(1, 'Bars Before Exit Activation', minval = 1, maxval = 10)
+
+// Core indicator
+sma_200 = ta.sma(close, 200)
+
+// Confirmed open/close fractals
+open_fractal_high = ta.pivothigh(open, fractal_len, fractal_len)
+open_fractal_low = ta.pivotlow(open, fractal_len, fractal_len)
+close_fractal_high = ta.pivothigh(close, fractal_len, fractal_len)
+close_fractal_low = ta.pivotlow(close, fractal_len, fractal_len)
+
+var float last_open_fractal_high = na
+var float last_open_fractal_low = na
+var float last_close_fractal_high = na
+var float last_close_fractal_low = na
+
+if not na(open_fractal_high)
+    last_open_fractal_high := open_fractal_high
+if not na(open_fractal_low)
+    last_open_fractal_low := open_fractal_low
+if not na(close_fractal_high)
+    last_close_fractal_high := close_fractal_high
+if not na(close_fractal_low)
+    last_close_fractal_low := close_fractal_low
+
+// Flat-only, non-reversing logic
+flat = strategy.position_size == 0
+long_regime = close > sma_200
+short_regime = close < sma_200
+
+long_sl_candidate = last_open_fractal_low
+long_tp_candidate = last_close_fractal_high
+short_sl_candidate = last_open_fractal_high
+short_tp_candidate = last_close_fractal_low
+
+long_levels_ready = not na(long_sl_candidate) and not na(long_tp_candidate) and long_sl_candidate < close and long_tp_candidate > close
+short_levels_ready = not na(short_sl_candidate) and not na(short_tp_candidate) and short_sl_candidate > close and short_tp_candidate < close
+
+long_signal = flat and long_regime and close > open and long_levels_ready
+short_signal = flat and short_regime and close < open and short_levels_ready
+
+cash_risk = strategy.equity * risk_pct * 0.01
+long_stop_distance = long_levels_ready ? close - long_sl_candidate : na
+short_stop_distance = short_levels_ready ? short_sl_candidate - close : na
+
+long_qty = not na(long_stop_distance) and long_stop_distance > syminfo.mintick ? math.min(max_qty_cap, cash_risk / long_stop_distance) : na
+short_qty = not na(short_stop_distance) and short_stop_distance > syminfo.mintick ? math.min(max_qty_cap, cash_risk / short_stop_distance) : na
+
+var float active_long_sl = na
+var float active_long_tp = na
+var float active_short_sl = na
+var float active_short_tp = na
+var int active_entry_bar = na
+
+if long_signal and not na(long_qty)
+    active_long_sl := long_sl_candidate
+    active_long_tp := long_tp_candidate
+    active_short_sl := na
+    active_short_tp := na
+    strategy.entry('Long', strategy.long, qty = long_qty)
+
+if short_signal and not na(short_qty)
+    active_short_sl := short_sl_candidate
+    active_short_tp := short_tp_candidate
+    active_long_sl := na
+    active_long_tp := na
+    strategy.entry('Short', strategy.short, qty = short_qty)
+
+new_long = strategy.position_size > 0 and strategy.position_size[1] <= 0
+new_short = strategy.position_size < 0 and strategy.position_size[1] >= 0
+
+if new_long or new_short
+    active_entry_bar := bar_index
+
+long_exit_active = strategy.position_size > 0 and not na(active_long_sl) and not na(active_long_tp) and not na(active_entry_bar) and bar_index >= active_entry_bar + hold_bars_before_exit
+short_exit_active = strategy.position_size < 0 and not na(active_short_sl) and not na(active_short_tp) and not na(active_entry_bar) and bar_index >= active_entry_bar + hold_bars_before_exit
+
+if long_exit_active
+    strategy.exit('Long Exit', from_entry = 'Long', stop = active_long_sl, limit = active_long_tp)
+
+if short_exit_active
+    strategy.exit('Short Exit', from_entry = 'Short', stop = active_short_sl, limit = active_short_tp)
+
+if strategy.position_size == 0 and strategy.position_size[1] != 0
+    active_long_sl := na
+    active_long_tp := na
+    active_short_sl := na
+    active_short_tp := na
+    active_entry_bar := na
+
+// Visuals
+plot(sma_200, color = color.blue, title = 'SMA 200')
+plot(last_open_fractal_high, color = color.new(color.red, 20), title = 'Open Fractal High', style = plot.style_linebr)
+plot(last_open_fractal_low, color = color.new(color.green, 20), title = 'Open Fractal Low', style = plot.style_linebr)
+plot(last_close_fractal_high, color = color.new(color.orange, 20), title = 'Close Fractal High', style = plot.style_linebr)
+plot(last_close_fractal_low, color = color.new(color.aqua, 20), title = 'Close Fractal Low', style = plot.style_linebr)
+plotshape(long_signal, title = 'Long Signal', text = 'Long', style = shape.labelup, location = location.belowbar, color = color.new(color.green, 0), textcolor = color.white)
+plotshape(short_signal, title = 'Short Signal', text = 'Short', style = shape.labeldown, location = location.abovebar, color = color.new(color.red, 0), textcolor = color.white)

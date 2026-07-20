@@ -26,9 +26,19 @@ class Settings(BaseSettings):
     kraken_live_trading_enabled: bool = Field(default=False, validation_alias="KRAKEN_LIVE_TRADING_ENABLED")
     kraken_deadman_seconds: int = Field(default=600, validation_alias="KRAKEN_DEADMAN_SECONDS")
     kraken_max_order_size: Decimal = Field(default=Decimal("0.01"), validation_alias="KRAKEN_MAX_ORDER_SIZE")
+    # Max quote notional per live trade (EUR/USD treated as account cash units). Tiny accounts: ~2.
+    kraken_max_notional: Decimal = Field(default=Decimal("2"), validation_alias="KRAKEN_MAX_NOTIONAL")
     kraken_max_open_positions: int = Field(default=3, validation_alias="KRAKEN_MAX_OPEN_POSITIONS")
     kraken_max_trades_per_hour: int = Field(default=10, validation_alias="KRAKEN_MAX_TRADES_PER_HOUR")
-    kraken_pair_allowlist: str = Field(default="BTCUSD,ETHUSD", validation_alias="KRAKEN_PAIR_ALLOWLIST")
+    kraken_min_trade_interval_seconds: float = Field(
+        default=30.0, validation_alias="KRAKEN_MIN_TRADE_INTERVAL_SECONDS", ge=0.0
+    )
+    kraken_pair_allowlist: str = Field(
+        default="ADAUSD,XRPUSD,ADAEUR,XRPEUR", validation_alias="KRAKEN_PAIR_ALLOWLIST"
+    )
+    # Unattended live algo loop (header switch). Manual live desk can work with live=true + autonomy>=3
+    # while this stays false (supervised-first).
+    kraken_live_algo_enabled: bool = Field(default=False, validation_alias="KRAKEN_LIVE_ALGO_ENABLED")
     firebase_project_id: str | None = Field(default=None, validation_alias="FIREBASE_PROJECT_ID")
     firebase_credentials_path: str | None = Field(
         default=None, validation_alias=AliasChoices("GOOGLE_APPLICATION_CREDENTIALS", "FIREBASE_CREDENTIALS_PATH")
@@ -189,6 +199,19 @@ class Settings(BaseSettings):
     )
     fable_engine_interval: str = Field(default="5m", validation_alias="FABLE_ENGINE_INTERVAL")
 
+    # Genetic forward optimizer (paper research; no live orders).
+    ga_optimizer_enabled: bool = Field(default=True, validation_alias="GA_OPTIMIZER_ENABLED")
+    ga_data_dir: str | None = Field(default=None, validation_alias="GA_DATA_DIR")
+    ga_cache_dir: str | None = Field(default=None, validation_alias="GA_CACHE_DIR")
+    ga_default_population: int = Field(default=30, validation_alias="GA_DEFAULT_POPULATION", ge=2, le=200)
+    ga_default_generations: int = Field(default=50, validation_alias="GA_DEFAULT_GENERATIONS", ge=1, le=500)
+    ga_max_symbols: int = Field(default=40, validation_alias="GA_MAX_SYMBOLS", ge=0, le=500)
+    ga_lookback_bars: int = Field(default=600, validation_alias="GA_LOOKBACK_BARS", ge=150, le=5000)
+    ga_train_ratio: float = Field(default=0.70, validation_alias="GA_TRAIN_RATIO", gt=0.1, lt=0.95)
+    ga_fee_r: float = Field(default=0.03, validation_alias="GA_FEE_R", ge=0.0, le=1.0)
+    ga_max_concurrent_jobs: int = Field(default=1, validation_alias="GA_MAX_CONCURRENT_JOBS", ge=1, le=4)
+    ga_market_source: str = Field(default="cache", validation_alias="GA_MARKET_SOURCE")
+
     # Phase 2 — CCXT + WebSocket market stream (read-only; no live trading).
     market_stream_enabled: bool = Field(default=True, validation_alias="MARKET_STREAM_ENABLED")
     market_ccxt_enabled: bool = Field(default=True, validation_alias="MARKET_CCXT_ENABLED")
@@ -261,18 +284,30 @@ class Settings(BaseSettings):
         )
         return TradingGuardrails(
             max_order_size=self.kraken_max_order_size,
+            max_notional=self.kraken_max_notional,
             max_open_positions=self.kraken_max_open_positions,
             max_trades_per_hour=self.kraken_max_trades_per_hour,
-            pair_allowlist=pairs or frozenset({"BTCUSD"}),
+            min_trade_interval_seconds=self.kraken_min_trade_interval_seconds,
+            pair_allowlist=pairs or frozenset({"ADAUSD"}),
         )
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    # Operator vault (App Settings) overlays env before pydantic reads it.
+    try:
+        from backend.app.integrations.secrets_store import apply_secrets_to_environ
+
+        apply_secrets_to_environ(overwrite_existing=True)
+    except Exception:  # noqa: BLE001 — settings must still boot if vault missing/corrupt
+        pass
     return Settings()
 
 
 @lru_cache(maxsize=1)
 def get_trade_rate_limiter() -> TradeRateLimiter:
     settings = get_settings()
-    return TradeRateLimiter(max_trades_per_hour=settings.kraken_max_trades_per_hour)
+    return TradeRateLimiter(
+        max_trades_per_hour=settings.kraken_max_trades_per_hour,
+        min_interval_seconds=settings.kraken_min_trade_interval_seconds,
+    )

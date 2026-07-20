@@ -106,20 +106,23 @@ export function fetchEngineDryRuns(limit = 50): Promise<FableEngineDryRun[]> {
 }
 
 export function pineJsonTemplate(credentialPlaceholder = "tvsec_YOUR_SECRET"): string {
+  // Official TradingView placeholders:
+  // https://www.tradingview.com/support/solutions/43000531021/
+  // strategy.* only work on strategy order-fill alerts (not indicator alerts).
   return JSON.stringify(
     {
       schema_version: 1,
       credential: credentialPlaceholder,
-      signal_id: "{{strategy.order.id}}:{{timenow}}",
+      signal_id: "{{strategy.order.id}}-{{timenow}}",
       occurred_at: "{{timenow}}",
       strategy_id: "YOUR_STRATEGY",
       pair: "BTCUSD",
-      side: "buy",
-      volume: "0.001",
+      side: "{{strategy.order.action}}",
+      volume: "{{strategy.order.contracts}}",
       order_type: "market",
       price: null,
       order_id: "{{strategy.order.id}}",
-      raw_symbol: "{{ticker}}",
+      raw_symbol: "{{exchange}}:{{ticker}}",
       observed_price: "{{close}}",
     },
     null,

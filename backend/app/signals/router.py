@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -18,10 +19,10 @@ from .schemas import (
     SignalRouteView,
     SignalSubmissionView,
     RnaContextUpdate,
-    TradingViewWebhookBody,
 )
 from .rna_context import get_rna_context, set_rna_context
 from .service import SignalSubmissionService
+from .tv_webhook_parser import TvWebhookParseError, parse_tradingview_natural_webhook, to_kraken_order_payload
 
 router = APIRouter(tags=["signal-routes"])
 
@@ -211,6 +212,28 @@ async def fable_engine_dryruns(
     return engine.recent_dry_runs(limit=min(max(limit, 1), 200))
 
 
+@router.post("/api/v1/signals/tv-parse-preview")
+async def tradingview_parse_preview(
+    request: Request,
+    _user: dict = Depends(require_signal_admin),
+) -> dict:
+    """Dry-run: natural TV JSON → Neo body + Kraken order fields (no route submit)."""
+    body_bytes = await request.body()
+    try:
+        raw = json.loads(body_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=422, detail={"code": "invalid_json", "message": "invalid JSON"}) from exc
+    try:
+        payload = parse_tradingview_natural_webhook(raw if isinstance(raw, dict) else {})
+    except TvWebhookParseError as exc:
+        raise HTTPException(status_code=422, detail={"code": exc.code, "message": str(exc)}) from exc
+    return {
+        "ok": True,
+        "neo": payload.model_dump(mode="json"),
+        "kraken_order": to_kraken_order_payload(payload),
+    }
+
+
 @router.post(
     "/api/v1/webhooks/tradingview/{public_route_key}",
     response_model=SignalReceipt,
@@ -227,9 +250,25 @@ async def tradingview_webhook(
     if len(body_bytes) > settings.signal_max_body_bytes:
         raise HTTPException(status_code=413, detail={"code": "body_too_large", "message": "payload too large"})
     try:
-        payload = TradingViewWebhookBody.model_validate_json(body_bytes)
-    except Exception as exc:
-        raise HTTPException(status_code=422, detail={"code": "invalid_payload", "message": "invalid payload"}) from exc
+        raw = json.loads(body_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "invalid_json", "message": "body must be UTF-8 JSON"},
+        ) from exc
+    try:
+        payload = parse_tradingview_natural_webhook(raw if isinstance(raw, dict) else {})
+    except TvWebhookParseError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": exc.code, "message": str(exc), "kraken_hint": "fix TV JSON / placeholders"},
+        ) from exc
+
+    # Attach Kraken-normalized order preview for operators (response header only).
+    kraken = to_kraken_order_payload(payload)
+    response.headers["X-Kraken-Pair"] = kraken["pair"] or ""
+    response.headers["X-Kraken-Side"] = kraken["side"] or ""
+    response.headers["X-Kraken-Volume"] = kraken["volume"] or ""
 
     request_id, correlation = _server_request_id(request)
     response.headers["X-Request-ID"] = request_id

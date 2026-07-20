@@ -24,9 +24,21 @@ backend/data/llm_spend/*
 !backend/data/llm_spend/.gitkeep
 backend/data/chronos/*
 !backend/data/chronos/.gitkeep
+backend/data/ga_runs/*
+!backend/data/ga_runs/.gitkeep
+backend/data/ga_cache/*
+!backend/data/ga_cache/.gitkeep
+backend/.ga_recovery/
 secrets/
 .cursor/
 .agents/
 *.local
 fable-5-masterprompt-os (2)/
 uploads/
+
+backend/data/trading/
+backend/data/secrets/*
+!backend/data/secrets/.gitkeep
+backend/data/pine/*
+!backend/data/pine/.gitkeep
+

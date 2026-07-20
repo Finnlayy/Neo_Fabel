@@ -44,6 +44,12 @@ from .routers.onnx import router as onnx_router
 from .routers.telegram import router as telegram_router
 from .routers.tvapi import router as tvapi_router
 from .routers.vector import router as vector_router
+from .routers.ga import router as ga_router
+from .routers.loops import router as loops_router
+from .routers.kraken_status import router as kraken_status_router
+from .routers.orders import router as orders_router
+from .routers.integrations_settings import router as integrations_settings_router
+from .routers.tvremix import router as tvremix_router
 from .integrations.onnx.paths import ensure_onnx_data_dir
 from .integrations.onnx.runtime import ensure_seed_models, netron_static_dir, onnx_deps_available
 from .academy.training_loop import training_loop
@@ -51,9 +57,34 @@ from .signals.mcp_server import mcp_router
 from .signals.router import router as signal_router
 from .signals.safety import assert_signals_module_imports
 from .trading.autonomy import AutonomyLevel
+from .trading.loops import trading_loops
 
 logger = logging.getLogger("neo_fabel.api")
 from .trading.session import Level4Session
+
+
+def _kraken_status_snapshot() -> dict[str, Any]:
+    try:
+        from .integrations.kraken_status import load_index
+
+        idx = load_index()
+        if not idx:
+            return {"loaded": False}
+        non_op = idx.get("non_operational") or []
+        return {
+            "loaded": True,
+            "fetched_at": idx.get("fetched_at"),
+            "indicator": idx.get("indicator"),
+            "description": idx.get("description"),
+            "non_operational_count": len(non_op),
+            "non_operational": [
+                {"name": c.get("name"), "status": c.get("status")}
+                for c in non_op
+                if isinstance(c, dict)
+            ][:20],
+        }
+    except Exception:  # noqa: BLE001 — health must not fail on status IO
+        return {"loaded": False}
 
 
 settings = get_settings()
@@ -126,6 +157,10 @@ async def lifespan(_app: FastAPI):
                 pass
             set_fable_engine(None)
         training_loop.stop_now()
+        try:
+            await trading_loops.shutdown()
+        except Exception:  # noqa: BLE001
+            logger.exception("trading loops shutdown failed")
         await hub.stop()
 
 
@@ -211,6 +246,12 @@ app.include_router(market_stream_router)
 app.include_router(academy_router)
 app.include_router(onnx_router)
 app.include_router(chronos_router)
+app.include_router(ga_router)
+app.include_router(loops_router)
+app.include_router(kraken_status_router)
+app.include_router(orders_router)
+app.include_router(integrations_settings_router)
+app.include_router(tvremix_router)
 
 # ONNX artifacts for Netron iframe (no Bearer — same-origin static only).
 _onnx_dir = ensure_onnx_data_dir()
@@ -271,7 +312,7 @@ def _ledger_mark_targets(state: dict) -> tuple[list[str], list[str]]:
 
 
 async def _collect_ledger_mark_prices(state: dict) -> dict:
-    from decimal import Decimal
+    from decimal import Decimal, InvalidOperation
 
     from backend.app.integrations.kraken_futures_public import KrakenFuturesPublicClient
 
@@ -283,8 +324,10 @@ async def _collect_ledger_mark_prices(state: dict) -> dict:
             last = ticker.get("last") or ticker.get("price") or ticker.get("close")
             if isinstance(last, list) and last:
                 last = last[0]
+            if last is None or str(last).strip() in {"", "None", "null"}:
+                continue
             marks[pair] = Decimal(str(last))
-        except KrakenCliError:
+        except (KrakenCliError, InvalidOperation, ValueError, TypeError):
             continue
     if fut_pairs:
         futures_client = KrakenFuturesPublicClient(timeout_seconds=settings.kraken_timeout_seconds)
@@ -295,8 +338,12 @@ async def _collect_ledger_mark_prices(state: dict) -> dict:
                 try:
                     ticker, _ = await crypto_ticker_data(pair.replace("PF_", "").replace("XBT", "BTC"))
                     last = ticker.get("last") or ticker.get("price")
+                    if isinstance(last, list) and last:
+                        last = last[0]
+                    if last is None or str(last).strip() in {"", "None", "null"}:
+                        continue
                     marks[pair] = Decimal(str(last))
-                except KrakenCliError:
+                except (KrakenCliError, InvalidOperation, ValueError, TypeError):
                     continue
     return marks
 
@@ -317,10 +364,35 @@ def kraken_public() -> KrakenPublicClient:
     return KrakenPublicClient(timeout_seconds=settings.kraken_timeout_seconds)
 
 
+def _normalize_cli_ticker(payload: dict[str, Any]) -> dict[str, Any]:
+    """Normalize CLI ticker payloads into a flat dict with last/price/close."""
+    entry: dict[str, Any] = payload
+    if "last" not in payload and "price" not in payload and "close" not in payload:
+        nested = next((value for value in payload.values() if isinstance(value, dict)), None)
+        if isinstance(nested, dict):
+            entry = dict(nested)
+    close = entry.get("c")
+    last = entry.get("last") or entry.get("price") or entry.get("close")
+    if last is None and isinstance(close, list) and close:
+        last = close[0]
+    elif last is None:
+        last = close
+    if isinstance(last, list) and last:
+        last = last[0]
+    if last is not None:
+        entry["last"] = last
+        entry["price"] = last
+        entry["close"] = last
+    if "open" not in entry and entry.get("o") is not None:
+        entry["open"] = entry.get("o")
+    return entry
+
+
 async def crypto_ticker_data(symbol: str) -> tuple[dict[str, Any], str]:
     """Prefer CLI; fall back to Kraken public REST (required on Windows uvicorn)."""
     try:
-        return await kraken().ticker(symbol), "kraken-cli"
+        raw = await kraken().ticker(symbol)
+        return _normalize_cli_ticker(raw if isinstance(raw, dict) else {}), "kraken-cli"
     except KrakenCliError:
         data = await kraken_public().ticker(symbol)
         return data, "kraken-public"
@@ -377,16 +449,28 @@ async def trading_autonomy() -> dict:
         "deadman_seconds": settings.kraken_deadman_seconds,
         "guardrails": {
             "max_order_size": str(guardrails.max_order_size),
+            "max_notional": str(guardrails.max_notional),
             "max_open_positions": guardrails.max_open_positions,
             "max_trades_per_hour": guardrails.max_trades_per_hour,
+            "min_trade_interval_seconds": guardrails.min_trade_interval_seconds,
             "pair_allowlist": sorted(guardrails.pair_allowlist),
         },
+        "live_algo_enabled": settings.kraken_live_algo_enabled,
         "required_for_level4": [
             "KRAKEN_AUTONOMY_LEVEL=4",
             "KRAKEN_LIVE_TRADING_ENABLED=true",
             "trade-only API key (no Withdraw Funds)",
             "dead man's switch armed each session",
+            "KRAKEN_LIVE_ALGO_ENABLED=true only for unattended algo (manual desk OK without it)",
         ],
+        "capital_policy": {
+            "external_replenish": False,
+            "negative_cash": False,
+            "debt_or_leverage": False,
+            "max_notional": str(settings.kraken_max_notional),
+            "note": "System may only trade existing Kraken balances; deposit/withdraw/transfer blocked; no shorts or leverage>1",
+        },
+        "kraken_status": _kraken_status_snapshot(),
     }
 
 

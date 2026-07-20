@@ -1,6 +1,14 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, RefreshCw, XCircle } from "lucide-react";
 import { closePosition, fetchPositions, type PositionsSnapshot } from "../../api/positions";
+import {
+  amendOrder,
+  cancelAllOrders,
+  cancelOrder,
+  placeOrder,
+  SPOT_ORDER_TYPES,
+  type SpotOrderType,
+} from "../../api/orders";
 
 type Props = {
   language?: "en" | "de";
@@ -18,6 +26,20 @@ function pnlClass(value: string | number | null | undefined): string {
   return n > 0 ? "text-emerald-400" : "text-rose-400";
 }
 
+const emptyForm = {
+  mode: "paper" as "paper" | "live",
+  market_type: "spot" as "spot" | "futures",
+  pair: "BTCUSD",
+  side: "buy" as "buy" | "sell",
+  volume: "0.001",
+  order_type: "market" as SpotOrderType | string,
+  price: "",
+  price2: "",
+  close_volume: "",
+  close_limit: false,
+  close_price: "",
+};
+
 export default function PositionsPage({ language = "en" }: Props) {
   const de = language === "de";
   const [snap, setSnap] = useState<PositionsSnapshot | null>(null);
@@ -25,6 +47,15 @@ export default function PositionsPage({ language = "en" }: Props) {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [closing, setClosing] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [amendId, setAmendId] = useState("");
+  const [amendPrice, setAmendPrice] = useState("");
+  const [amendVolume, setAmendVolume] = useState("");
+  const [protectPair, setProtectPair] = useState("");
+  const [protectVol, setProtectVol] = useState("");
+  const [slPrice, setSlPrice] = useState("");
+  const [tpPrice, setTpPrice] = useState("");
+  const [trailOffset, setTrailOffset] = useState("+500");
 
   const reload = useCallback(async () => {
     setBusy(true);
@@ -53,6 +84,8 @@ export default function PositionsPage({ language = "en" }: Props) {
     mode: "paper" | "live",
     marketType: "spot" | "futures" = "spot",
     volume?: string,
+    orderType: "market" | "limit" = "market",
+    price?: string,
   ) => {
     const key = `${mode}:${marketType}:${pair}`;
     setClosing(key);
@@ -64,7 +97,8 @@ export default function PositionsPage({ language = "en" }: Props) {
         mode,
         market_type: marketType,
         volume,
-        order_type: "market",
+        order_type: orderType,
+        price,
         idempotency_key: crypto.randomUUID(),
       });
       setNotice(
@@ -89,6 +123,120 @@ export default function PositionsPage({ language = "en" }: Props) {
     }
     setBusy(false);
   };
+
+  const onOpen = async () => {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const res = await placeOrder({
+        mode: form.mode,
+        market_type: form.market_type,
+        pair: form.pair.trim().toUpperCase(),
+        side: form.side,
+        volume: form.volume,
+        order_type: form.order_type,
+        price: form.price || undefined,
+        price2: form.price2 || undefined,
+        idempotency_key: crypto.randomUUID(),
+      });
+      setNotice(de ? `Order ${res.status}` : `Order ${res.status}`);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onCancel = async (orderId: string) => {
+    setBusy(true);
+    setError("");
+    try {
+      await cancelOrder({ order_id: orderId, mode: "live" });
+      setNotice(de ? `Order ${orderId} storniert` : `Cancelled ${orderId}`);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onCancelAll = async () => {
+    if (!window.confirm(de ? "Alle Live-Orders stornieren?" : "Cancel all live orders?")) return;
+    setBusy(true);
+    setError("");
+    try {
+      await cancelAllOrders({ confirm: true, mode: "live" });
+      setNotice(de ? "Alle Orders storniert" : "All orders cancelled");
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onAmend = async () => {
+    if (!amendId.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      await amendOrder({
+        order_id: amendId.trim(),
+        price: amendPrice || undefined,
+        volume: amendVolume || undefined,
+        pair: form.pair,
+        side: form.side,
+        order_type: form.order_type,
+      });
+      setNotice(de ? "Order geändert" : "Order amended");
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const placeProtect = async (kind: "stop-loss" | "take-profit" | "trailing-stop") => {
+    const pair = protectPair.trim().toUpperCase() || form.pair;
+    const volume = protectVol || form.volume;
+    const price =
+      kind === "stop-loss" ? slPrice : kind === "take-profit" ? tpPrice : trailOffset;
+    if (!price) {
+      setError(de ? "Preis/Offset fehlt" : "Price/offset required");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const res = await placeOrder({
+        mode: form.mode,
+        market_type: "spot",
+        pair,
+        side: "sell",
+        volume,
+        order_type: kind,
+        price,
+        idempotency_key: crypto.randomUUID(),
+      });
+      setNotice(`${kind}: ${res.status}`);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const orderTypeOptions =
+    form.mode === "paper"
+      ? (["market", "limit"] as const)
+      : form.market_type === "futures"
+        ? (["market", "limit", "stop"] as const)
+        : SPOT_ORDER_TYPES;
 
   return (
     <div role="tabpanel" aria-labelledby="tab-positions" className="space-y-4 max-w-[1200px] mx-auto">
@@ -169,6 +317,234 @@ export default function PositionsPage({ language = "en" }: Props) {
           ))}
         </div>
       ) : null}
+
+      {/* Open order desk */}
+      <section className="bg-slate-900/40 border border-cyan-500/25 rounded-xl p-4 font-mono text-[10px] space-y-3">
+        <h2 className="text-xs text-cyan-300 uppercase tracking-widest">
+          {de ? "Order eröffnen" : "Open order"}
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-slate-500">Mode</span>
+            <select
+              className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+              value={form.mode}
+              onChange={(e) => setForm((f) => ({...f, mode: e.target.value as "paper" | "live"}))}
+            >
+              <option value="paper">paper</option>
+              <option value="live">live</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-slate-500">Market</span>
+            <select
+              className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+              value={form.market_type}
+              onChange={(e) => setForm((f) => ({...f, market_type: e.target.value as "spot" | "futures"}))}
+            >
+              <option value="spot">spot</option>
+              <option value="futures">futures</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-slate-500">Pair</span>
+            <input
+              className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+              value={form.pair}
+              onChange={(e) => setForm((f) => ({...f, pair: e.target.value}))}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-slate-500">Side</span>
+            <select
+              className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+              value={form.side}
+              onChange={(e) => setForm((f) => ({...f, side: e.target.value as "buy" | "sell"}))}
+            >
+              <option value="buy">buy</option>
+              <option value="sell">sell</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-slate-500">Type</span>
+            <select
+              className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+              value={form.order_type}
+              onChange={(e) => setForm((f) => ({...f, order_type: e.target.value}))}
+            >
+              {orderTypeOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-slate-500">Volume</span>
+            <input
+              className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+              value={form.volume}
+              onChange={(e) => setForm((f) => ({...f, volume: e.target.value}))}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-slate-500">Price</span>
+            <input
+              className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+              value={form.price}
+              onChange={(e) => setForm((f) => ({...f, price: e.target.value}))}
+              placeholder="limit / stop"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-slate-500">Price2</span>
+            <input
+              className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+              value={form.price2}
+              onChange={(e) => setForm((f) => ({...f, price2: e.target.value}))}
+              placeholder="stop-limit"
+            />
+          </label>
+        </div>
+        <button
+          type="button"
+          disabled={busy || (form.mode === "live" && !snap?.live_close_available)}
+          onClick={() => void onOpen()}
+          className="px-3 py-2 rounded-lg border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 cursor-pointer disabled:opacity-40"
+          title={
+            form.mode === "live" && !snap?.live_close_available
+              ? de
+                ? "Live erfordert KRAKEN_LIVE_TRADING_ENABLED + Autonomy ≥ 3"
+                : "Live requires KRAKEN_LIVE_TRADING_ENABLED + autonomy ≥ 3"
+              : undefined
+          }
+        >
+          {de ? "Order senden" : "Submit order"}
+        </button>
+      </section>
+
+      {/* Protect / SL TP trailing */}
+      <section className="bg-slate-900/40 border border-amber-500/20 rounded-xl p-4 font-mono text-[10px] space-y-2">
+        <h2 className="text-xs text-amber-300 uppercase tracking-widest">
+          {de ? "Absichern (SL / TP / Trailing)" : "Protect (SL / TP / Trailing)"}
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <input
+            className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+            placeholder="Pair"
+            value={protectPair}
+            onChange={(e) => setProtectPair(e.target.value)}
+          />
+          <input
+            className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+            placeholder="Volume"
+            value={protectVol}
+            onChange={(e) => setProtectVol(e.target.value)}
+          />
+          <input
+            className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+            placeholder="SL price"
+            value={slPrice}
+            onChange={(e) => setSlPrice(e.target.value)}
+          />
+          <input
+            className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+            placeholder="TP price"
+            value={tpPrice}
+            onChange={(e) => setTpPrice(e.target.value)}
+          />
+          <input
+            className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+            placeholder="Trail +N"
+            value={trailOffset}
+            onChange={(e) => setTrailOffset(e.target.value)}
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void placeProtect("stop-loss")}
+            className="px-2 py-1.5 border border-rose-500/30 text-rose-300 rounded cursor-pointer disabled:opacity-40"
+          >
+            Stop-loss
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void placeProtect("take-profit")}
+            className="px-2 py-1.5 border border-emerald-500/30 text-emerald-300 rounded cursor-pointer disabled:opacity-40"
+          >
+            Take-profit
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void placeProtect("trailing-stop")}
+            className="px-2 py-1.5 border border-cyan-500/30 text-cyan-300 rounded cursor-pointer disabled:opacity-40"
+          >
+            Trailing stop
+          </button>
+        </div>
+      </section>
+
+      {/* Partial / limit close helper */}
+      <section className="bg-slate-900/40 border border-white/10 rounded-xl p-4 font-mono text-[10px] space-y-2">
+        <h2 className="text-xs text-slate-300 uppercase tracking-widest">
+          {de ? "Teilschließen / Limit-Close" : "Partial / limit close"}
+        </h2>
+        <div className="flex flex-wrap gap-2 items-end">
+          <label className="flex flex-col gap-1">
+            <span className="text-slate-500">Pair</span>
+            <input
+              className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+              value={form.pair}
+              onChange={(e) => setForm((f) => ({...f, pair: e.target.value}))}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-slate-500">Volume</span>
+            <input
+              className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+              value={form.close_volume}
+              onChange={(e) => setForm((f) => ({...f, close_volume: e.target.value}))}
+              placeholder="optional"
+            />
+          </label>
+          <label className="flex items-center gap-2 px-2 py-1.5">
+            <input
+              type="checkbox"
+              checked={form.close_limit}
+              onChange={(e) => setForm((f) => ({...f, close_limit: e.target.checked}))}
+            />
+            <span>Limit</span>
+          </label>
+          <input
+            className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+            value={form.close_price}
+            onChange={(e) => setForm((f) => ({...f, close_price: e.target.value}))}
+            placeholder="limit price"
+            disabled={!form.close_limit}
+          />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void onClose(
+                form.pair.trim().toUpperCase(),
+                form.mode,
+                form.market_type,
+                form.close_volume || undefined,
+                form.close_limit ? "limit" : "market",
+                form.close_limit ? form.close_price : undefined,
+              )
+            }
+            className="px-3 py-1.5 border border-rose-500/30 text-rose-300 rounded cursor-pointer disabled:opacity-40"
+          >
+            {de ? "Schließen" : "Close"}
+          </button>
+        </div>
+      </section>
 
       <section className="bg-slate-900/40 border border-amber-500/20 rounded-xl p-4 overflow-x-auto">
         <h2 className="text-xs font-mono text-amber-300 uppercase tracking-widest mb-3">
@@ -335,35 +711,92 @@ export default function PositionsPage({ language = "en" }: Props) {
         </table>
       </section>
 
-      {(snap?.open_orders ?? []).length > 0 ? (
-        <section className="bg-slate-900/40 border border-white/5 rounded-xl p-4 overflow-x-auto">
-          <h2 className="text-xs font-mono text-slate-400 uppercase tracking-widest mb-3">
+      <section className="bg-slate-900/40 border border-white/5 rounded-xl p-4 overflow-x-auto space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-xs font-mono text-slate-400 uppercase tracking-widest">
             {de ? "Offene Live-Orders" : "Open live orders"}
           </h2>
-          <table className="w-full text-[10px] font-mono text-slate-300">
-            <thead>
-              <tr className="text-slate-500 border-b border-white/5">
-                <th className="text-left py-1">Pair</th>
-                <th className="text-left py-1">Side</th>
-                <th className="text-right py-1">Vol</th>
-                <th className="text-right py-1">Price</th>
-                <th className="text-left py-1">Status</th>
+          <button
+            type="button"
+            disabled={busy || !snap?.live_close_available}
+            onClick={() => void onCancelAll()}
+            className="px-2 py-1 border border-rose-500/30 text-rose-300 rounded text-[10px] font-mono cursor-pointer disabled:opacity-40"
+          >
+            {de ? "Alle stornieren" : "Cancel all"}
+          </button>
+        </div>
+        <table className="w-full text-[10px] font-mono text-slate-300">
+          <thead>
+            <tr className="text-slate-500 border-b border-white/5">
+              <th className="text-left py-1">ID</th>
+              <th className="text-left py-1">Pair</th>
+              <th className="text-left py-1">Side</th>
+              <th className="text-right py-1">Vol</th>
+              <th className="text-right py-1">Price</th>
+              <th className="text-left py-1">Status</th>
+              <th className="text-right py-1">{de ? "Aktion" : "Action"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(snap?.open_orders ?? []).map((o) => (
+              <tr key={o.order_id || `${o.pair}-${o.side}`} className="border-b border-white/5">
+                <td className="py-1 max-w-[120px] truncate">{o.order_id || "—"}</td>
+                <td className="py-1">{o.pair}</td>
+                <td className="py-1 uppercase">{o.side}</td>
+                <td className="text-right py-1">{o.volume}</td>
+                <td className="text-right py-1">{o.price}</td>
+                <td className="py-1">{o.status}</td>
+                <td className="text-right py-1">
+                  <button
+                    type="button"
+                    disabled={!o.order_id || !snap?.live_close_available || busy}
+                    onClick={() => void onCancel(o.order_id)}
+                    className="px-2 py-0.5 border border-rose-500/30 text-rose-300 rounded cursor-pointer disabled:opacity-40"
+                  >
+                    {de ? "Storno" : "Cancel"}
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {snap!.open_orders.map((o) => (
-                <tr key={o.order_id || `${o.pair}-${o.side}`} className="border-b border-white/5">
-                  <td className="py-1">{o.pair}</td>
-                  <td className="py-1 uppercase">{o.side}</td>
-                  <td className="text-right py-1">{o.volume}</td>
-                  <td className="text-right py-1">{o.price}</td>
-                  <td className="py-1">{o.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      ) : null}
+            ))}
+            {!(snap?.open_orders ?? []).length ? (
+              <tr>
+                <td colSpan={7} className="py-4 text-slate-500 text-center">
+                  {de ? "Keine offenen Orders" : "No open orders"}
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+
+        <div className="flex flex-wrap gap-2 items-end border-t border-white/5 pt-3">
+          <input
+            className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+            placeholder="Order ID"
+            value={amendId}
+            onChange={(e) => setAmendId(e.target.value)}
+          />
+          <input
+            className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+            placeholder="New price"
+            value={amendPrice}
+            onChange={(e) => setAmendPrice(e.target.value)}
+          />
+          <input
+            className="bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white"
+            placeholder="New volume"
+            value={amendVolume}
+            onChange={(e) => setAmendVolume(e.target.value)}
+          />
+          <button
+            type="button"
+            disabled={busy || !snap?.live_close_available}
+            onClick={() => void onAmend()}
+            className="px-3 py-1.5 border border-cyan-500/30 text-cyan-300 rounded cursor-pointer disabled:opacity-40"
+          >
+            {de ? "Ändern / Replace" : "Amend / replace"}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

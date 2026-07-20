@@ -122,8 +122,8 @@ class FableEngine:
         items = list(self.dry_runs)
         return items[-limit:]
 
-    async def run_forever(self) -> None:
-        if not self.engine.enabled:
+    async def run_forever(self, *, force: bool = False) -> None:
+        if not self.engine.enabled and not force:
             logger.info("FableEngine not started (FABLE_ENGINE_ENABLED=false)")
             return
         self.assert_start_safe()

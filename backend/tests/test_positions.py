@@ -53,6 +53,35 @@ def test_parse_open_orders_dict_shape() -> None:
 
 
 @pytest.mark.asyncio
+async def test_build_positions_skips_kraken_when_paper_only() -> None:
+    from unittest.mock import AsyncMock
+
+    from backend.app.integrations.kraken_cli import KrakenCliError
+    from backend.app.integrations.positions import build_positions_snapshot
+
+    cli = AsyncMock()
+    cli.balance = AsyncMock(side_effect=KrakenCliError("config", "kraken executable is not installed"))
+    cli.open_orders = AsyncMock(side_effect=KrakenCliError("config", "kraken executable is not installed"))
+
+    async def _ticker(_pair: str):
+        return {"last": "1"}, "test"
+
+    snap = await build_positions_snapshot(
+        paper_positions=[{"pair": "BTCUSD", "volume": "0.01"}],
+        cli=cli,
+        ticker_fn=_ticker,
+        live_trading_enabled=False,
+        trade_commands_enabled=False,
+    )
+    assert snap["errors"] == []
+    assert snap["live"] == []
+    assert snap["open_orders"] == []
+    assert len(snap["paper"]) == 1
+    cli.balance.assert_not_called()
+    cli.open_orders.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_close_paper_position_api(authenticated_user, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     reset_local_paper_ledger_for_tests()
     ledger_file = tmp_path / "ledger.json"

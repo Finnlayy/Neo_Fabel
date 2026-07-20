@@ -1,0 +1,212 @@
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
+import { fetchLoopsStatus, type LoopsStatus } from "../api/loops";
+import { fetchPaperPerformance, fetchPaperStatus } from "../api/paper";
+import { fetchCryptoTickers } from "../api/market";
+import { apiRequest } from "../api/client";
+import { fetchSignalStatus, fetchSubmissions } from "../features/signalRoutes/api";
+import type { MainTab } from "../types";
+
+type Props = {
+  language: "en" | "de";
+  onNavigate?: (tab: MainTab) => void;
+};
+
+type EquityPoint = { t: string; equity: number };
+
+function Pill({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[9px] uppercase tracking-wider ${
+        ok ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10" : "border-slate-600 text-slate-400 bg-white/5"
+      }`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-emerald-400 animate-pulse" : "bg-slate-500"}`} />
+      {label}
+    </span>
+  );
+}
+
+function ageLabel(iso: string | null | undefined, de: boolean): string {
+  if (!iso) return de ? "nie" : "never";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return iso.slice(11, 19);
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return de ? `vor ${s}s` : `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return de ? `vor ${m}m` : `${m}m ago`;
+  return de ? `vor ${Math.floor(m / 60)}h` : `${Math.floor(m / 60)}h ago`;
+}
+
+export default function CommandOverview({ language, onNavigate }: Props) {
+  const de = language === "de";
+  const [loops, setLoops] = useState<LoopsStatus | null>(null);
+  const [cash, setCash] = useState<string>("—");
+  const [equityUsd, setEquityUsd] = useState<string>("—");
+  const [sessionPnl, setSessionPnl] = useState<string>("—");
+  const [openPos, setOpenPos] = useState<number>(0);
+  const [equity, setEquity] = useState<EquityPoint[]>([]);
+  const [ada, setAda] = useState<number | null>(null);
+  const [xrp, setXrp] = useState<number | null>(null);
+  const [krakenStatus, setKrakenStatus] = useState<string>("—");
+  const [lastSignal, setLastSignal] = useState<string>(de ? "keine" : "none");
+  const [queueDepth, setQueueDepth] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function tick() {
+      try {
+        const [loopSt, paperSt, perf, tickers, kstat, sigSt, subs] = await Promise.allSettled([
+          fetchLoopsStatus(),
+          fetchPaperStatus(),
+          fetchPaperPerformance(),
+          fetchCryptoTickers(["ADA", "XRP"]),
+          apiRequest<{ indicator?: string; description?: string }>("/api/v1/kraken/status").catch(() => null),
+          fetchSignalStatus(),
+          fetchSubmissions(),
+        ]);
+        if (cancelled) return;
+        if (loopSt.status === "fulfilled") setLoops(loopSt.value);
+        if (paperSt.status === "fulfilled") {
+          const d = paperSt.value.data;
+          setCash(d.spot?.usd_balance ?? d.usd_balance ?? "—");
+          setOpenPos(Number(d.spot?.open_positions ?? 0));
+        }
+        if (perf.status === "fulfilled") {
+          const p = perf.value;
+          setEquityUsd(p.combined_equity_usd ?? p.equity_usd ?? "—");
+          setSessionPnl(p.total_pnl_usd ?? "—");
+          const series = p.equity_curve;
+          if (Array.isArray(series)) {
+            setEquity(
+              series.slice(-48).map((pt, i) => ({
+                t: String(pt.time ?? i),
+                equity: Number(pt.equity_usd ?? 0),
+              })),
+            );
+          }
+        }
+        if (tickers.status === "fulfilled") {
+          for (const t of tickers.value.tickers) {
+            if (t.symbol === "ADA") setAda(t.price);
+            if (t.symbol === "XRP") setXrp(t.price);
+          }
+        }
+        if (kstat.status === "fulfilled" && kstat.value) {
+          setKrakenStatus(String(kstat.value.indicator ?? kstat.value.description ?? "ok"));
+        }
+        if (sigSt.status === "fulfilled") setQueueDepth(sigSt.value.queue_depth ?? 0);
+        if (subs.status === "fulfilled" && subs.value[0]) {
+          const s = subs.value[0];
+          setLastSignal(`${s.status} · ${s.pair} · ${ageLabel(s.created_at, de)}`);
+        }
+        setError(null);
+      } catch (err) {
+        if (!cancelled) setError(String(err));
+      }
+    }
+    void tick();
+    const id = window.setInterval(() => void tick(), 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [de]);
+
+  const spark = useMemo(() => equity.filter((p) => Number.isFinite(p.equity)), [equity]);
+  const krakenOk =
+    krakenStatus === "none" ||
+    krakenStatus === "operational" ||
+    krakenStatus === "minor" ||
+    krakenStatus === "ok";
+
+  return (
+    <section className="rounded-xl border border-cyan-500/20 bg-slate-950/70 p-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[11px] font-bold uppercase tracking-widest text-cyan-300">
+          {de ? "Kommando-Übersicht" : "Command Overview"}
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          <Pill ok={Boolean(loops?.paper.running)} label={de ? "Paper-Loop" : "Paper loop"} />
+          <Pill ok={Boolean(loops?.live.running)} label={de ? "Live-Algo" : "Live algo"} />
+          <Pill ok={(loops?.live.autonomy ?? 0) >= 3} label={`L${loops?.live.autonomy ?? "—"}`} />
+          <Pill ok={krakenOk} label={`Kraken ${krakenStatus}`} />
+        </div>
+      </div>
+
+      {error && <p className="text-[10px] text-rose-400">{error}</p>}
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+        <div className="lg:col-span-3 h-28 rounded-lg border border-white/5 bg-black/30 overflow-hidden relative">
+          <div className="absolute top-2 left-3 z-10 text-[9px] uppercase tracking-widest text-slate-500">
+            {de ? "Paper Equity" : "Paper equity"}{" "}
+            <span className="text-cyan-300 font-mono text-[11px] ml-1">${equityUsd}</span>
+          </div>
+          {spark.length > 1 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={spark}>
+                <defs>
+                  <linearGradient id="eqFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <YAxis domain={["auto", "auto"]} hide />
+                <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", fontSize: 10 }} />
+                <Area type="monotone" dataKey="equity" stroke="#22d3ee" fill="url(#eqFill)" strokeWidth={1.5} />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex items-center justify-center text-[10px] text-slate-500 uppercase tracking-widest">
+              {de ? "Equity-Kurve lädt…" : "Equity curve loading…"}
+            </div>
+          )}
+        </div>
+        <div className="lg:col-span-2 grid grid-cols-2 gap-2">
+          <Fact label={de ? "Cash" : "Cash"} value={cash === "—" ? "—" : `$${cash}`} />
+          <Fact label={de ? "Session PnL" : "Session PnL"} value={sessionPnl === "—" ? "—" : `$${sessionPnl}`} />
+          <Fact label={de ? "Offene Pos." : "Open pos."} value={String(openPos)} />
+          <Fact label={de ? "Signal-Queue" : "Signal queue"} value={String(queueDepth)} />
+          <Fact label="ADA" value={ada != null ? ada.toFixed(4) : "—"} />
+          <Fact label="XRP" value={xrp != null ? xrp.toFixed(4) : "—"} />
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-white/10 bg-slate-900/40 px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[10px] text-slate-400">
+          <span className="uppercase tracking-widest text-slate-500 mr-2">
+            {de ? "Letztes Signal" : "Last signal"}
+          </span>
+          <span className="font-mono text-slate-200">{lastSignal}</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Cta onClick={() => onNavigate?.("signals")}>{de ? "Signal einrichten" : "Set up signal"}</Cta>
+          <Cta onClick={() => onNavigate?.("paper")}>{de ? "Paper-Fill prüfen" : "Check paper fill"}</Cta>
+          <Cta onClick={() => onNavigate?.("terminal")}>{de ? "Terminal / Orderbuch" : "Terminal / book"}</Cta>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-slate-900/50 px-3 py-2">
+      <div className="text-[8px] uppercase tracking-widest text-slate-500">{label}</div>
+      <div className="text-sm font-semibold text-slate-100 font-mono tabular-nums mt-0.5 truncate">{value}</div>
+    </div>
+  );
+}
+
+function Cta({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="px-2.5 py-1 rounded border border-cyan-500/30 text-cyan-300 text-[9px] uppercase tracking-wider hover:bg-cyan-500/10 cursor-pointer"
+    >
+      {children}
+    </button>
+  );
+}

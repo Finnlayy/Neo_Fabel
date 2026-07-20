@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, Awaitable, Callable
 
 from backend.app.integrations.kraken_cli import KrakenCli, KrakenCliError
@@ -29,7 +29,10 @@ ASSET_TO_PAIR = {
 def _d(value: Any) -> Decimal:
     if isinstance(value, Decimal):
         return value
-    return Decimal(str(value or "0"))
+    try:
+        return Decimal(str(value or "0"))
+    except InvalidOperation:
+        return Decimal("0")
 
 
 def asset_to_pair(asset: str) -> str:
@@ -166,18 +169,20 @@ async def build_positions_snapshot(
     open_orders: list[dict[str, Any]] = []
     errors: list[dict[str, str]] = []
 
-    try:
-        balance = await cli.balance()
-        live = parse_live_balances(balance if isinstance(balance, dict) else None)
-        live = await enrich_with_marks(live, ticker_fn)
-    except KrakenCliError as exc:
-        errors.append({"source": "live_balance", "category": exc.category, "message": str(exc)})
+    # Paper-only: never touch the Kraken binary — missing CLI must not pollute the UI.
+    if live_trading_enabled:
+        try:
+            balance = await cli.balance()
+            live = parse_live_balances(balance if isinstance(balance, dict) else None)
+            live = await enrich_with_marks(live, ticker_fn)
+        except KrakenCliError as exc:
+            errors.append({"source": "live_balance", "category": exc.category, "message": str(exc)})
 
-    try:
-        orders = await cli.open_orders()
-        open_orders = parse_open_orders(orders if isinstance(orders, dict) else None)
-    except KrakenCliError as exc:
-        errors.append({"source": "open_orders", "category": exc.category, "message": str(exc)})
+        try:
+            orders = await cli.open_orders()
+            open_orders = parse_open_orders(orders if isinstance(orders, dict) else None)
+        except KrakenCliError as exc:
+            errors.append({"source": "open_orders", "category": exc.category, "message": str(exc)})
 
     return {
         "paper": paper,

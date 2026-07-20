@@ -69,7 +69,12 @@ class Level4Session:
         record(
             "withdrawal_note",
             True,
-            "API key must be trade-only (no Withdraw Funds permission)",
+            "API key must be trade-only (no Withdraw Funds / no funding permissions)",
+        )
+        record(
+            "capital_policy",
+            True,
+            "no external replenish; no debt/leverage>1; no negative cash; max notional enforced",
         )
 
         try:
@@ -109,32 +114,48 @@ class Level4Session:
         return await self.arm_deadman()
 
     async def monitor_snapshot(self) -> dict[str, Any]:
-        """Level 1 monitoring view — safe at any autonomy level with query keys."""
+        """Level 1 monitoring view — safe at any autonomy level with query keys.
+
+        When live trading is disabled, skip the Kraken CLI entirely (paper research
+        must not require a local `kraken` binary).
+        """
         balance: dict[str, Any] | None = None
         open_orders: dict[str, Any] | None = None
         errors: list[dict[str, str]] = []
-        try:
-            balance = await self.cli.balance()
-        except KrakenCliError as exc:
-            errors.append({"source": "balance", "category": exc.category, "message": str(exc)})
-        try:
-            open_orders = await self.cli.open_orders()
-        except KrakenCliError as exc:
-            errors.append({"source": "open_orders", "category": exc.category, "message": str(exc)})
+        paper_only = not self.settings.kraken_live_trading_enabled
+
+        if not paper_only:
+            try:
+                balance = await self.cli.balance()
+            except KrakenCliError as exc:
+                errors.append({"source": "balance", "category": exc.category, "message": str(exc)})
+            try:
+                open_orders = await self.cli.open_orders()
+            except KrakenCliError as exc:
+                errors.append({"source": "open_orders", "category": exc.category, "message": str(exc)})
+
         return {
             "autonomy_level": int(self.settings.autonomy),
+            "paper_only": paper_only,
             "deadman_seconds": self.settings.kraken_deadman_seconds,
             "deadman_armed": self._deadman_armed,
             "guardrails": {
                 "max_order_size": str(self.guardrails.max_order_size),
+                "max_notional": str(self.guardrails.max_notional),
                 "max_open_positions": self.guardrails.max_open_positions,
                 "max_trades_per_hour": self.guardrails.max_trades_per_hour,
+                "min_trade_interval_seconds": self.guardrails.min_trade_interval_seconds,
                 "pair_allowlist": sorted(self.guardrails.pair_allowlist),
                 "trades_in_last_hour": self.rate_limiter.trades_in_window(),
             },
             "balance": balance,
             "open_orders": open_orders,
             "errors": errors,
+            "note": (
+                "Kraken CLI skipped — live trading disabled; paper lots via /api/v1/positions"
+                if paper_only
+                else None
+            ),
         }
 
     async def execute_order(
@@ -166,7 +187,34 @@ class Level4Session:
                 pair=pair, volume=volume, open_positions=open_positions
             )
             self.rate_limiter.assert_can_trade()
+            from backend.app.integrations.kraken_status import assert_safe_to_trade_pair
+
+            assert_safe_to_trade_pair(normalized)
+            balance = await self.cli.balance()
+            from backend.app.trading.capital_policy import assert_live_order_capital
+
+            assert_live_order_capital(
+                side=side,
+                pair=normalized,
+                volume=volume,
+                price=price,
+                balance_payload=balance if isinstance(balance, dict) else None,
+                market_type="spot",
+                leverage=1,
+                reduce_only=False,
+                max_notional=self.guardrails.max_notional,
+            )
         except GuardrailViolation as exc:
+            from backend.app.trading.live_audit import log_live_event
+
+            log_live_event(
+                "live_reject",
+                code=exc.code,
+                message=str(exc),
+                side=side,
+                pair=pair,
+                volume=str(volume),
+            )
             raise KrakenCliError("validation", f"{exc.code}: {exc}") from exc
 
         try:
@@ -184,6 +232,17 @@ class Level4Session:
 
         result = await self.cli.place_order(side, normalized, volume, order_type, price, yes=True)
         self.rate_limiter.record_trade()
+        from backend.app.trading.live_audit import log_live_event
+
+        log_live_event(
+            "live_place",
+            side=side,
+            pair=normalized,
+            volume=str(volume),
+            order_type=order_type,
+            price=str(price) if price is not None else None,
+            source="level4_session",
+        )
         return result
 
 
