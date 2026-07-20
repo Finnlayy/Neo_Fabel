@@ -8,7 +8,11 @@ from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
+from uuid import uuid4
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from backend.app.settings import Settings
 from backend.app.signals.engine.config import EngineSettings, StrategyConfig
@@ -49,14 +53,21 @@ def default_strategies(settings: Settings) -> list[StrategyConfig]:
             strategy_id="fable_dca_default",
             kind="dca",
             pair=pair,
-            reference_price=None,
+            # Placeholder until UI/env strategy config: high ref forces drawdown
+            # steps to fire on first live tick (BTC/ETH << 1e6) for P3–P4 smoke.
+            reference_price=1_000_000.0,
             drawdown_steps_pct=[2.0, 4.0, 8.0],
         ),
     ]
 
 
 class FableEngine:
-    """Async poll loop analogous to SignalWorker.run_forever (no intake in P2)."""
+    """Async poll loop analogous to SignalWorker.run_forever.
+
+    P3: intents are persisted through the normal signals intake when a
+    session_factory is provided; the worker terminates them as
+    `dry_run_recorded` while FABLE_ENGINE_DRY_RUN=true.
+    """
 
     def __init__(
         self,
@@ -64,11 +75,13 @@ class FableEngine:
         settings: Settings,
         engine: EngineSettings | None = None,
         candle_fetcher: CandleFetcher | None = None,
+        session_factory: async_sessionmaker[AsyncSession] | None = None,
         max_dry_runs: int = 200,
     ) -> None:
         self.app_settings = settings
         self.engine = engine or engine_settings_from_app(settings)
         self._candle_fetcher = candle_fetcher
+        self._session_factory = session_factory
         self._stop = asyncio.Event()
         self._bucket = TokenBucket(self.engine.market_rpm)
         self._states: dict[str, StrategyState] = defaultdict(StrategyState)
@@ -144,11 +157,13 @@ class FableEngine:
         all_intents: list[SignalIntent] = []
         for pair, strats in by_pair.items():
             candles = await self._fetch_candles(pair)
+            last_ts = int(candles[-1].get("timestamp") or 0) if candles else 0
             for strat in strats:
                 state = self._states[strat.config.strategy_id]
                 intents = strat.evaluate(candles, state)
                 for intent in intents:
-                    self._record_intent(intent)
+                    record = self._record_intent(intent)
+                    await self._submit_intake(intent, last_ts, record)
                 all_intents.extend(intents)
 
         self.ticks += 1
@@ -158,32 +173,50 @@ class FableEngine:
     async def _fetch_candles(self, pair: str) -> list[dict[str, Any]]:
         if self._candle_fetcher is not None:
             return await self._candle_fetcher(pair)
-        # Prefer CCXT public OHLCV; never Alpha Vantage in the poll loop.
-        from backend.app.integrations.ccxt_market import CcxtMarketClient
+        # tvremix get_ohlcv primary, CCXT fallback; never Alpha Vantage in the poll loop.
+        from backend.app.signals.engine.market_source import fetch_candles
 
-        client = CcxtMarketClient(exchange_id=self.app_settings.market_ccxt_exchange)
+        return await fetch_candles(pair, settings=self.app_settings, count=120)
+
+    async def _submit_intake(self, intent: SignalIntent, candle_ts: int, record: dict[str, Any]) -> None:
+        """Persist the intent through the normal signals intake (route limits apply).
+
+        Dry-run character is decided by the worker (terminal `dry_run_recorded`);
+        intake failures only annotate the in-memory record — the tick survives.
+        """
+        if self._session_factory is None:
+            record["intake"] = "memory_only"
+            return
+        from fastapi import HTTPException
+
+        from backend.app.signals.service import SignalSubmissionService
+
+        occurred_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        observed = Decimal(str(intent.price)) if intent.price is not None else None
+        service = SignalSubmissionService(self.app_settings)
         try:
-            raw = await client.fetch_ohlcv(pair, timeframe="1h", limit=120)
-            candles: list[dict[str, Any]] = []
-            for row in raw or []:
-                # CCXT: [ts, o, h, l, c, v]
-                if not isinstance(row, (list, tuple)) or len(row) < 5:
-                    continue
-                candles.append(
-                    {
-                        "timestamp": row[0],
-                        "open": float(row[1]),
-                        "high": float(row[2]),
-                        "low": float(row[3]),
-                        "close": float(row[4]),
-                        "volume": float(row[5]) if len(row) > 5 else 0.0,
-                    }
+            async with self._session_factory() as session:
+                receipt = await service.submit_fable_engine(
+                    session,
+                    strategy_id=intent.strategy_id,
+                    signal_id=intent_signal_id(intent, candle_ts),
+                    occurred_at=occurred_at,
+                    # Same normalization as the webhook path — route allowlists compare normalized.
+                    pair=intent.pair.strip().upper().replace("/", "").replace("-", ""),
+                    side=intent.side,
+                    volume=intent.volume,
+                    observed_price=observed,
+                    request_id=str(uuid4()),
                 )
-            return candles
-        finally:
-            await client.close()
+            record["intake"] = "replayed" if receipt.replayed else f"accepted:{receipt.submission_id}"
+        except HTTPException as exc:
+            detail = exc.detail if isinstance(exc.detail, dict) else {"code": str(exc.detail)}
+            record["intake"] = f"rejected:{detail.get('code', exc.status_code)}"
+        except Exception as exc:  # noqa: BLE001 — intake failure must not kill the tick
+            record["intake"] = f"error:{exc}"
+            logger.warning("fable intake failed: %s", exc)
 
-    def _record_intent(self, intent: SignalIntent) -> None:
+    def _record_intent(self, intent: SignalIntent) -> dict[str, Any]:
         record = {
             "recorded_at": datetime.now(UTC).isoformat(),
             "terminal": "dry_run_recorded" if self.engine.dry_run else "intent_pending_intake",
@@ -206,6 +239,7 @@ class FableEngine:
             intent.pair,
             intent.zone,
         )
+        return record
 
 
 # Process-singleton for lifespan / status (P4 will expose read-only HTTP).
@@ -219,6 +253,12 @@ def get_fable_engine() -> FableEngine | None:
 def set_fable_engine(engine: FableEngine | None) -> None:
     global _engine
     _engine = engine
+
+
+def intent_signal_id(intent: SignalIntent, candle_ts: int) -> str:
+    """Deterministic dedupe id — same zone/step on the same candle never double-submits,
+    even across engine restarts (DB unique on route/source/signal_id)."""
+    return f"{intent.strategy_id}:{intent.reason}:{int(candle_ts)}"[:128]
 
 
 def intent_as_dict(intent: SignalIntent) -> dict[str, Any]:

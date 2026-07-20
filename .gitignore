@@ -6,6 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+opencode.json
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -15,6 +16,8 @@ __pycache__/
 .runtime/
 backend/data/academy/*
 !backend/data/academy/.gitkeep
+backend/data/paper/*
+!backend/data/paper/.gitkeep
 backend/data/onnx/*
 !backend/data/onnx/.gitkeep
 backend/data/llm_spend/*

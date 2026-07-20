@@ -37,6 +37,7 @@ type Props = {
   subAgents?: SubAgentState[];
   onUpdateAgentStatus?: (id: string, status: SubAgentState["status"]) => void;
   marketLive?: boolean;
+  rnaPattern?: { bias: "bullish" | "bearish" | "neutral"; confidence: number } | null;
 };
 
 function clampLookback(n: number): number {
@@ -68,6 +69,7 @@ export default function ChronosPage({
   subAgents,
   onUpdateAgentStatus,
   marketLive = false,
+  rnaPattern = null,
 }: Props) {
   const de = language === "de";
   const chronosAgent = subAgents?.find((a) => a.id === "chronos");
@@ -255,6 +257,8 @@ export default function ChronosPage({
         include_volume: includeVolumePlot,
         monte_carlo: monteCarlo,
         mc_samples: Math.min(64, Math.max(2, Math.round(mcSamples))),
+        pattern_bias: rnaPattern?.bias,
+        pattern_confidence: rnaPattern?.confidence,
       });
       setPredictResult(res);
     } catch (err) {
@@ -718,7 +722,7 @@ export default function ChronosPage({
       </section>
 
       {/* Kronos-style prediction charts */}
-      {predictionChartEntries.length > 0 ? (
+      {predictionChartEntries.length > 0 || predictResult?.pattern_confluence ? (
         <section
           data-testid="chronos-prediction-charts"
           className="bg-slate-950/60 border border-rose-500/15 rounded-xl p-4 font-mono text-xs space-y-4"
@@ -732,6 +736,38 @@ export default function ChronosPage({
               {predictResult?.sample_count ? ` · paths=${predictResult.sample_count}` : ""}
             </span>
           </div>
+          {predictResult?.pattern_confluence ? (
+            <div
+              className={`text-[10px] border rounded-lg px-3 py-2 ${
+                predictResult.pattern_confluence.agreement
+                  ? "border-emerald-400/20 bg-emerald-950/30 text-emerald-200"
+                  : "border-rose-400/20 bg-rose-950/30 text-rose-200"
+              }`}
+            >
+              <div className="font-semibold mb-1 uppercase tracking-wider">
+                {de ? "Pattern → Chronos Confluence" : "Pattern → Chronos confluence"}
+              </div>
+              <div className="text-[9px] text-slate-300">
+                {de ? "Input:" : "Input:"}{" "}
+                <span className="text-slate-100">
+                  {predictResult.pattern_confluence.input_bias} · {predictResult.pattern_confluence.input_confidence.toFixed(
+                    0,
+                  )}
+                  %
+                </span>
+                {" · "}
+                {de ? "Forecast:" : "Forecast:"}{" "}
+                <span className="text-slate-100">
+                  {predictResult.pattern_confluence.forecast_bias}
+                </span>
+                {" · "}
+                {de ? "Agreement:" : "Agreement:"}{" "}
+                <span className="text-slate-100">
+                  {predictResult.pattern_confluence.agreement ? (de ? "JA" : "YES") : (de ? "NEIN" : "NO")}
+                </span>
+              </div>
+            </div>
+          ) : null}
           <p className="text-[10px] text-slate-500">
             {de
               ? "Blau = Ground Truth (Historie), Rot = Prediction — wie Kronos prediction_example.py. OHLCVA als Tabellenzeilen (DataFrame-Spalten)."

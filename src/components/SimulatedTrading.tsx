@@ -1,17 +1,17 @@
 import {FormEvent, useEffect, useMemo, useState} from "react";
 import {AlertTriangle, CheckCircle2, Play, RefreshCw, ShieldCheck} from "lucide-react";
 import {TickerData, Trade} from "../types";
-import {ApiError, apiRequest} from "../api/client";
+import {ApiError} from "../api/client";
 import {fetchOrderBook, type OrderBookLevel, type OrderBookResponse} from "../api/market";
+import {submitPaperOrder, type MarketType} from "../api/paper";
 
 interface SimulatedTradingProps {
   tickers: TickerData[];
   onExecuteTrade: (trade: Omit<Trade, "id" | "time" | "pnl" | "status">) => void;
+  onPaperRefresh?: () => void | Promise<void>;
   isComplianceActive: boolean;
   tradingExchange: string;
 }
-
-type PaperOrderResponse = {result: Record<string, unknown>};
 
 function formatPrice(value: number): string {
   if (value >= 1000) return value.toLocaleString(undefined, {maximumFractionDigits: 2});
@@ -54,10 +54,13 @@ function DepthRows({
 export default function SimulatedTrading({
   tickers,
   onExecuteTrade,
+  onPaperRefresh,
   isComplianceActive: _isComplianceActive,
   tradingExchange: _tradingExchange,
 }: SimulatedTradingProps) {
   const [selectedAsset, setSelectedAsset] = useState(tickers[0]?.symbol ?? "BTC");
+  const [marketType, setMarketType] = useState<MarketType>("spot");
+  const [leverage, setLeverage] = useState("3");
   const [tradeType, setTradeType] = useState<"BUY" | "SELL">("BUY");
   const [amount, setAmount] = useState("0.001");
   const [status, setStatus] = useState<"idle" | "submitting" | "accepted" | "error">("idle");
@@ -132,21 +135,23 @@ export default function SimulatedTrading({
     setStatus("submitting");
     setMessage("Submitting a paper order through FastAPI...");
     try {
-      const body = await apiRequest<PaperOrderResponse & {status?: string}>("/api/v1/trade/execute", {
-        method: "POST",
-        body: JSON.stringify({
-          pair: `${selectedAsset}USD`,
-          side: tradeType.toLowerCase(),
-          volume: amount,
-          order_type: "market",
-          idempotency_key: crypto.randomUUID(),
-        }),
+      const body = await submitPaperOrder({
+        pair: `${selectedAsset}USD`,
+        side: tradeType.toLowerCase() as "buy" | "sell",
+        volume: amount,
+        order_type: "market",
+        market_type: marketType,
+        leverage: marketType === "futures" ? Math.max(1, Math.min(50, Number(leverage) || 1)) : 1,
+        idempotency_key: crypto.randomUUID(),
       });
       const source =
         typeof body.result?.source === "string" ? String(body.result.source) : "paper";
+      const book =
+        typeof body.result?.market_type === "string" ? String(body.result.market_type) : marketType;
       setStatus("accepted");
-      setMessage(`Paper order accepted (${source}).`);
+      setMessage(`Paper order accepted (${source}, ${book}).`);
       onExecuteTrade({asset: selectedAsset, type: tradeType, price: activePrice, amount: Number(amount)});
+      await onPaperRefresh?.();
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof ApiError ? `${error.code}: ${error.message}` : "Paper execution unavailable.");
@@ -167,6 +172,33 @@ export default function SimulatedTrading({
         </div>
 
         <form onSubmit={handleOrderSubmission} className="space-y-4">
+          <label className="block text-[10px] text-slate-400 uppercase">
+            Market
+            <select
+              value={marketType}
+              onChange={(event) => setMarketType(event.target.value as MarketType)}
+              className="mt-1 w-full bg-slate-950 border border-white/5 rounded-sm px-2.5 py-1.5 text-slate-200"
+            >
+              <option value="spot">Spot (USD cash)</option>
+              <option value="futures">Futures (margin)</option>
+            </select>
+          </label>
+
+          {marketType === "futures" ? (
+            <label className="block text-[10px] text-slate-400 uppercase">
+              Leverage
+              <input
+                type="number"
+                min="1"
+                max="50"
+                step="1"
+                value={leverage}
+                onChange={(event) => setLeverage(event.target.value)}
+                className="mt-1 w-full bg-slate-950 border border-white/5 rounded-sm px-2.5 py-1.5 text-slate-200"
+              />
+            </label>
+          ) : null}
+
           <label className="block text-[10px] text-slate-400 uppercase">
             Asset
             <select
@@ -190,7 +222,7 @@ export default function SimulatedTrading({
           </label>
 
           <div className="text-slate-400 border border-white/5 bg-slate-950/60 rounded-sm p-3">
-            <div className="flex justify-between"><span>Source</span><span className="text-slate-200">API paper router (CLI or local ledger)</span></div>
+            <div className="flex justify-between"><span>Source</span><span className="text-slate-200">Local ledger v2 ({marketType})</span></div>
             <div className="flex justify-between mt-1"><span>Last known price</span><span className="text-slate-200">{activePrice ? `$${activePrice.toLocaleString()}` : "Unavailable"}</span></div>
           </div>
 

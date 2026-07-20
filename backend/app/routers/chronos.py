@@ -63,6 +63,16 @@ class ChronosPredictRequest(OhlcvaWindowRequest):
         le=64,
         description="Monte Carlo path count when monte_carlo is true",
     )
+    pattern_bias: str | None = Field(
+        default=None,
+        description="Optional blind-pattern bias from RNA: bullish, bearish, or neutral.",
+    )
+    pattern_confidence: float | None = Field(
+        default=None,
+        description="Optional blind-pattern confidence from RNA (0..100).",
+        ge=0.0,
+        le=100.0,
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -201,6 +211,37 @@ async def chronos_predict(
         raise HTTPException(status_code=400, detail={"code": "predict_error", "message": str(exc)}) from exc
 
     payload = result.to_dict()
+    # Pattern → Chronos Confluence (paper research only).
+    # Compare RNA blind bias vs forecast direction derived from predicted vs last-history close.
+    if body.pattern_bias:
+        pb = body.pattern_bias.lower().strip()
+        if pb in {"bullish", "bearish", "neutral"}:
+            try:
+                last_hist_close = result.history_rows[-1]["close"] if result.history_rows else None
+                last_pred_close = result.pred_rows[-1]["close"] if result.pred_rows else None
+                pattern_conf = body.pattern_confidence if body.pattern_confidence is not None else 50.0
+
+                forecast_bias = "neutral"
+                if last_hist_close is not None and last_pred_close is not None and last_hist_close != 0:
+                    delta_pct = (last_pred_close - last_hist_close) / last_hist_close
+                    if delta_pct > 0.002:
+                        forecast_bias = "bullish"
+                    elif delta_pct < -0.002:
+                        forecast_bias = "bearish"
+
+                agreement = forecast_bias == pb
+                score = (pattern_conf / 100.0) if agreement else (1.0 - pattern_conf / 100.0)
+
+                payload["pattern_confluence"] = {
+                    "input_bias": pb,
+                    "input_confidence": pattern_conf,
+                    "forecast_bias": forecast_bias,
+                    "agreement": agreement,
+                    "score": score,
+                }
+            except Exception:
+                # Best-effort only; forecasting charts must remain functional.
+                payload["pattern_confluence"] = None
     payload["charts"] = {}
     if matplotlib_available():
         try:

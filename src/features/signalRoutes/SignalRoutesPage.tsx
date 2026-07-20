@@ -13,6 +13,7 @@ import {
   rotateMcpCredential,
   rotateTradingViewCredential,
 } from "./api";
+import FableEnginePanel from "./FableEnginePanel";
 import SignalSafetyHeader from "./SignalSafetyHeader";
 import type { CredentialReveal, SignalAutomationStatus, SignalRoute, SignalSubmission } from "./types";
 
@@ -108,6 +109,8 @@ export default function SignalRoutesPage() {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6 text-slate-900 shadow-sm">
       <SignalSafetyHeader status={status} />
+
+      <FableEnginePanel />
 
       <div className="mb-4">
         <AuthPanel />

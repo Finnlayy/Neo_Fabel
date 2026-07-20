@@ -15,6 +15,8 @@ _LOCAL_DEV_USER: dict[str, Any] = {
     "firebase": {"sign_in_provider": "google.com"},
     "auth_time": int(datetime.now(UTC).timestamp()),
     "signal_admin": True,
+    # Paper Trading Monitor / Level-1 read paths on loopback AUTH_DEV_BYPASS.
+    "trading_admin": True,
 }
 
 
@@ -212,8 +214,15 @@ async def require_trading_admin_recent(request: Request) -> dict[str, Any]:
 
 
 async def require_trading_admin(request: Request) -> dict[str, Any]:
-    """Verified Google Firebase user with the private Kraken operator claim."""
+    """Verified Google Firebase user with the private Kraken operator claim.
+
+    Paper-only research: when live trading is disabled, any authenticated user
+    may pass (Trading Monitor Deck / Level-1 read). Live ops still need the claim.
+    """
     user = await require_user(request)
+    settings = get_settings()
+    if not settings.kraken_live_trading_enabled:
+        return user
     if not _has_custom_claim(user, "trading_admin"):
         raise HTTPException(
             status_code=403,

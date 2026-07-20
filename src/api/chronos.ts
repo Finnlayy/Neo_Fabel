@@ -99,6 +99,13 @@ export type ChronosPredictResponse = {
   columns: string[];
   pred: ChronosOhlcvaRow[];
   history: ChronosOhlcvaRow[];
+  pattern_confluence?: {
+    input_bias: "bullish" | "bearish" | "neutral";
+    input_confidence: number;
+    forecast_bias: "bullish" | "bearish" | "neutral";
+    agreement: boolean;
+    score: number;
+  } | null;
   charts?: {
     prediction?: string;
     prediction_wo_vol?: string;
@@ -145,6 +152,8 @@ export async function predictChronos(body: {
   include_volume?: boolean;
   monte_carlo?: boolean;
   mc_samples?: number;
+  pattern_bias?: "bullish" | "bearish" | "neutral";
+  pattern_confidence?: number;
 }): Promise<ChronosPredictResponse> {
   return apiRequest<ChronosPredictResponse>("/api/v1/chronos/predict", {
     method: "POST",

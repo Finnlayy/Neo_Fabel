@@ -1,0 +1,29 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "openai": {
+      "options": {
+        "baseURL": "https://aiprimetech.io/v1",
+        "apiKey": "YOUR_AIPRIMETECH_API_KEY"
+      },
+      "models": {
+        "gpt-5.2": {
+          "name": "GPT-5.2",
+          "limit": { "context": 400000, "output": 128000 },
+          "options": { "store": false },
+          "variants": { "low": {}, "medium": {}, "high": {}, "xhigh": {} }
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT-5.4 Mini",
+          "limit": { "context": 400000, "output": 128000 },
+          "options": { "store": false },
+          "variants": { "low": {}, "medium": {}, "high": {}, "xhigh": {} }
+        }
+      }
+    }
+  },
+  "agent": {
+    "build": { "options": { "store": false } },
+    "plan": { "options": { "store": false } }
+  }
+}

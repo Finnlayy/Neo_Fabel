@@ -7,7 +7,9 @@ export type MainTab =
   | "academy"
   | "onnx"
   | "chronos"
-  | "agency";
+  | "agency"
+  | "paper"
+  | "positions";
 
 export interface TickerData {
   symbol: string;

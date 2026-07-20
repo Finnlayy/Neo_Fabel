@@ -37,6 +37,15 @@ class SignalRepository:
             select(SignalRoute).where(SignalRoute.public_route_key == public_route_key)
         )
 
+    async def find_enabled_route_by_strategy(self, strategy_id: str) -> SignalRoute | None:
+        """Oldest enabled route for a strategy_id — deterministic engine binding."""
+        return await self.session.scalar(
+            select(SignalRoute)
+            .where(SignalRoute.strategy_id == strategy_id, SignalRoute.enabled.is_(True))
+            .order_by(SignalRoute.created_at.asc())
+            .limit(1)
+        )
+
     async def create_route(self, route: SignalRoute) -> SignalRoute:
         self.session.add(route)
         await self.session.flush()

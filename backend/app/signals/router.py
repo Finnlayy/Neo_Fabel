@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth import require_signal_admin, require_signal_admin_recent
+from ..auth import require_signal_admin, require_signal_admin_recent, require_user
 from ..database import get_session
 from ..settings import get_settings
 from .schemas import (
@@ -17,8 +17,10 @@ from .schemas import (
     SignalRoutePatch,
     SignalRouteView,
     SignalSubmissionView,
+    RnaContextUpdate,
     TradingViewWebhookBody,
 )
+from .rna_context import get_rna_context, set_rna_context
 from .service import SignalSubmissionService
 
 router = APIRouter(tags=["signal-routes"])
@@ -160,6 +162,55 @@ async def get_submission(
     return await _service().get_submission(session, str(user.get("uid", "")), submission_id)
 
 
+@router.get("/api/v1/signals/engine/status")
+async def fable_engine_status(
+    user: dict = Depends(require_signal_admin),
+) -> dict:
+    """Read-only FableEngine status (start/stop only via env flags + restart)."""
+    _ = user
+    from .engine.generator import get_fable_engine
+    from .engine.market_source import resolve_source
+
+    settings = get_settings()
+    engine = get_fable_engine()
+    if engine is None:
+        return {
+            "enabled": settings.fable_engine_enabled,
+            "dry_run": settings.fable_engine_dry_run,
+            "started": False,
+            "poll_seconds": settings.fable_engine_poll_seconds,
+            "market_rpm": settings.fable_engine_market_rpm,
+            "onnx_bias": settings.fable_engine_onnx_bias,
+            "strategy_count": 0,
+            "ticks": 0,
+            "last_tick_at": None,
+            "last_error": None,
+            "dry_run_count": 0,
+            "candle_source": resolve_source(settings),
+            "interval": settings.fable_engine_interval,
+            "note": "engine not running — set FABLE_ENGINE_ENABLED=true and restart the API",
+        }
+    payload = engine.status()
+    payload["candle_source"] = resolve_source(settings)
+    payload["interval"] = settings.fable_engine_interval
+    return payload
+
+
+@router.get("/api/v1/signals/engine/dryruns")
+async def fable_engine_dryruns(
+    user: dict = Depends(require_signal_admin),
+    limit: int = 50,
+) -> list[dict]:
+    """Most recent dry-run records (in-memory ring buffer; newest last)."""
+    _ = user
+    from .engine.generator import get_fable_engine
+
+    engine = get_fable_engine()
+    if engine is None:
+        return []
+    return engine.recent_dry_runs(limit=min(max(limit, 1), 200))
+
+
 @router.post(
     "/api/v1/webhooks/tradingview/{public_route_key}",
     response_model=SignalReceipt,
@@ -193,3 +244,35 @@ async def tradingview_webhook(
         external_correlation_id=correlation,
     )
     return receipt
+
+
+@router.put("/api/v1/signals/rna-context")
+async def update_rna_context(
+    payload: RnaContextUpdate,
+    _user: dict = Depends(require_user),
+) -> dict:
+    """Publish latest RNA blind-pattern bias for Fable Engine signal intake."""
+    ctx = set_rna_context(bias=payload.bias, confidence=payload.confidence, symbol=payload.symbol)
+    return {
+        "ok": True,
+        "bias": ctx.bias,
+        "confidence": str(ctx.confidence),
+        "symbol": ctx.symbol,
+        "updated_at": ctx.updated_at,
+    }
+
+
+@router.get("/api/v1/signals/rna-context")
+async def read_rna_context(_user: dict = Depends(require_user)) -> dict:
+    ctx = get_rna_context()
+    if ctx is None:
+        return {"ok": True, "context": None}
+    return {
+        "ok": True,
+        "context": {
+            "bias": ctx.bias,
+            "confidence": str(ctx.confidence),
+            "symbol": ctx.symbol,
+            "updated_at": ctx.updated_at,
+        },
+    }

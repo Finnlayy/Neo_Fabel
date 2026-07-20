@@ -22,6 +22,47 @@ from .safety import assert_signal_paper_only
 logger = logging.getLogger("neo_fabel.signals.worker")
 
 
+def _pattern_bias_from_event(metadata_json: dict | None) -> str | None:
+    if not metadata_json:
+        return None
+    pb = metadata_json.get("pattern_bias")
+    if pb in {"bullish", "bearish", "neutral"}:
+        return pb
+    return None
+
+
+def _pattern_confidence_from_event(metadata_json: dict | None) -> Decimal | None:
+    if not metadata_json:
+        return None
+    raw = metadata_json.get("pattern_confidence")
+    if raw is None:
+        return None
+    try:
+        return Decimal(str(raw))
+    except Exception:  # noqa: BLE001 — metadata must never break worker loop
+        return None
+
+
+def _market_type_from_event(metadata_json: dict | None, *, default: str = "spot") -> str:
+    if not metadata_json:
+        return default
+    mt = metadata_json.get("market_type")
+    if mt in {"spot", "futures"}:
+        return mt
+    return default
+
+
+def _leverage_from_event(metadata_json: dict | None) -> int:
+    if not metadata_json:
+        return 1
+    raw = metadata_json.get("leverage")
+    try:
+        lev = int(raw)
+        return max(1, min(lev, 50))
+    except (TypeError, ValueError):
+        return 1
+
+
 class SignalWorker:
     def __init__(
         self,
@@ -137,6 +178,8 @@ class SignalWorker:
             raw_symbol=event.raw_symbol,
             observed_price=Decimal(str(event.observed_price)) if event.observed_price is not None else None,
             source=event.source,  # type: ignore[arg-type]
+            pattern_bias=_pattern_bias_from_event(event.metadata_json),
+            pattern_confidence=_pattern_confidence_from_event(event.metadata_json),
         )
         if candidate.canonical_hash != event.canonical_hash:
             await self._fail(repo, job, event, "failed_closed", "canonical_hash_mismatch")
@@ -209,6 +252,25 @@ class SignalWorker:
             await repo.transition_event(event, status="approved")
             await session.commit()
 
+        if event.source == "fable_engine" and self.settings.fable_engine_dry_run:
+            # Fable dry-run terminal: fully validated + policy-checked, never dispatched.
+            await repo.transition_event(event, status="dry_run_recorded", reason_code="fable_dry_run")
+            await repo.complete_job(job)
+            await repo.add_audit(
+                new_audit(
+                    actor_kind="worker",
+                    actor_subject=self.worker_id,
+                    route_id=route.id,
+                    event_id=event.id,
+                    request_id=event.request_id,
+                    transition="dry_run_recorded",
+                    reason_code="fable_dry_run",
+                    route_version=route.version,
+                )
+            )
+            await session.commit()
+            return
+
         if not self.settings.signal_execution_enabled:
             # Shadow mode: durable receipt + controls, no paper dispatch.
             await repo.complete_job(job)
@@ -242,6 +304,11 @@ class SignalWorker:
                 order_type=candidate.order_type,
                 price=candidate.price,
                 request_id=event.request_id,
+                market_type=_market_type_from_event(  # type: ignore[arg-type]
+                    event.metadata_json,
+                    default=self.settings.paper_default_market,
+                ),
+                leverage=_leverage_from_event(event.metadata_json),
             )
         except TimeoutError:
             await repo.transition_event(event, status="execution_unknown", reason_code="dispatch_timeout")

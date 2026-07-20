@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     auth_dev_bypass: bool = Field(default=True, validation_alias="AUTH_DEV_BYPASS")
     # Paper ledger without Kraken CLI (required on native Windows — CLI is Linux/macOS/WSL).
     paper_local_ledger: bool = Field(default=True, validation_alias="PAPER_LOCAL_LEDGER")
+    paper_starting_balance_usd: Decimal = Field(default=Decimal("10000"), validation_alias="PAPER_STARTING_BALANCE_USD")
+    paper_futures_starting_margin_usd: Decimal = Field(
+        default=Decimal("10000"), validation_alias="PAPER_FUTURES_STARTING_MARGIN_USD"
+    )
+    paper_default_market: str = Field(default="spot", validation_alias="PAPER_DEFAULT_MARKET")
+    paper_maker_fee_rate: Decimal = Field(default=Decimal("0"), validation_alias="PAPER_MAKER_FEE_RATE")
+    paper_taker_fee_rate: Decimal = Field(default=Decimal("0.0005"), validation_alias="PAPER_TAKER_FEE_RATE")
     alphavantage_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("ALPHAVANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY"),
@@ -130,6 +137,9 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="AIPRIMETECH_EUR_PER_1M_OUTPUT",
     )
+    # OpenCode CLI config (opencode.json) — key always from env, never committed.
+    opencode_config_write: bool = Field(default=False, validation_alias="OPENCODE_CONFIG_WRITE")
+    opencode_config_path: str = Field(default="opencode.json", validation_alias="OPENCODE_CONFIG_PATH")
     # Chat wire budget (display history may be longer; server trims before LLM).
     ai_chat_max_messages: int = Field(default=12, validation_alias="AI_CHAT_MAX_MESSAGES")
     ai_chat_max_chars: int = Field(default=12_000, validation_alias="AI_CHAT_MAX_CHARS")
@@ -164,6 +174,8 @@ class Settings(BaseSettings):
     training_loop_drills_per_hour: float = Field(
         default=12.0, validation_alias="TRAINING_LOOP_DRILLS_PER_HOUR"
     )
+    # When false (default), Academy drills use offline fixtures — training loop never needs network.
+    academy_drill_live_data: bool = Field(default=False, validation_alias="ACADEMY_DRILL_LIVE_DATA")
 
     # Fable Engine — internal Grid/DCA signal generators (dry-run default; paper-only).
     fable_engine_enabled: bool = Field(default=False, validation_alias="FABLE_ENGINE_ENABLED")
@@ -171,6 +183,11 @@ class Settings(BaseSettings):
     fable_engine_poll_seconds: float = Field(default=10.0, validation_alias="FABLE_ENGINE_POLL_SECONDS")
     fable_engine_market_rpm: float = Field(default=30.0, validation_alias="FABLE_ENGINE_MARKET_RPM")
     fable_engine_onnx_bias: str = Field(default="off", validation_alias="FABLE_ENGINE_ONNX_BIAS")
+    # Candle source: auto = tvremix when TVREMIX_API_KEY is set, else ccxt.
+    fable_engine_candle_source: str = Field(
+        default="auto", validation_alias="FABLE_ENGINE_CANDLE_SOURCE"
+    )
+    fable_engine_interval: str = Field(default="5m", validation_alias="FABLE_ENGINE_INTERVAL")
 
     # Phase 2 — CCXT + WebSocket market stream (read-only; no live trading).
     market_stream_enabled: bool = Field(default=True, validation_alias="MARKET_STREAM_ENABLED")
@@ -194,6 +211,11 @@ class Settings(BaseSettings):
     telegram_enabled: bool = Field(default=True, validation_alias="TELEGRAM_ENABLED")
     telegram_timeout_seconds: float = Field(default=20.0, validation_alias="TELEGRAM_TIMEOUT_SECONDS")
     telegram_poll_limit: int = Field(default=50, validation_alias="TELEGRAM_POLL_LIMIT")
+    telegram_daemon_enabled: bool = Field(default=True, validation_alias="TELEGRAM_DAEMON_ENABLED")
+    telegram_daemon_interval_ms: int = Field(default=60_000, validation_alias="TELEGRAM_DAEMON_INTERVAL_MS")
+    telegram_daemon_throttle_ms: int = Field(default=1_800_000, validation_alias="TELEGRAM_DAEMON_THROTTLE_MS")
+    telegram_daemon_idle_threshold_sec: int = Field(default=300, validation_alias="TELEGRAM_DAEMON_IDLE_SEC")
+    telegram_auto_respond: bool = Field(default=True, validation_alias="TELEGRAM_AUTO_RESPOND")
     manus_telegram_chat_id: str | None = Field(default=None, validation_alias="MANUS_TELEGRAM_CHAT_ID")
     glint_telegram_chat_id: str | None = Field(default=None, validation_alias="GLINT_TELEGRAM_CHAT_ID")
 

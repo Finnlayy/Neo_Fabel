@@ -11,11 +11,46 @@ from backend.app.academy.academy_curriculum import academy_curriculum
 from backend.app.academy.agent_defs import NEO_AGENT_NAMES
 from backend.app.academy.agent_registry import agent_registry
 from backend.app.academy.chronos_drills import chronos_auto_decision
+from backend.app.academy.drill_market import resolve_academy_source
+from backend.app.academy.drill_scenarios import resolve_risk_policy_expected
 from backend.app.academy.prompt_shot_optimizer import prompt_shot_optimizer
 from backend.app.academy.training_drills import training_drills
 from backend.app.academy.schemas import DiversityMonitorStats
 from backend.app.settings import get_settings
 
+
+def _auto_decision_for_drill(drill: Any, acc: float) -> str:
+    """Pick a training-loop decision without random binary flips for multi-outcome types."""
+    expected = str(drill.expected_outcome)
+    actions = drill.scenario_data.get("actions")
+    allowed = [str(a).upper() for a in actions] if isinstance(actions, list) and actions else []
+
+    if drill.scout_target == "chronos" or drill.drill_type == "kline_language":
+        model_vote = chronos_auto_decision(drill.scenario_data)
+        if model_vote and random.random() < max(acc, 0.55):
+            return str(model_vote)
+        if random.random() < acc:
+            return expected
+        alts = [a for a in (allowed or ["PROCEED", "REJECT", "CHOP"]) if a != expected.upper()]
+        return random.choice(alts or ["REJECT"])
+
+    if drill.drill_type == "risk_policy":
+        if random.random() < acc:
+            return expected
+        policy = drill.scenario_data.get("policy") or {}
+        state = drill.scenario_data.get("state") or {}
+        computed = resolve_risk_policy_expected(policy, state)
+        if computed != expected.upper() and random.random() < 0.5:
+            return computed
+        alts = [a for a in (allowed or ["ALLOW_PAPER", "BLOCK"]) if a != expected.upper()]
+        return random.choice(alts or ["BLOCK"])
+
+    if random.random() < acc:
+        return expected
+    if allowed:
+        alts = [a for a in allowed if a != expected.upper()]
+        return random.choice(alts or allowed)
+    return "PROCEED" if expected.upper() == "REJECT" else "REJECT"
 
 class TrainingLoopService:
     def __init__(self) -> None:
@@ -150,23 +185,7 @@ class TrainingLoopService:
             identity = agent_registry.get_identity(scout)
             acc = identity.accuracy if identity and identity.accuracy > 0 else 0.5
 
-            # Chronos trains by running its own predictor (self-play) during cycles.
-            if scout == "chronos" or drill.drill_type == "kline_language":
-                model_vote = chronos_auto_decision(drill.scenario_data)
-                if model_vote and random.random() < max(acc, 0.55):
-                    scout_decision = str(model_vote)
-                elif random.random() < acc:
-                    scout_decision = str(drill.expected_outcome)
-                else:
-                    scout_decision = "PROCEED" if drill.expected_outcome == "REJECT" else "REJECT"
-            elif random.random() < acc:
-                scout_decision = str(drill.expected_outcome)
-            elif drill.drill_type == "orchestration_teamwork":
-                alts = ["HANDOFF", "BLOCKED", "QUESTION", "CONCLUSION"]
-                expected = str(drill.expected_outcome)
-                scout_decision = random.choice([a for a in alts if a != expected] or ["BLOCKED"])
-            else:
-                scout_decision = "PROCEED" if drill.expected_outcome == "REJECT" else "REJECT"
+            scout_decision = _auto_decision_for_drill(drill, acc)
             decisions.append(scout_decision)
 
             # Batch drill_results.jsonl at end of cycle, but append careers immediately
@@ -250,6 +269,8 @@ class TrainingLoopService:
             "diversity": self.diversity_stats.model_dump(),
             "agents": list(NEO_AGENT_NAMES),
             "paper_only": True,
+            "drill_market_source": resolve_academy_source(cfg),
+            "academy_drill_live_data": bool(cfg.academy_drill_live_data),
             "hint": (
                 None
                 if enabled

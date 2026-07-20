@@ -6,10 +6,20 @@ import asyncio
 import random
 from typing import Any
 
+from fastapi import HTTPException
+
 from backend.app.academy.agent_defs import get_agent_definition
 from backend.app.academy.agent_registry import agent_registry
 from backend.app.academy.blind_patterns import make_pattern_scenario
 from backend.app.academy.chronos_drills import make_chronos_scenario
+from backend.app.academy.drill_scenarios import (
+    make_market_brief_scenario,
+    make_market_tape_scenario,
+    make_paper_execution_scenario,
+    make_param_adapt_scenario,
+    make_regime_forecast_scenario,
+    make_risk_policy_scenario,
+)
 from backend.app.academy.paths import ACADEMY_DATA_DIR, ensure_academy_data_dir
 from backend.app.academy.schemas import CareerEntry, DrillResult, SyntheticDrill
 
@@ -21,13 +31,23 @@ _TEAMWORK_SCENARIOS: tuple[dict[str, Any], ...] = (
         "expected": "HANDOFF",
         "context": "Depth online; RNA engulfing geometry; risk compliance ON; await paper fill.",
         "packets": [
-            {"id": "market_data", "status": "ACTIVE", "lastAction": "BTCUSD depth ok"},
+            {
+                "id": "market_data",
+                "status": "ACTIVE",
+                "lastAction": "BTCUSD depth ok",
+                "evidence": {"freshness": "FRESH"},
+            },
             {"id": "rna_smart", "status": "ACTIVE", "lastAction": "bullish engulfing geometry"},
             {"id": "risk_gov", "status": "ACTIVE", "lastAction": "session DD 0.4%"},
+            {"id": "chronos", "status": "ACTIVE", "lastAction": "coarse trend PROCEED", "evidence": {"model_decision": "PROCEED"}},
         ],
         "skill_hint": "kraken-paper-strategy",
         "routing": "DELEGATE",
         "prompt_shot_id": "swarm_handoff",
+        "ui_outcome": {
+            "title": "Paper path clear — hand to broker",
+            "swimlane": ["market_data", "chronos", "kraken_broker"],
+        },
     },
     {
         "expected": "CONCLUSION",
@@ -39,17 +59,24 @@ _TEAMWORK_SCENARIOS: tuple[dict[str, Any], ...] = (
         "skill_hint": "kraken-paper-strategy",
         "routing": "DELEGATE",
         "prompt_shot_id": "kraken_paper_delegate",
+        "ui_outcome": {"title": "Summarize paper DCA plan", "swimlane": ["adaptive", "analytic"]},
     },
     {
         "expected": "BLOCKED",
         "context": "User asks withdrawal to cold storage + live autonomy L4.",
         "packets": [
-            {"id": "risk_gov", "status": "ALERT", "lastAction": "live gate requested"},
+            {
+                "id": "risk_gov",
+                "status": "ALERT",
+                "lastAction": "live gate requested",
+                "evidence": {"decision": "BLOCK"},
+            },
             {"id": "kraken_broker", "status": "STANDBY", "lastAction": "no paper path"},
         ],
         "skill_hint": "recipe-withdrawal-to-cold-storage",
         "routing": "REFUSE",
         "prompt_shot_id": "kraken_live_refuse",
+        "ui_outcome": {"title": "Refuse live withdrawal path", "swimlane": ["risk_gov"]},
     },
     {
         "expected": "QUESTION",
@@ -57,10 +84,17 @@ _TEAMWORK_SCENARIOS: tuple[dict[str, Any], ...] = (
         "packets": [
             {"id": "risk_gov", "status": "ACTIVE", "lastAction": "paper path clear"},
             {"id": "kraken_broker", "status": "STANDBY", "lastAction": "await symbol"},
+            {
+                "id": "market_data",
+                "status": "STANDBY",
+                "lastAction": "allowlist incomplete",
+                "evidence": {"freshness": "INCOMPLETE"},
+            },
         ],
         "skill_hint": "kraken-multi-pair",
         "routing": "DELEGATE",
         "prompt_shot_id": "swarm_handoff",
+        "ui_outcome": {"title": "Ask for allowlisted symbol", "swimlane": ["risk_gov", "market_data"]},
     },
     {
         "expected": "HANDOFF",
@@ -73,8 +107,35 @@ _TEAMWORK_SCENARIOS: tuple[dict[str, Any], ...] = (
         "skill_hint": "kraken-paper-strategy",
         "routing": "DELEGATE",
         "prompt_shot_id": "swarm_handoff",
+        "ui_outcome": {
+            "title": "Aligned paper bias — handoff",
+            "swimlane": ["chronos", "rna_smart", "kraken_broker"],
+        },
+    },
+    {
+        "expected": "ESCALATE",
+        "context": "Chronos PROCEED vs RNA REJECT; risk_gov quiet — escalate before fill.",
+        "packets": [
+            {
+                "id": "chronos",
+                "status": "ACTIVE",
+                "lastAction": "forecast PROCEED",
+                "evidence": {"model_decision": "PROCEED"},
+            },
+            {"id": "rna_smart", "status": "ACTIVE", "lastAction": "geometry REJECT"},
+            {"id": "risk_gov", "status": "STANDBY", "lastAction": "no veto yet"},
+        ],
+        "skill_hint": "kraken-paper-strategy",
+        "routing": "DELEGATE",
+        "prompt_shot_id": "swarm_handoff",
+        "ui_outcome": {
+            "title": "Conflicting agents — escalate",
+            "swimlane": ["chronos", "rna_smart", "orchestrator"],
+        },
     },
 )
+
+_TEAMWORK_ACTIONS = ["HANDOFF", "CONCLUSION", "BLOCKED", "QUESTION", "ESCALATE"]
 
 
 class TrainingDrillsService:
@@ -87,6 +148,7 @@ class TrainingDrillsService:
             candles, expected_outcome = make_pattern_scenario(bias)  # type: ignore[arg-type]
             scenario_data = {
                 "mode": "blind_geometry",
+                "actions": ["PROCEED", "REJECT"],
                 "candles": candles,
                 "context": f"Blind pattern drill difficulty {difficulty} — no symbol/TF/price",
                 "hint_bias": bias,
@@ -94,42 +156,40 @@ class TrainingDrillsService:
         elif drill_type == "kline_language" or scout_name == "chronos":
             scenario_data, expected_outcome = make_chronos_scenario(difficulty)
             drill_type = "kline_language"
+        elif drill_type == "market_tape":
+            scenario_data, expected_outcome = make_market_tape_scenario(difficulty)
+        elif drill_type in {"paper_execution", "execution_quality"}:
+            scenario_data, expected_outcome = make_paper_execution_scenario(difficulty)
+            drill_type = "paper_execution"
+        elif drill_type == "regime_forecast":
+            scenario_data, expected_outcome = make_regime_forecast_scenario(difficulty)
+        elif drill_type == "market_brief":
+            scenario_data, expected_outcome = make_market_brief_scenario(difficulty)
+        elif drill_type == "param_adapt":
+            scenario_data, expected_outcome = make_param_adapt_scenario(difficulty)
+        elif drill_type == "risk_policy":
+            scenario_data, expected_outcome = make_risk_policy_scenario(difficulty)
+        elif drill_type == "orchestration_teamwork":
+            scenario = random.choice(_TEAMWORK_SCENARIOS)
+            expected_outcome = scenario["expected"]
+            scenario_data = {
+                "mode": "teamwork",
+                "actions": list(_TEAMWORK_ACTIONS),
+                "context": scenario["context"],
+                "packets": scenario["packets"],
+                "skill_hint": scenario.get("skill_hint"),
+                "routing": scenario.get("routing"),
+                "prompt_shot_id": scenario.get("prompt_shot_id"),
+                "ui_outcome": scenario.get("ui_outcome"),
+            }
         else:
+            # Legacy stubs (should not hit after agent_defs remap)
             expected_outcome = random.choice(["PROCEED", "REJECT"])
             scenario_data = {
                 "mode": "synthetic",
+                "actions": ["PROCEED", "REJECT"],
                 "context": f"Simulated {drill_type} scenario for difficulty {difficulty}",
             }
-            if drill_type == "crisis_detection":
-                scenario_data["crisis_score"] = 80 if expected_outcome == "REJECT" else 20
-            elif drill_type == "sentiment_analysis":
-                scenario_data["headline"] = (
-                    "Risk-off headlines dominate"
-                    if expected_outcome == "REJECT"
-                    else "Risk appetite improves on constructive flows"
-                )
-            elif drill_type == "regime_identification":
-                scenario_data["regime"] = "trend" if expected_outcome == "PROCEED" else "chop"
-            elif drill_type == "execution_quality":
-                # Paper-only execution quality — never implies a live Kraken fill.
-                scenario_data["venue"] = "kraken_broker"
-                scenario_data["slippage_bps"] = 35 if expected_outcome == "REJECT" else 4
-                scenario_data["fill_ratio"] = 0.42 if expected_outcome == "REJECT" else 0.98
-                scenario_data["context"] = (
-                    f"Kraken broker execution drill (paper) · slippage "
-                    f"{scenario_data['slippage_bps']} bps · fill ratio {scenario_data['fill_ratio']}"
-                )
-            elif drill_type == "orchestration_teamwork":
-                scenario = random.choice(_TEAMWORK_SCENARIOS)
-                expected_outcome = scenario["expected"]
-                scenario_data = {
-                    "mode": "teamwork",
-                    "context": scenario["context"],
-                    "packets": scenario["packets"],
-                    "skill_hint": scenario.get("skill_hint"),
-                    "routing": scenario.get("routing"),
-                    "prompt_shot_id": scenario.get("prompt_shot_id"),
-                }
 
         return SyntheticDrill(
             drill_type=drill_type,
@@ -160,14 +220,42 @@ class TrainingDrillsService:
         persist: append DrillResult to drill_results.jsonl
         write_log: append CareerEntry to agent_careers.jsonl (defaults to persist)
         """
-        is_correct = scout_decision.upper() == str(drill.expected_outcome).upper()
+        decision = str(scout_decision).strip().upper()
+        actions = drill.scenario_data.get("actions")
+        if isinstance(actions, list) and actions:
+            allowed = {str(a).upper() for a in actions}
+            if decision not in allowed:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "illegal_decision",
+                        "message": f"decision must be one of {sorted(allowed)}",
+                    },
+                )
+
+        scoring = drill.scenario_data.get("scoring") if isinstance(drill.scenario_data, dict) else None
+        expected = str(drill.expected_outcome).upper()
+        if isinstance(scoring, dict) and scoring.get("mode") == "set_any":
+            acceptable = {str(x).upper() for x in (scoring.get("acceptable") or [expected])}
+            is_correct = decision in acceptable
+        else:
+            is_correct = decision == expected
+
+        rubric = {
+            "matched": is_correct,
+            "reason_code": "match" if is_correct else "mismatch",
+            "hints": [],
+            "expected": expected,
+            "got": decision,
+        }
         result = DrillResult(
             drill_id=drill.drill_id,
             scout_name=drill.scout_target,
-            scout_decision=scout_decision,
+            scout_decision=decision,
             is_correct=is_correct,
             confidence=confidence,
-            feedback_notes=f"Expected {drill.expected_outcome}, got {scout_decision}.",
+            feedback_notes=f"Expected {drill.expected_outcome}, got {decision}.",
+            rubric=rubric,
         )
 
         try:

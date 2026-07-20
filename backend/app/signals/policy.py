@@ -29,6 +29,16 @@ def parse_occurred_at(value: str) -> datetime:
     return stamp.astimezone(UTC)
 
 
+def _canon_decimal(value: Decimal | None) -> str | None:
+    """Stable decimal text across NUMERIC round-trips (Postgres pads scale zeros)."""
+    if value is None:
+        return None
+    text = format(Decimal(str(value)), "f")
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text if text else "0"
+
+
 def canonical_hash_for(
     *,
     schema_version: int,
@@ -44,6 +54,8 @@ def canonical_hash_for(
     raw_symbol: str | None,
     observed_price: Decimal | None,
     source: SignalSource,
+    pattern_bias: str | None = None,
+    pattern_confidence: Decimal | None = None,
 ) -> str:
     payload = {
         "schema_version": schema_version,
@@ -52,14 +64,18 @@ def canonical_hash_for(
         "strategy_id": strategy_id,
         "pair": pair,
         "side": side,
-        "volume": format(volume, "f"),
+        "volume": _canon_decimal(volume),
         "order_type": order_type,
-        "price": format(price, "f") if price is not None else None,
+        "price": _canon_decimal(price),
         "order_id": order_id,
         "raw_symbol": raw_symbol,
-        "observed_price": format(observed_price, "f") if observed_price is not None else None,
+        "observed_price": _canon_decimal(observed_price),
         "source": source,
     }
+    if pattern_bias is not None:
+        payload["pattern_bias"] = pattern_bias
+    if pattern_confidence is not None:
+        payload["pattern_confidence"] = _canon_decimal(pattern_confidence)
     material = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(material).hexdigest()
 
@@ -79,6 +95,8 @@ def build_candidate(
     raw_symbol: str | None,
     observed_price: Decimal | None,
     source: SignalSource,
+    pattern_bias: str | None = None,
+    pattern_confidence: Decimal | None = None,
 ) -> CanonicalSignalCandidate:
     digest = canonical_hash_for(
         schema_version=schema_version,
@@ -94,6 +112,8 @@ def build_candidate(
         raw_symbol=raw_symbol,
         observed_price=observed_price,
         source=source,
+        pattern_bias=pattern_bias,
+        pattern_confidence=pattern_confidence,
     )
     return CanonicalSignalCandidate(
         schema_version=schema_version,
@@ -110,6 +130,8 @@ def build_candidate(
         observed_price=observed_price,
         source=source,
         canonical_hash=digest,
+        pattern_bias=pattern_bias,
+        pattern_confidence=pattern_confidence,
     )
 
 

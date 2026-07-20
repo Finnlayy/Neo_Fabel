@@ -72,6 +72,7 @@ class DrillResult(BaseModel):
     confidence: float
     timestamp: str = Field(default_factory=_utc_now)
     feedback_notes: str = ""
+    rubric: dict[str, Any] = Field(default_factory=dict)
 
 
 class PromptVersion(BaseModel):

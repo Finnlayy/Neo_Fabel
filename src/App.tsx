@@ -1,16 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { TickerData, Trade, SubAgentState, GenerativePlan, MainTab, AgentStatusPacket } from "./types";
 import SignalRoutesPage from "./features/signalRoutes/SignalRoutesPage";
 import AcademyPage from "./features/academy/AcademyPage";
 import OnnxPage from "./features/onnx/OnnxPage";
 import ChronosPage from "./features/chronos/ChronosPage";
 import AgencyPage from "./features/agency/AgencyPage";
+import PaperPerformancePage from "./features/paper/PaperPerformancePage";
+import PositionsPage from "./features/positions/PositionsPage";
 import AuthPanel from "./auth/AuthPanel";
 import { fetchCryptoTickers, fetchEquityTickers, fetchOrderBook, upsertTickerHistory } from "./api/market";
 import { connectMarketStream } from "./api/marketStream";
 import { fetchAiHealth } from "./api/ai";
 import { fetchReadyStatus, type ReadyStatus } from "./api/health";
 import { fetchPaperStatus, mapPaperStatusToTrades } from "./api/paper";
+import { pushRnaContext } from "./api/rnaContext";
 import { INITIAL_SUB_AGENTS } from "./data";
 import { closesToBlindCandles, scanBlindPatterns } from "./services/blindPatternScan";
 
@@ -205,6 +208,30 @@ export default function App() {
   const rnaBlindSummary =
     subAgents.find((a) => a.id === "rna_smart")?.lastAction ??
     (language === "de" ? "Blind-Scan idle" : "Blind scan idle");
+
+  const rnaPattern = useMemo(() => {
+    const focus = tickers.find((t) => t.symbol === activeSymbol);
+    const focusHist = (focus?.history ?? []).filter((n) => n > 0);
+    const closes =
+      focusHist.length >= 2 ? focusHist : focus && focus.price > 0 ? [focus.price] : [];
+    if (closes.length < 2) return null;
+    const blind = scanBlindPatterns(closesToBlindCandles(closes));
+    if (blind.candleCount < 2 || blind.hits.length === 0) return null;
+    const top = blind.hits[0];
+    return { bias: top.bias, confidence: top.confidence };
+  }, [tickers, activeSymbol]);
+
+  useEffect(() => {
+    if (!rnaPattern) return;
+    void pushRnaContext({
+      bias: rnaPattern.bias,
+      confidence: rnaPattern.confidence,
+      symbol: activeSymbol,
+    }).catch(() => {
+      // Signal routes may be disabled; RNA context is best-effort.
+    });
+  }, [rnaPattern, activeSymbol]);
+
   const osTelemetryRows = [
     {
       label: language === "de" ? "Markt" : "Market",
@@ -586,6 +613,16 @@ export default function App() {
   }, []);
 
   // Paper ledger + AI health + ready status
+  const refreshPaperTrades = useCallback(async () => {
+    try {
+      const paper = await fetchPaperStatus();
+      const mapped = mapPaperStatusToTrades(paper.data);
+      if (mapped.length > 0) setTrades(mapped);
+    } catch {
+      // Auth may be missing; keep existing rows.
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
@@ -609,15 +646,7 @@ export default function App() {
       } catch {
         if (!cancelled) setReadyStatus(null);
       }
-      try {
-        const paper = await fetchPaperStatus();
-        if (!cancelled) {
-          const mapped = mapPaperStatusToTrades(paper.data);
-          if (mapped.length > 0) setTrades(mapped);
-        }
-      } catch {
-        // Auth may be missing; keep client paper rows only.
-      }
+      if (!cancelled) await refreshPaperTrades();
     };
     void refresh();
     const timer = setInterval(() => void refresh(), 20000);
@@ -625,7 +654,7 @@ export default function App() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [refreshPaperTrades]);
 
   // Clear trade announcement after 4 seconds
   useEffect(() => {
@@ -640,14 +669,7 @@ export default function App() {
   // A paper order is recorded as pending until a real backend execution result
   // supplies fills and realized P&L. The client never invents a win/loss.
   const handleExecuteTrade = (newTradeData: Omit<Trade, "id" | "time" | "pnl" | "status">) => {
-    const freshTrade: Trade = {
-      id: `PAPER-${Date.now()}`,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-      ...newTradeData,
-      pnl: 0,
-      status: "PENDING",
-    };
-    setTrades((prev) => [...prev, freshTrade]);
+    void refreshPaperTrades();
     setSubAgents((prev) =>
       prev.map((agent) =>
         agent.id === "kraken_broker"
@@ -656,8 +678,8 @@ export default function App() {
               status: "OPTIMIZING",
               lastAction:
                 language === "de"
-                  ? `Kraken-Broker · Paper-Order ${freshTrade.type} ${freshTrade.asset} @ ${freshTrade.price} eingereiht.`
-                  : `Kraken broker · queued paper ${freshTrade.type} ${freshTrade.asset} @ ${freshTrade.price}.`,
+                  ? `Kraken-Broker · Paper-Order ${newTradeData.type} ${newTradeData.asset} @ ${newTradeData.price} eingereiht.`
+                  : `Kraken broker · queued paper ${newTradeData.type} ${newTradeData.asset} @ ${newTradeData.price}.`,
             }
           : agent,
       ),
@@ -1147,6 +1169,7 @@ export default function App() {
                 <SimulatedTrading 
                   tickers={tickers}
                   onExecuteTrade={handleExecuteTrade}
+                  onPaperRefresh={refreshPaperTrades}
                   isComplianceActive={isComplianceActive}
                   tradingExchange={tradingExchange}
                 />
@@ -1219,6 +1242,7 @@ export default function App() {
                 <SimulatedTrading 
                   tickers={tickers}
                   onExecuteTrade={handleExecuteTrade}
+                  onPaperRefresh={refreshPaperTrades}
                   isComplianceActive={isComplianceActive}
                   tradingExchange={tradingExchange}
                 />
@@ -1342,6 +1366,10 @@ export default function App() {
               </>
             )}
 
+            {activeTab === "paper" && <PaperPerformancePage language={language} />}
+
+            {activeTab === "positions" && <PositionsPage language={language} />}
+
             {activeTab === "onnx" && (
               <OnnxPage
                 currentPrice={tickers.find((t) => t.symbol === activeSymbol)?.price ?? 64250}
@@ -1358,6 +1386,7 @@ export default function App() {
                 marketLive={marketLive}
                 subAgents={subAgents}
                 onUpdateAgentStatus={handleUpdateAgentStatus}
+                rnaPattern={rnaPattern}
               />
             )}
 

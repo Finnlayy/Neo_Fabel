@@ -140,7 +140,7 @@ export default function AcademyPage() {
     }
   }
 
-  async function onEvaluate(drill: SyntheticDrill, decision: "PROCEED" | "REJECT") {
+  async function onEvaluate(drill: SyntheticDrill, decision: string) {
     setBusy(true);
     try {
       const result = await evaluateDrill({
@@ -156,6 +156,25 @@ export default function AcademyPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function actionTone(action: string): string {
+    const a = action.toUpperCase();
+    if (
+      ["PROCEED", "FRESH", "ACCEPT_FILL", "ALLOW_PAPER", "HANDOFF", "CONCLUSION", "BULLISH_BRIEF", "LOOSEN", "HOLD_PARAMS", "TREND"].includes(
+        a,
+      )
+    ) {
+      return "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10";
+    }
+    if (
+      ["REJECT", "STALE", "INCOMPLETE", "REJECT_FILL", "BLOCK", "BLOCKED", "FORCE_FLAT", "BEARISH_BRIEF", "VETO_TO_RISK"].includes(
+        a,
+      )
+    ) {
+      return "border-rose-500/30 text-rose-400 hover:bg-rose-500/10";
+    }
+    return "border-amber-500/30 text-amber-300 hover:bg-amber-500/10";
   }
 
   if (!auth.ready) {
@@ -211,7 +230,7 @@ export default function AcademyPage() {
         <div className="rounded-lg border border-teal-500/20 bg-teal-500/5 text-teal-200/90 px-3 py-2">{message}</div>
       )}
 
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <Stat label="Loop" value={status?.is_running ? "RUNNING" : "IDLE"} />
         <Stat
           label="Enabled"
@@ -224,6 +243,7 @@ export default function AcademyPage() {
           }
         />
         <Stat label="Cycles" value={String(status?.cycles_completed ?? 0)} />
+        <Stat label="Data" value={(status?.drill_market_source ?? "fixture").toUpperCase()} />
         <Stat
           label="Night window"
           value={
@@ -293,61 +313,131 @@ export default function AcademyPage() {
           </div>
           {curriculum && <p className="text-slate-500">{curriculum}</p>}
           <ul className="space-y-3">
-            {drills.map((d) => (
-              <li key={d.drill_id} className="rounded-lg border border-white/5 bg-slate-900/50 p-3 space-y-2">
-                <div className="flex justify-between text-[10px] text-slate-400">
-                  <span>{d.drill_type}</span>
-                  <span>diff {d.difficulty}</span>
-                </div>
-                <p className="text-slate-300 text-[11px] leading-relaxed">
-                  {String(d.scenario_data.context ?? "Synthetic scenario")}
-                </p>
-                {d.scenario_data.mode === "blind_geometry" && (
-                  <p className="text-[10px] text-amber-400/80 uppercase tracking-wide">
-                    Pattern geometry only
-                  </p>
-                )}
-                {d.scenario_data.mode === "chronos_kline" && (
-                  <div className="text-[10px] text-cyan-400/90 space-y-1 border border-cyan-500/15 rounded-md px-2 py-1.5 bg-cyan-500/5">
-                    <p className="uppercase tracking-wide text-cyan-300/80">Chronos K-line language</p>
-                    <p className="text-slate-400">
-                      bias={String(d.scenario_data.planted_bias ?? "—")} · L=
-                      {String(d.scenario_data.lookback ?? "—")} · pred=
-                      {String(d.scenario_data.pred_len ?? "—")}
-                    </p>
-                    {typeof d.scenario_data.forecast === "object" &&
-                    d.scenario_data.forecast !== null &&
-                    "pred_return" in (d.scenario_data.forecast as object) ? (
-                      <p className="text-slate-500">
-                        forecast ret{" "}
-                        {(
-                          Number((d.scenario_data.forecast as { pred_return?: number }).pred_return) * 100
-                        ).toFixed(2)}
-                        %
-                      </p>
-                    ) : null}
+            {drills.map((d) => {
+              const actions =
+                Array.isArray(d.scenario_data.actions) && d.scenario_data.actions.length > 0
+                  ? (d.scenario_data.actions as string[])
+                  : ["PROCEED", "REJECT"];
+              const prov = d.scenario_data.data_provenance;
+              const freshness = d.scenario_data.freshness as
+                | {
+                    last_bar_age_sec?: number;
+                    gaps?: number;
+                    received_bars?: number;
+                    expected_bars?: number;
+                  }
+                | undefined;
+              const metrics = d.scenario_data.metrics as
+                | { slippage_bps?: number; fill_ratio?: number; spread_bps?: number }
+                | undefined;
+              const packets = d.scenario_data.packets as
+                | Array<{ id?: string; status?: string }>
+                | undefined;
+              const uiOutcome = d.scenario_data.ui_outcome as { title?: string } | undefined;
+              const state = d.scenario_data.state as
+                | { session_dd_pct?: number; live_gate_requested?: boolean }
+                | undefined;
+              const policy = d.scenario_data.policy as { max_session_dd_pct?: number } | undefined;
+              const headlines = d.scenario_data.headlines as Array<{ title?: string }> | undefined;
+              return (
+                <li
+                  key={d.drill_id}
+                  className="rounded-lg border border-white/5 bg-slate-900/50 p-3 space-y-2"
+                >
+                  <div className="flex justify-between text-[10px] text-slate-400">
+                    <span>{d.drill_type}</span>
+                    <span>diff {d.difficulty}</span>
                   </div>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void onEvaluate(d, "PROCEED")}
-                    className="flex-1 py-1.5 rounded border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-                  >
-                    PROCEED
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void onEvaluate(d, "REJECT")}
-                    className="flex-1 py-1.5 rounded border border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
-                  >
-                    REJECT
-                  </button>
-                </div>
-              </li>
-            ))}
+                  <p className="text-slate-300 text-[11px] leading-relaxed">
+                    {String(d.scenario_data.context ?? "Synthetic scenario")}
+                  </p>
+                  {prov ? (
+                    <div className="flex flex-wrap gap-1">
+                      <Chip label={String(prov.primary ?? "fixture")} />
+                      {prov.fallback_used ? <Chip label="fallback" /> : null}
+                      {(prov.secondary_sources || []).map((s) => (
+                        <Chip key={s} label={s} />
+                      ))}
+                    </div>
+                  ) : null}
+                  {d.scenario_data.mode === "blind_geometry" && (
+                    <p className="text-[10px] text-amber-400/80 uppercase tracking-wide">
+                      Pattern geometry only
+                    </p>
+                  )}
+                  {d.scenario_data.mode === "chronos_kline" && (
+                    <div className="text-[10px] text-cyan-400/90 space-y-1 border border-cyan-500/15 rounded-md px-2 py-1.5 bg-cyan-500/5">
+                      <p className="uppercase tracking-wide text-cyan-300/80">Chronos K-line language</p>
+                      <p className="text-slate-400">
+                        bias={String(d.scenario_data.planted_bias ?? "—")} · L=
+                        {String(d.scenario_data.lookback ?? "—")} · pred=
+                        {String(d.scenario_data.pred_len ?? "—")}
+                      </p>
+                    </div>
+                  )}
+                  {d.scenario_data.mode === "market_tape" && freshness ? (
+                    <p className="text-[10px] text-slate-500">
+                      age={freshness.last_bar_age_sec}s · gaps={freshness.gaps} · bars{" "}
+                      {freshness.received_bars}/{freshness.expected_bars}
+                    </p>
+                  ) : null}
+                  {d.scenario_data.mode === "paper_execution" && metrics ? (
+                    <p className="text-[10px] text-slate-500">
+                      slip={metrics.slippage_bps}bps · fill={metrics.fill_ratio} · spread=
+                      {metrics.spread_bps}bps
+                    </p>
+                  ) : null}
+                  {d.scenario_data.mode === "regime_forecast" ? (
+                    <p className="text-[10px] text-slate-500">
+                      alignment=
+                      {String(
+                        (d.scenario_data.mtf as { alignment_score?: number } | undefined)
+                          ?.alignment_score ?? "—",
+                      )}
+                    </p>
+                  ) : null}
+                  {d.scenario_data.mode === "market_brief" && headlines?.length ? (
+                    <ul className="text-[10px] text-slate-500 list-disc pl-4">
+                      {headlines.slice(0, 3).map((h, i) => (
+                        <li key={i}>{h.title}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {d.scenario_data.mode === "param_adapt" ? (
+                    <p className="text-[10px] text-slate-500">
+                      regime={String(d.scenario_data.regime)} · DD=
+                      {String(d.scenario_data.session_dd_pct)}% /{" "}
+                      {String(d.scenario_data.dd_limit_pct)}%
+                    </p>
+                  ) : null}
+                  {d.scenario_data.mode === "teamwork" ? (
+                    <div className="text-[10px] text-slate-500 space-y-1">
+                      {uiOutcome?.title ? <p className="text-teal-300/80">{uiOutcome.title}</p> : null}
+                      <p>{(packets || []).map((p) => `${p.id}:${p.status}`).join(" · ")}</p>
+                    </div>
+                  ) : null}
+                  {d.scenario_data.mode === "risk_policy" && state ? (
+                    <p className="text-[10px] text-slate-500">
+                      DD={state.session_dd_pct}% / {policy?.max_session_dd_pct}% · live_gate=
+                      {String(state.live_gate_requested)}
+                    </p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    {actions.map((action) => (
+                      <button
+                        key={action}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void onEvaluate(d, action)}
+                        className={`flex-1 min-w-[5.5rem] py-1.5 rounded border text-[10px] ${actionTone(action)}`}
+                      >
+                        {action}
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              );
+            })}
             {!drills.length && (
               <li className="text-slate-600">Load drills to practice this agent.</li>
             )}
@@ -429,5 +519,13 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div className="text-[9px] uppercase text-slate-500 tracking-wider">{label}</div>
       <div className="text-sm font-bold text-slate-100 mt-1">{value}</div>
     </div>
+  );
+}
+
+function Chip({ label }: { label: string }) {
+  return (
+    <span className="rounded-full px-2 py-0.5 text-[9px] font-medium bg-slate-800 text-slate-300 border border-white/10">
+      {label}
+    </span>
   );
 }

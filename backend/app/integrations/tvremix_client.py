@@ -193,6 +193,19 @@ class TvremixClient:
             raise TvremixError(str(last_err))
         raise TvremixError(f"Could not read Pine script id={script_id}")
 
+    async def fetch_ohlcv_raw(
+        self,
+        symbol: str,
+        interval: str = "5m",
+        count: int = 300,
+    ) -> Any:
+        """Raw get_ohlcv payload for Academy / candle mappers."""
+        tv_symbol = _to_tv_symbol(symbol)
+        return await self.call_tool(
+            "get_ohlcv",
+            {"symbol": tv_symbol, "interval": interval, "count": min(count, 5000), "summary": False},
+        )
+
     async def fetch_ohlcv_bars(
         self,
         symbol: str,
@@ -200,12 +213,66 @@ class TvremixClient:
         count: int = 300,
     ) -> list[dict[str, float]]:
         """TradingView bars via tvremix get_ohlcv when available."""
-        tv_symbol = _to_tv_symbol(symbol)
-        raw = await self.call_tool(
-            "get_ohlcv",
-            {"symbol": tv_symbol, "interval": interval, "count": min(count, 5000), "summary": False},
-        )
+        raw = await self.fetch_ohlcv_raw(symbol, interval=interval, count=count)
         return _bars_from_ohlcv(raw)
+
+    async def fetch_quote(self, symbol: str) -> dict[str, Any] | None:
+        """Best-effort last/change snapshot from get_quote."""
+        tv_symbol = _to_tv_symbol(symbol)
+        raw = await self.call_tool("get_quote", {"symbol": tv_symbol})
+        if not isinstance(raw, dict):
+            return None
+        last = raw.get("last") or raw.get("price") or raw.get("close") or raw.get("lp")
+        if last is None and isinstance(raw.get("quote"), dict):
+            q = raw["quote"]
+            last = q.get("last") or q.get("price") or q.get("close")
+        if last is None:
+            return None
+        change = raw.get("change_pct") or raw.get("changePercent") or raw.get("chp")
+        if change is None and isinstance(raw.get("quote"), dict):
+            change = raw["quote"].get("change_pct") or raw["quote"].get("chp")
+        try:
+            return {"last": float(last), "change_pct": float(change or 0.0), "raw": raw}
+        except (TypeError, ValueError):
+            return None
+
+    async def fetch_technicals(self, symbol: str, *, interval: str = "5m") -> dict[str, Any] | None:
+        tv_symbol = _to_tv_symbol(symbol)
+        for tool, args in (
+            ("get_technicals_rating", {"symbol": tv_symbol, "interval": interval}),
+            ("get_technicals", {"symbol": tv_symbol, "interval": interval}),
+            ("get_full_technicals", {"symbol": tv_symbol, "interval": interval}),
+        ):
+            try:
+                raw = await self.call_tool(tool, args)
+            except TvremixError:
+                continue
+            if isinstance(raw, dict) and raw:
+                out = dict(raw)
+                out["_tool"] = tool
+                return out
+            if isinstance(raw, str) and raw.strip():
+                return {"rating": raw.strip(), "_tool": tool}
+        return None
+
+    async def fetch_structure_levels(
+        self, symbol: str, *, interval: str = "5m"
+    ) -> dict[str, Any] | None:
+        """SMC / swing levels as order-book substitute (tvremix has no L2)."""
+        tv_symbol = _to_tv_symbol(symbol)
+        merged: dict[str, Any] = {}
+        for tool, args in (
+            ("analyze_smc_tool", {"symbol": tv_symbol, "interval": interval}),
+            ("analyze_swing_tool", {"symbol": tv_symbol, "interval": interval}),
+            ("compute_levels_batch", {"symbols": [tv_symbol], "interval": interval}),
+        ):
+            try:
+                raw = await self.call_tool(tool, args)
+            except TvremixError:
+                continue
+            if isinstance(raw, dict) and raw:
+                merged[tool] = raw
+        return merged or None
 
 
 def parse_pine_inputs(source: str) -> dict[str, Any]:

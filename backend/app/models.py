@@ -109,7 +109,7 @@ class SignalEvent(Base):
     __table_args__ = (
         UniqueConstraint("route_id", "source", "signal_id", name="uq_signal_events_route_source_id"),
         CheckConstraint(
-            "source IN ('tradingview', 'mcp')",
+            "source IN ('tradingview', 'mcp', 'fable_engine')",
             name="ck_signal_events_source",
         ),
         CheckConstraint(

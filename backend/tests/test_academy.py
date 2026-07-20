@@ -53,7 +53,44 @@ def test_chronos_kline_drill() -> None:
     assert "bars_ohlcva" in drill.scenario_data
     assert "hint_tokens" in drill.scenario_data
     assert "forecast" in drill.scenario_data
-    assert drill.expected_outcome in {"PROCEED", "REJECT"}
+    assert drill.expected_outcome in {"PROCEED", "REJECT", "CHOP"}
+    assert "actions" in drill.scenario_data
+
+
+def test_kraken_broker_execution_drill() -> None:
+    drill = training_drills.generate_random_drill("kraken_broker", difficulty=2)
+    assert drill.drill_type == "paper_execution"
+    assert drill.scenario_data.get("venue") == "local_paper"
+    assert "metrics" in drill.scenario_data
+    assert drill.expected_outcome in {"ACCEPT_FILL", "REJECT_FILL", "REQUOTE"}
+
+
+def test_market_tape_and_risk_policy_drills() -> None:
+    tape = training_drills.generate_random_drill("market_data", difficulty=1)
+    assert tape.drill_type == "market_tape"
+    assert tape.scenario_data.get("mode") == "market_tape"
+    assert tape.expected_outcome in {"FRESH", "STALE", "INCOMPLETE", "REJECT"}
+    assert tape.scenario_data.get("data_provenance", {}).get("primary") == "fixture"
+
+    risk = training_drills.generate_random_drill("risk_gov", difficulty=2)
+    assert risk.drill_type == "risk_policy"
+    assert risk.expected_outcome in {"ALLOW_PAPER", "BLOCK", "REDUCE_SIZE", "FORCE_FLAT"}
+    from backend.app.academy.drill_scenarios import resolve_risk_policy_expected
+
+    computed = resolve_risk_policy_expected(risk.scenario_data["policy"], risk.scenario_data["state"])
+    assert computed == str(risk.expected_outcome).upper()
+
+
+def test_analytic_adaptive_regime_drills() -> None:
+    brief = training_drills.generate_random_drill("analytic", difficulty=1)
+    assert brief.drill_type == "market_brief"
+    adapt = training_drills.generate_random_drill("adaptive", difficulty=2)
+    assert adapt.drill_type == "param_adapt"
+    regime = training_drills.generate_random_drill("predictive", difficulty=1)
+    assert regime.drill_type == "regime_forecast"
+    orch = training_drills.generate_random_drill("orchestrator", difficulty=1)
+    assert orch.drill_type == "orchestration_teamwork"
+    assert "ESCALATE" in (orch.scenario_data.get("actions") or [])
 
 
 @pytest.mark.asyncio
@@ -66,12 +103,25 @@ async def test_chronos_drill_evaluate() -> None:
     assert result.scout_name == "chronos"
 
 
-def test_kraken_broker_execution_drill() -> None:
-    drill = training_drills.generate_random_drill("kraken_broker", difficulty=2)
-    assert drill.drill_type == "execution_quality"
-    assert drill.scenario_data.get("venue") == "kraken_broker"
-    assert "slippage_bps" in drill.scenario_data
+@pytest.mark.asyncio
+async def test_evaluate_rejects_illegal_action() -> None:
+    from fastapi import HTTPException
 
+    drill = training_drills.generate_random_drill("market_data", difficulty=1)
+    with pytest.raises(HTTPException) as excinfo:
+        await training_drills.evaluate_drill(drill, "PROCEED", 0.9, persist=False)
+    assert excinfo.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_drill_market_fixture_fallback() -> None:
+    from backend.app.academy.drill_market import fetch_drill_candles, resolve_academy_source
+    from backend.app.settings import get_settings
+
+    assert resolve_academy_source(get_settings()) == "fixture"
+    candles, prov = await fetch_drill_candles("BTCUSD", count=20)
+    assert len(candles) == 20
+    assert prov["primary"] == "fixture"
 
 def test_blind_pattern_bullish_engulfing() -> None:
     candles, expected = make_pattern_scenario("bullish")

@@ -16,6 +16,7 @@ from ..integrations.gemini_client import (
     deterministic_trade_analysis,
 )
 from ..integrations.llm_router import LlmRouter
+from ..integrations.opencode_config import build_opencode_config
 from ..schemas_ai import (
     AnalyzeTradesRequest,
     AnalyzeTradesResponse,
@@ -78,6 +79,16 @@ def _skill_routing_ok(text: str) -> bool:
 @router.get("/api/ai/health")
 async def ai_health() -> dict[str, Any]:
     return _client().status_payload()
+
+
+@router.get("/api/ai/opencode-config")
+async def ai_opencode_config(
+    _user: dict = Depends(require_user),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    """OpenCode provider schema for local tooling; apiKey only in development."""
+    include_key = settings.app_env == "development" and bool(settings.aiprimetech_api_key)
+    return build_opencode_config(settings, include_api_key=include_key)
 
 
 @router.post("/api/chat", response_model=ChatResponse)

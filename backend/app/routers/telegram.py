@@ -12,7 +12,9 @@ from ..integrations.telegram_bot import (
     TelegramNotConfigured,
     daemon_status_dict,
     get_telegram_state,
+    push_local_signal,
 )
+from ..integrations.telegram_daemon import run_daemon_poll, wake_up_daemon
 from ..schemas_ai import TelegramSendRequest
 from ..settings import get_settings
 
@@ -48,11 +50,12 @@ async def telegram_messages(_user: dict = Depends(require_user)) -> list[dict[st
     settings = get_settings()
     if not settings.telegram_enabled:
         return []
+    wake_up_daemon()
     bot = _bot()
     state = get_telegram_state()
-    if bot.configured:
+    if bot.settings.telegram_bot_token:
         try:
-            await bot.poll_updates()
+            await run_daemon_poll(settings)
         except TelegramNotConfigured:
             pass
         except Exception:  # noqa: BLE001 — return cached buffer on poll failure
@@ -83,6 +86,8 @@ async def telegram_send(payload: TelegramSendRequest, _user: dict = Depends(requ
         ok = bool(result.get("ok")) if isinstance(result, dict) else False
         if not ok:
             raise RuntimeError(str(result))
+        push_local_signal(message=payload.message, channel="FABLE 5 CONSOLE")
+        wake_up_daemon()
         return {"ok": True}
     except TelegramNotConfigured as exc:
         raise HTTPException(status_code=503, detail={"code": "telegram_unconfigured", "message": str(exc)}) from exc

@@ -87,6 +87,39 @@ def test_canonical_hash_stable_and_credential_free():
     assert h1 == h2
     assert "tvsec" not in h1
 
+    # Postgres NUMERIC pads fractional scale — hash must survive round-trip rebuild.
+    padded = canonical_hash_for(
+        schema_version=1,
+        signal_id="a",
+        occurred_at="2026-07-18T12:00:00Z",
+        strategy_id="S",
+        pair="BTCUSD",
+        side="buy",
+        volume=Decimal("0.001000000000"),
+        order_type="market",
+        price=None,
+        order_id=None,
+        raw_symbol=None,
+        observed_price=Decimal("65000.000000000000"),
+        source="fable_engine",
+    )
+    slim = canonical_hash_for(
+        schema_version=1,
+        signal_id="a",
+        occurred_at="2026-07-18T12:00:00Z",
+        strategy_id="S",
+        pair="BTCUSD",
+        side="buy",
+        volume=Decimal("0.001"),
+        order_type="market",
+        price=None,
+        order_id=None,
+        raw_symbol=None,
+        observed_price=Decimal("65000"),
+        source="fable_engine",
+    )
+    assert padded == slim
+
 
 def test_legal_transitions_cover_happy_paths():
     assert_transition("queued", "validating")
@@ -128,6 +161,81 @@ async def test_fake_evaluator_approve_and_normalize_hash_mismatch():
     )
     assert mismatched.decision == "abstain"
     assert mismatched.reason_code == "candidate_hash_mismatch"
+
+
+@pytest.mark.asyncio
+async def test_fake_evaluator_pattern_boost_agreement_approves():
+    settings = Settings(advisory_provider="fake", advisory_model="deterministic-fake-v1")
+    evaluator = FakeSignalEvaluator(settings)
+    candidate = build_candidate(
+        schema_version=1,
+        signal_id="a",
+        occurred_at="2026-07-18T12:00:00Z",
+        strategy_id="S",
+        pair="BTCUSD",
+        side="buy",
+        volume=Decimal("0.001"),
+        order_type="market",
+        price=None,
+        order_id=None,
+        raw_symbol=None,
+        observed_price=None,
+        source="tradingview",
+        pattern_bias="bullish",
+        pattern_confidence=Decimal("80"),
+    )
+    result = await evaluator.evaluate(candidate, policy_version="v1", deterministic_ok=True)
+    assert result.decision == "approve"
+
+
+@pytest.mark.asyncio
+async def test_fake_evaluator_pattern_boost_mismatch_rejects_high_confidence():
+    settings = Settings(advisory_provider="fake", advisory_model="deterministic-fake-v1")
+    evaluator = FakeSignalEvaluator(settings)
+    candidate = build_candidate(
+        schema_version=1,
+        signal_id="a",
+        occurred_at="2026-07-18T12:00:00Z",
+        strategy_id="S",
+        pair="BTCUSD",
+        side="buy",
+        volume=Decimal("0.001"),
+        order_type="market",
+        price=None,
+        order_id=None,
+        raw_symbol=None,
+        observed_price=None,
+        source="tradingview",
+        pattern_bias="bearish",
+        pattern_confidence=Decimal("80"),
+    )
+    result = await evaluator.evaluate(candidate, policy_version="v1", deterministic_ok=True)
+    assert result.decision == "reject"
+
+
+@pytest.mark.asyncio
+async def test_fake_evaluator_pattern_boost_mismatch_low_confidence_abstains():
+    settings = Settings(advisory_provider="fake", advisory_model="deterministic-fake-v1")
+    evaluator = FakeSignalEvaluator(settings)
+    candidate = build_candidate(
+        schema_version=1,
+        signal_id="a",
+        occurred_at="2026-07-18T12:00:00Z",
+        strategy_id="S",
+        pair="BTCUSD",
+        side="buy",
+        volume=Decimal("0.001"),
+        order_type="market",
+        price=None,
+        order_id=None,
+        raw_symbol=None,
+        observed_price=None,
+        source="tradingview",
+        pattern_bias="bearish",
+        pattern_confidence=Decimal("40"),
+    )
+    result = await evaluator.evaluate(candidate, policy_version="v1", deterministic_ok=True)
+    assert result.decision == "abstain"
 
 
 def test_route_policy_rejects_pair():

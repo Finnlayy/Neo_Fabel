@@ -6,7 +6,7 @@ import NavigationMenu from "./NavigationMenu";
 describe("NavigationMenu", () => {
   afterEach(() => cleanup());
 
-  it("renders nine workspace tabs including Agency", () => {
+  it("renders eleven workspace tabs including Positions", () => {
     render(
       <NavigationMenu
         activeTab="dashboard"
@@ -18,9 +18,43 @@ describe("NavigationMenu", () => {
       />,
     );
     expect(screen.getByRole("tab", {name: /Omni-Dashboard/i})).toBeTruthy();
+    expect(screen.getByRole("tab", {name: /Positions/i})).toBeTruthy();
+    expect(screen.getByRole("tab", {name: /Paper Performance/i})).toBeTruthy();
     expect(screen.getByRole("tab", {name: /Chronos Agent/i})).toBeTruthy();
     expect(screen.getByRole("tab", {name: /Agency/i})).toBeTruthy();
-    expect(screen.getAllByRole("tab")).toHaveLength(9);
+    expect(screen.getAllByRole("tab")).toHaveLength(11);
+  });
+
+  it("hotkey P selects positions tab", () => {
+    const setActiveTab = vi.fn();
+    render(
+      <NavigationMenu
+        activeTab="dashboard"
+        setActiveTab={setActiveTab}
+        isComplianceActive={false}
+        activeSymbol="BTC"
+        winLossRatio="1.0"
+        executedCount={0}
+      />,
+    );
+    fireEvent.keyDown(window, {key: "p"});
+    expect(setActiveTab).toHaveBeenCalledWith("positions");
+  });
+
+  it("hotkey 0 selects paper tab", () => {
+    const setActiveTab = vi.fn();
+    render(
+      <NavigationMenu
+        activeTab="dashboard"
+        setActiveTab={setActiveTab}
+        isComplianceActive={false}
+        activeSymbol="BTC"
+        winLossRatio="1.0"
+        executedCount={0}
+      />,
+    );
+    fireEvent.keyDown(window, {key: "0"});
+    expect(setActiveTab).toHaveBeenCalledWith("paper");
   });
 
   it("hotkey 7 selects onnx tab", () => {

@@ -13,9 +13,15 @@ import httpx
 
 from ..settings import Settings
 
-
-BULLISH_RE = re.compile(r"\b(long|buy|bull|breakout|moon|pump)\b", re.I)
-BEARISH_RE = re.compile(r"\b(short|sell|bear|dump|crash|liquidation)\b", re.I)
+BULLISH_RE = re.compile(
+    r"\b(long|buy|bull|breakout|moon|pump|up)\b|🟢",
+    re.I,
+)
+BEARISH_RE = re.compile(
+    r"\b(short|sell|bear|dump|crash|liquidation|down)\b|🔴",
+    re.I,
+)
+ACTIONABLE_ASSETS = ("BTC", "ETH", "SOL", "MATIC", "AVAX", "XRP", "DOT", "ADA", "POL")
 
 
 class TelegramNotConfigured(Exception):
@@ -25,7 +31,8 @@ class TelegramNotConfigured(Exception):
 @dataclass
 class TelegramDaemonState:
     status: str = "STOPPED"
-    current_interval_ms: int = 5000
+    current_interval_ms: int = 60_000
+    active_interval_ms: int = 60_000
     last_poll_time: str | None = None
     last_message_received_time: str | None = None
     next_poll_time: str | None = None
@@ -35,6 +42,7 @@ class TelegramDaemonState:
     time_since_last_message_sec: float | None = None
     bot_username: str = ""
     last_update_id: int = 0
+    wake_requested: bool = False
     messages: deque[dict[str, Any]] = field(default_factory=lambda: deque(maxlen=100))
     _last_message_monotonic: float | None = None
 
@@ -49,6 +57,42 @@ def get_telegram_state() -> TelegramDaemonState:
 def reset_telegram_state_for_tests() -> None:
     global _STATE
     _STATE = TelegramDaemonState()
+
+
+def parse_sentiment(text: str) -> str:
+    if BULLISH_RE.search(text) and not BEARISH_RE.search(text):
+        return "BULLISH"
+    if BEARISH_RE.search(text) and not BULLISH_RE.search(text):
+        return "BEARISH"
+    return "NEUTRAL"
+
+
+def check_actionable(text: str) -> bool:
+    upper = text.upper()
+    return any(asset in upper for asset in ACTIONABLE_ASSETS)
+
+
+def push_local_signal(
+    *,
+    message: str,
+    channel: str = "FABLE 5 CONSOLE",
+    signal_id: str | None = None,
+) -> dict[str, Any]:
+    state = get_telegram_state()
+    now = datetime.now(UTC)
+    row = {
+        "id": signal_id or f"TS-LOCAL-{int(now.timestamp() * 1000)}",
+        "timestamp": now.strftime("%H:%M:%S"),
+        "channel": channel,
+        "message": message[:2000],
+        "sentiment": parse_sentiment(message),
+        "actionable": check_actionable(message),
+    }
+    state.messages.appendleft(row)
+    state.last_message_received_time = now.isoformat()
+    state._last_message_monotonic = time.monotonic()
+    state.total_messages_processed += 1
+    return row
 
 
 class TelegramBot:
@@ -72,52 +116,42 @@ class TelegramBot:
     async def get_me(self) -> dict[str, Any]:
         return await self._get("getMe")
 
-    async def send_message(self, text: str) -> dict[str, Any]:
-        if not self.configured:
-            raise TelegramNotConfigured("Telegram bot token/chat id not configured")
-        chat_id = self.settings.telegram_chat_id
-        assert chat_id
-        return await self._post(
-            "sendMessage",
-            {"chat_id": chat_id, "text": text[:4000]},
-        )
+    async def delete_webhook(self, *, drop_pending: bool = True) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if drop_pending:
+            params["drop_pending_updates"] = True
+        return await self._get("deleteWebhook", params=params)
 
-    async def poll_updates(self) -> list[dict[str, Any]]:
+    async def send_message(self, text: str) -> dict[str, Any]:
         if not self.settings.telegram_bot_token:
             raise TelegramNotConfigured("TELEGRAM_BOT_TOKEN is not configured")
-        state = get_telegram_state()
-        params: dict[str, Any] = {
-            "timeout": 0,
-            "limit": self.settings.telegram_poll_limit,
-        }
-        if state.last_update_id:
-            params["offset"] = state.last_update_id + 1
-        data = await self._get("getUpdates", params=params)
-        state.total_polls_count += 1
-        state.last_poll_time = datetime.now(UTC).isoformat()
-        state.next_poll_time = state.last_poll_time
-        state.status = "ACTIVE"
-        results = data.get("result") if isinstance(data, dict) else None
-        if not isinstance(results, list):
-            return []
-        mapped: list[dict[str, Any]] = []
-        for update in results:
-            if not isinstance(update, dict):
-                continue
-            update_id = int(update.get("update_id") or 0)
-            if update_id > state.last_update_id:
-                state.last_update_id = update_id
-            signal = _map_update(update)
-            if signal is None:
-                continue
-            state.messages.appendleft(signal)
-            state.total_messages_processed += 1
-            state.last_message_received_time = signal["timestamp"]
-            state._last_message_monotonic = time.monotonic()
-            mapped.append(signal)
-        if state._last_message_monotonic is not None:
-            state.time_since_last_message_sec = time.monotonic() - state._last_message_monotonic
-        return mapped
+        chat_id = self.settings.telegram_chat_id or self.settings.manus_telegram_chat_id
+        if not chat_id:
+            raise TelegramNotConfigured("TELEGRAM_CHAT_ID is not configured")
+        return await self.send_message_to(chat_id, text)
+
+    async def send_message_to(
+        self,
+        chat_id: int | str,
+        text: str,
+        *,
+        parse_mode: str | None = None,
+    ) -> dict[str, Any]:
+        if not self.settings.telegram_bot_token:
+            raise TelegramNotConfigured("TELEGRAM_BOT_TOKEN is not configured")
+        payload: dict[str, Any] = {"chat_id": chat_id, "text": text[:4000]}
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+        return await self._post("sendMessage", payload)
+
+    async def poll_updates(self) -> list[dict[str, Any]]:
+        """On-demand poll (used when daemon disabled)."""
+        if not self.settings.telegram_bot_token:
+            raise TelegramNotConfigured("TELEGRAM_BOT_TOKEN is not configured")
+        from .telegram_daemon import run_daemon_poll
+
+        await run_daemon_poll(self.settings)
+        return list(get_telegram_state().messages)
 
     async def ensure_username(self) -> str:
         state = get_telegram_state()
@@ -146,42 +180,11 @@ class TelegramBot:
             return response.json()
 
 
-def _map_update(update: dict[str, Any]) -> dict[str, Any] | None:
-    message = update.get("message") or update.get("channel_post")
-    if not isinstance(message, dict):
-        return None
-    text = str(message.get("text") or message.get("caption") or "").strip()
-    if not text:
-        return None
-    raw_chat = message.get("chat")
-    chat: dict[str, Any] = raw_chat if isinstance(raw_chat, dict) else {}
-    channel = str(chat.get("title") or chat.get("username") or chat.get("id") or "telegram")
-    sentiment = "NEUTRAL"
-    if BULLISH_RE.search(text) and not BEARISH_RE.search(text):
-        sentiment = "BULLISH"
-    elif BEARISH_RE.search(text) and not BULLISH_RE.search(text):
-        sentiment = "BEARISH"
-    stamp = message.get("date")
-    try:
-        if not isinstance(stamp, (str, int, float)):
-            raise TypeError("Telegram date is not numeric")
-        ts = datetime.fromtimestamp(int(stamp), tz=UTC).isoformat()
-    except (TypeError, ValueError, OSError):
-        ts = datetime.now(UTC).isoformat()
-    return {
-        "id": f"TG-{update.get('update_id')}",
-        "timestamp": ts,
-        "channel": channel,
-        "message": text[:2000],
-        "sentiment": sentiment,
-        "actionable": sentiment != "NEUTRAL",
-    }
-
-
 def daemon_status_dict() -> dict[str, Any]:
     state = get_telegram_state()
+    running = bool(state.bot_username or state.total_polls_count or state.status != "STOPPED")
     return {
-        "status": state.status if state.bot_username or state.total_polls_count else "STOPPED",
+        "status": state.status if running else "STOPPED",
         "currentIntervalMs": state.current_interval_ms,
         "lastPollTime": state.last_poll_time,
         "lastMessageReceivedTime": state.last_message_received_time,

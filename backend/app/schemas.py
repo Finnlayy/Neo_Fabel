@@ -75,6 +75,8 @@ class PaperOrderRequest(BaseModel):
     volume: Decimal = Field(gt=Decimal("0"), max_digits=24, decimal_places=12)
     order_type: Literal["market", "limit"] = "market"
     price: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
+    market_type: Literal["spot", "futures"] = "spot"
+    leverage: int = Field(default=1, ge=1, le=50)
     idempotency_key: UUID
 
     @field_validator("pair")
@@ -99,3 +101,23 @@ class PaperOrderResponse(BaseModel):
     status: Literal["ACCEPTED", "REPLAYED"] = "ACCEPTED"
     result: dict
     request_id: str
+
+
+class ClosePositionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pair: str = Field(min_length=2, max_length=20)
+    mode: Literal["paper", "live"]
+    market_type: Literal["spot", "futures"] = "spot"
+    volume: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
+    order_type: Literal["market", "limit"] = "market"
+    price: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
+    idempotency_key: UUID
+
+    @field_validator("pair")
+    @classmethod
+    def normalize_pair(cls, value: str) -> str:
+        normalized = value.strip().upper().replace("/", "").replace("-", "")
+        if not normalized.isalnum():
+            raise ValueError("pair contains unsupported characters")
+        return normalized

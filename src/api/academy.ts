@@ -34,13 +34,25 @@ export type AcademyStatus = {
   };
   agents: string[];
   paper_only: boolean;
+  drill_market_source?: string;
+  academy_drill_live_data?: boolean;
 };
 
 export type SyntheticDrill = {
   drill_id: string;
   drill_type: string;
   scout_target: string;
-  scenario_data: Record<string, unknown>;
+  scenario_data: Record<string, unknown> & {
+    actions?: string[];
+    mode?: string;
+    context?: string;
+    data_provenance?: {
+      primary?: string;
+      fallback_used?: boolean;
+      tools?: string[];
+      secondary_sources?: string[];
+    };
+  };
   expected_outcome: string;
   difficulty: number;
 };
@@ -52,7 +64,8 @@ export type DrillResult = {
   scout_decision: string;
   is_correct: boolean;
   confidence: number;
-  feedback_notes: string;
+  feedback_notes?: string;
+  rubric?: Record<string, unknown>;
 };
 
 export type LeaderboardEntry = {

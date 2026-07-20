@@ -1,0 +1,28 @@
+{
+  "pair": "BTCUSD",
+  "interval": "5m",
+  "symbol_tv": "BINANCE:BTCUSDT",
+  "quote": {"last": 65000.0, "change_pct": 0.35},
+  "candles": [
+    {"timestamp": 1721400000, "open": 64800, "high": 65100, "low": 64750, "close": 65000, "volume": 120.5},
+    {"timestamp": 1721400300, "open": 65000, "high": 65200, "low": 64900, "close": 65150, "volume": 98.2},
+    {"timestamp": 1721400600, "open": 65150, "high": 65300, "low": 65050, "close": 65280, "volume": 110.0},
+    {"timestamp": 1721400900, "open": 65280, "high": 65400, "low": 65100, "close": 65320, "volume": 87.4},
+    {"timestamp": 1721401200, "open": 65320, "high": 65500, "low": 65200, "close": 65450, "volume": 140.1},
+    {"timestamp": 1721401500, "open": 65450, "high": 65600, "low": 65350, "close": 65580, "volume": 95.0},
+    {"timestamp": 1721401800, "open": 65580, "high": 65700, "low": 65480, "close": 65620, "volume": 88.8},
+    {"timestamp": 1721402100, "open": 65620, "high": 65800, "low": 65500, "close": 65740, "volume": 102.3},
+    {"timestamp": 1721402400, "open": 65740, "high": 65900, "low": 65650, "close": 65810, "volume": 91.7},
+    {"timestamp": 1721402700, "open": 65810, "high": 66000, "low": 65700, "close": 65920, "volume": 115.6},
+    {"timestamp": 1721403000, "open": 65920, "high": 66100, "low": 65850, "close": 66040, "volume": 130.2},
+    {"timestamp": 1721403300, "open": 66040, "high": 66200, "low": 65980, "close": 66150, "volume": 105.4}
+  ],
+  "technicals_rating": "buy",
+  "mtf": {"alignment_score": 0.72, "biases": {"15m": "bullish", "1h": "bullish", "4h": "neutral"}},
+  "levels_proxy": {"liquidity_pools": 2, "order_blocks": 1, "imbalance_hint": "bid_heavy"},
+  "headlines": [
+    {"title": "BTC holds above key support into US open", "published": "2026-07-20T08:00:00Z"},
+    {"title": "Spot ETF flows remain constructive", "published": "2026-07-20T09:15:00Z"}
+  ],
+  "calendar": [{"event": "NFP", "impact": "high", "minutes_until": 45}]
+}

@@ -32,7 +32,7 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
     AgentDefinition(
         name="market_data",
         archetype="Analyst",
-        drill_type="pattern_recognition",
+        drill_type="market_tape",
         personality_vector={"analytical": 0.9, "cautious": 0.4, "momentum_driven": 0.8},
         display_name="Market Data Agent",
         profession="Market Intelligence Officer",
@@ -52,7 +52,7 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
     AgentDefinition(
         name="risk_gov",
         archetype="Guardian",
-        drill_type="crisis_detection",
+        drill_type="risk_policy",
         personality_vector={"analytical": 0.8, "cautious": 0.95, "momentum_driven": 0.1},
         display_name="Risk Governor",
         profession="Chief Risk Officer",
@@ -62,7 +62,7 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
     AgentDefinition(
         name="kraken_broker",
         archetype="Operator",
-        drill_type="execution_quality",
+        drill_type="paper_execution",
         personality_vector={"analytical": 0.9, "cautious": 0.9, "momentum_driven": 0.2},
         display_name="Kraken Broker Execution",
         profession="Execution Specialist",
@@ -72,7 +72,7 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
     AgentDefinition(
         name="predictive",
         archetype="Strategist",
-        drill_type="regime_identification",
+        drill_type="regime_forecast",
         personality_vector={"analytical": 0.7, "cautious": 0.7, "momentum_driven": 0.3},
         display_name="Predictive Modeling",
         profession="Regime Strategist",
@@ -92,7 +92,7 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
     AgentDefinition(
         name="analytic",
         archetype="Analyst",
-        drill_type="sentiment_analysis",
+        drill_type="market_brief",
         personality_vector={"analytical": 0.9, "cautious": 0.4, "momentum_driven": 0.6},
         display_name="Analytical Analysis",
         profession="Portfolio Analyst",
@@ -102,7 +102,7 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
     AgentDefinition(
         name="adaptive",
         archetype="Researcher",
-        drill_type="sentiment_analysis",
+        drill_type="param_adapt",
         personality_vector={"analytical": 0.8, "cautious": 0.4, "momentum_driven": 0.6},
         display_name="Adaptive Agent",
         profession="Parameter Researcher",
