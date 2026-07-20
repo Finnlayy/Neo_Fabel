@@ -8,7 +8,20 @@ from pathlib import Path
 from ..settings import Settings
 from ..trading.autonomy import AutonomyLevel
 
-FORBIDDEN_NAMES = frozenset({"Level4Session", "execute_order", "place_order"})
+FORBIDDEN_NAMES = frozenset(
+    {
+        "Level4Session",
+        "execute_order",
+        "place_order",
+        # Pionex live/relay must stay out of the signals package (analogies only).
+        "pionex_api_key",
+        "pionex_api_secret",
+        "pionex_signal_webhook_token",
+        "PIONEX_API_KEY",
+        "PIONEX_API_SECRET",
+        "PIONEX_SIGNAL_WEBHOOK_TOKEN",
+    }
+)
 SIGNALS_ROOT = Path(__file__).resolve().parent
 
 

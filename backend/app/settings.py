@@ -165,6 +165,13 @@ class Settings(BaseSettings):
         default=12.0, validation_alias="TRAINING_LOOP_DRILLS_PER_HOUR"
     )
 
+    # Fable Engine — internal Grid/DCA signal generators (dry-run default; paper-only).
+    fable_engine_enabled: bool = Field(default=False, validation_alias="FABLE_ENGINE_ENABLED")
+    fable_engine_dry_run: bool = Field(default=True, validation_alias="FABLE_ENGINE_DRY_RUN")
+    fable_engine_poll_seconds: float = Field(default=10.0, validation_alias="FABLE_ENGINE_POLL_SECONDS")
+    fable_engine_market_rpm: float = Field(default=30.0, validation_alias="FABLE_ENGINE_MARKET_RPM")
+    fable_engine_onnx_bias: str = Field(default="off", validation_alias="FABLE_ENGINE_ONNX_BIAS")
+
     # Phase 2 — CCXT + WebSocket market stream (read-only; no live trading).
     market_stream_enabled: bool = Field(default=True, validation_alias="MARKET_STREAM_ENABLED")
     market_ccxt_enabled: bool = Field(default=True, validation_alias="MARKET_CCXT_ENABLED")

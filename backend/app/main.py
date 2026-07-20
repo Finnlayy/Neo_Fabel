@@ -62,13 +62,32 @@ INTRADAY_INTERVALS = {"1min", "5min", "15min", "30min", "60min", "4h"}
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    from .signals.engine.generator import FableEngine, set_fable_engine
+
     hub = get_market_stream_hub()
     await hub.start()
     if settings.training_loop_auto_start and settings.training_loop_enabled:
         await training_loop.start()
+    engine_task: asyncio.Task | None = None
+    if settings.fable_engine_enabled:
+        engine = FableEngine(settings=settings)
+        set_fable_engine(engine)
+        engine_task = asyncio.create_task(engine.run_forever(), name="fable-engine")
     try:
         yield
     finally:
+        if engine_task is not None:
+            from .signals.engine.generator import get_fable_engine
+
+            running = get_fable_engine()
+            if running is not None:
+                running.stop()
+            engine_task.cancel()
+            try:
+                await engine_task
+            except asyncio.CancelledError:
+                pass
+            set_fable_engine(None)
         training_loop.stop_now()
         await hub.stop()
 

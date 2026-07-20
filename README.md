@@ -201,6 +201,17 @@ All feature flags default to **off**. Live Kraken paths are forbidden in the
 | `AI_ADVISORY_ENABLED` | `false` | Production AI gate (fake allowed in dev) |
 | `SIGNAL_CREDENTIAL_PEPPER` | empty | HMAC pepper for route credentials |
 
+**Fable Engine (P1–P2):** internal Grid/DCA generators under `backend/app/signals/engine/`.
+Default off + dry-run. Records intents in-memory (`dry_run_recorded`); intake/migration is P3.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `FABLE_ENGINE_ENABLED` | `false` | Start engine loop in API lifespan |
+| `FABLE_ENGINE_DRY_RUN` | `true` | Record only (no paper submit until P3) |
+| `FABLE_ENGINE_POLL_SECONDS` | `10` | Poll cadence |
+| `FABLE_ENGINE_MARKET_RPM` | `30` | Token-bucket for OHLCV fetches |
+| `FABLE_ENGINE_ONNX_BIAS` | `off` | Reserved for P5 |
+
 Webhook:
 
 ```http
