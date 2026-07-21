@@ -1,6 +1,6 @@
 # Chronos Agent — Kronos-inspired K-Line Language Model (Neo Fabel)
 
-Status: **Phase 0 scaffold in progress**  
+Status: **Phase 1 — language substrate (normalize + BSQ + tokenize API live)**  
 Codename: **Chronos** (our agent). Architecture inspired by Kronos (AAAI 2026 / open research), **not** a wholesale copy of proprietary weights.
 
 ## Non-negotiables

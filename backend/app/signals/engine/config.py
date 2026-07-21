@@ -13,13 +13,15 @@ class StrategyConfig(BaseModel):
 
     strategy_id: str
     kind: Literal["grid", "dca"]
-    pair: str = "BTCUSD"
+    pair: str = "ADAUSD"
     enabled: bool = True
     # Grid
     range_low: float | None = None
     range_high: float | None = None
     grid_count: int = Field(default=5, ge=2, le=50)
     volume_per_zone: Decimal = Field(default=Decimal("0.001"))
+    # When true (or ranges omitted), grid zones are derived from recent candle min/max.
+    adaptive_range: bool = False
     # DCA
     reference_price: float | None = None
     drawdown_steps_pct: list[float] = Field(default_factory=lambda: [2.0, 4.0, 8.0])
@@ -28,11 +30,16 @@ class StrategyConfig(BaseModel):
 
     @model_validator(mode="after")
     def _validate_grid_range(self) -> StrategyConfig:
-        if self.kind == "grid":
-            if self.range_low is None or self.range_high is None:
-                raise ValueError("grid strategy requires range_low and range_high")
-            if self.range_high <= self.range_low:
-                raise ValueError("range_high must be > range_low")
+        if self.kind != "grid":
+            return self
+        if self.adaptive_range or (self.range_low is None and self.range_high is None):
+            if not self.adaptive_range:
+                return self.model_copy(update={"adaptive_range": True})
+            return self
+        if self.range_low is None or self.range_high is None:
+            raise ValueError("grid strategy requires range_low and range_high (or adaptive_range)")
+        if self.range_high <= self.range_low:
+            raise ValueError("range_high must be > range_low")
         return self
 
 

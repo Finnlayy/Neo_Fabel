@@ -197,6 +197,7 @@ export default function TelegramFeed({
           <span className="flex items-center gap-1">
             <MessageSquare className="w-3 h-3" />
             polls {daemonState.totalPollsCount} · synced {daemonState.totalMessagesProcessed}
+            <span className="text-slate-600"> (inbound + outbound mirrors)</span>
           </span>
           <span>
             {daemonState.isThrottled ? "throttled" : "active"} · next {daemonState.nextPollTime?.slice(11, 19) ?? "—"}

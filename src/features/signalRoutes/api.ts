@@ -116,7 +116,7 @@ export function pineJsonTemplate(credentialPlaceholder = "tvsec_YOUR_SECRET"): s
       signal_id: "{{strategy.order.id}}-{{timenow}}",
       occurred_at: "{{timenow}}",
       strategy_id: "YOUR_STRATEGY",
-      pair: "BTCUSD",
+      pair: "ADAUSD",
       side: "{{strategy.order.action}}",
       volume: "{{strategy.order.contracts}}",
       order_type: "market",

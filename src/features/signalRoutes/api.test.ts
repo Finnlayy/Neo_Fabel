@@ -7,7 +7,9 @@ describe("pineJsonTemplate", () => {
     const body = JSON.parse(raw) as Record<string, unknown>;
     expect(body.schema_version).toBe(1);
     expect(body.credential).toBe("tvsec_test");
-    expect(body.pair).toBe("BTCUSD");
+    expect(body.pair).toBe("ADAUSD");
+    expect(body.pair).not.toBe("BTCUSD");
+    expect(JSON.stringify(body)).not.toContain("BTCUSD");
     expect(JSON.stringify(body)).not.toContain("kraken_live");
   });
 });

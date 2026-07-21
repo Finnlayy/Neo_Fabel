@@ -36,12 +36,20 @@ class PaperExecutionRouter:
         *,
         market_type: MarketType = "spot",
         leverage: int = 1,
+        rationale: str | None = None,
     ) -> dict[str, Any]:
         if self.prefer_local:
             self.last_source = "local-paper-ledger"
             try:
                 return await self.ledger.paper_order(
-                    side, pair, volume, order_type, price, market_type=market_type, leverage=leverage
+                    side,
+                    pair,
+                    volume,
+                    order_type,
+                    price,
+                    market_type=market_type,
+                    leverage=leverage,
+                    rationale=rationale,
                 )
             except ValueError as ledger_exc:
                 raise KrakenCliError("validation", str(ledger_exc)) from ledger_exc
@@ -58,7 +66,14 @@ class PaperExecutionRouter:
             self.last_source = "local-paper-ledger"
             try:
                 return await self.ledger.paper_order(
-                    side, pair, volume, order_type, price, market_type=market_type, leverage=leverage
+                    side,
+                    pair,
+                    volume,
+                    order_type,
+                    price,
+                    market_type=market_type,
+                    leverage=leverage,
+                    rationale=rationale,
                 )
             except ValueError as ledger_exc:
                 raise KrakenCliError("validation", str(ledger_exc)) from ledger_exc

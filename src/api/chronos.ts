@@ -6,11 +6,24 @@ export type ChronosVocab = {
   full_bits: number;
 };
 
+export type ChronosDeps = {
+  numpy: boolean;
+  pandas: boolean;
+  matplotlib: boolean;
+  torch: boolean;
+  vectorbt: boolean;
+  pinets_cli: boolean;
+  research_ready: boolean;
+  install_hint?: string;
+  pinets_hint?: string;
+};
+
 export type ChronosStatus = {
   agent: string;
   paper_only: boolean;
   live_trading: boolean;
   phase: number;
+  pipeline_status?: string;
   encoder: string;
   latent_dim: number;
   vocab: ChronosVocab;
@@ -22,8 +35,12 @@ export type ChronosStatus = {
     eps: number;
   };
   matplotlib_available?: boolean;
+  deps?: ChronosDeps;
+  indicators_available?: boolean;
+  vectorbt_available?: boolean;
   endpoints?: Record<string, string>;
   note?: string;
+  predict_output?: string;
 };
 
 export type ChronosWindowBody = {
@@ -114,6 +131,25 @@ export type ChronosPredictResponse = {
   chart_error?: string;
 };
 
+export type ChronosIndicatorsResponse = {
+  paper_only: boolean;
+  indicators: {
+    rsi: number | null;
+    ema_distance_pct: number | null;
+    atr_pct: number | null;
+  };
+  engine: string;
+};
+
+export type ChronosBacktestResponse = {
+  paper_only: boolean;
+  strategy: string;
+  total_return_pct: number;
+  sharpe: number;
+  max_drawdown_pct: number;
+  trades: number;
+};
+
 export async function fetchChronosStatus(): Promise<ChronosStatus> {
   return apiRequest<ChronosStatus>("/api/v1/chronos/status");
 }
@@ -172,5 +208,19 @@ export async function bsqDecode(s1_id: number, s2_id: number): Promise<ChronosBs
   return apiRequest<ChronosBsqDecodeResponse>("/api/v1/chronos/bsq/decode", {
     method: "POST",
     body: JSON.stringify({ s1_id, s2_id }),
+  });
+}
+
+export async function fetchChronosIndicators(body: ChronosWindowBody): Promise<ChronosIndicatorsResponse> {
+  return apiRequest<ChronosIndicatorsResponse>("/api/v1/chronos/indicators", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function fetchChronosBacktest(body: ChronosWindowBody): Promise<ChronosBacktestResponse> {
+  return apiRequest<ChronosBacktestResponse>("/api/v1/chronos/research/backtest", {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 }

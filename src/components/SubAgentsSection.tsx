@@ -51,6 +51,12 @@ const AGENT_DE: Record<string, { name: string; directive: string; lastAction: st
     directive: "Generierung kurzfristiger Preisvektoren, Schätzung von Volatilitätskorridoren und Projektion von Liquidationskaskaden.",
     lastAction: "Kurzfristige prädiktive Vektoren für Top-5-Indexwerte aktualisiert."
   },
+  chronos: {
+    name: "Chronos K-Line-Agent",
+    directive:
+      "Kontextfreies OHLCVA-Sprachmodell via kausalem Z-Score + Binary Spherical Quantization (coarse/fine). Nur Paper-Signale — führt niemals automatisch aus.",
+    lastAction: "Phase-1-Substrat bereit — warte auf Lookback-Tokenize."
+  },
   analytic: {
     name: "Analytischer Analyse-Agent",
     directive: "Portfoliooptimierung über mehrere Assets, Zusammenstellung historischer Performances und Auswertung von Renditekurven.",

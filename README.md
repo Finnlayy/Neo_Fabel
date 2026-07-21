@@ -73,6 +73,31 @@ python -m backend.scripts.export_seed_models
 
 APIs: `/api/v1/onnx/*` (status, models, train, infer). Static models for Netron: `/static/onnx/*.onnx`. Viewer: `/static/netron/` (upstream Netron when the `netron` package is installed, else a stub page). **Paper research only — never places live orders.**
 
+### Chronos (kline language agent)
+
+Self-taught forecasting substrate — **paper research only**. Optional Python stack:
+
+```bash
+pip install -e "backend[chronos]"
+# numpy, pandas, matplotlib, PyTorch (CPU wheel), vectorbt
+```
+
+PineTS (`pinets`) is **Node.js**, not pip — install separately for Pine Script indicators:
+
+```bash
+npm install -g pinets-cli
+# or: npx pinets-cli run path/to/script.pine --data candles.json
+```
+
+`GET /api/v1/chronos/status` reports `deps` (`numpy`, `pandas`, `torch`, `vectorbt`, `pinets_cli`). Additional endpoints when deps are present:
+
+| Endpoint | Requires | Purpose |
+|---|---|---|
+| `POST /api/v1/chronos/indicators` | numpy + pandas | RSI, EMA distance %, ATR % |
+| `POST /api/v1/chronos/research/backtest` | vectorbt | Paper EMA-cross sanity metric on lookback |
+
+See [`CHRONOS_AGENT_PLAN.md`](CHRONOS_AGENT_PLAN.md) for Phase 2+ (AE tokenizer, decoder, ONNX export).
+
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/v1/academy/status` | Loop status, diversity, recent drills |
@@ -100,8 +125,29 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build api 
 - API (Linux + `/usr/local/bin/kraken`): `http://127.0.0.1:8000`
 - Keep Vite on the host: `npm run dev` → `http://localhost:5173`
 - Do **not** run `python -m uvicorn` on Windows if you need paper orders — that process has no Kraken CLI.
+- Optional Rust MCP sidecar (paper bridge health on `:9100`): `docker compose --profile mcp up --build fable-mcp` — see `mcp/fable_mcp/README.md`. Cursor should use the release binary (`mcp/fable_mcp/target/release/fable-mcp.exe`), not Compose stdio.
 
 Apply migrations from the API image: `docker compose run --rm api alembic -c backend/alembic.ini upgrade head`
+
+### Production web stack (nginx + compression)
+
+Full stack including the SPA:
+
+```powershell
+docker compose up --build
+```
+
+- **Web (nginx):** `http://127.0.0.1:8080` — serves `dist/` with **gzip** for JS/CSS/JSON, **immutable cache** on `/assets/*`, **no-cache** on `index.html`, proxies `/api/` and `/static/` (ONNX/Netron) to the API container.
+- **API (FastAPI):** `http://127.0.0.1:8000` — **GZipMiddleware** for direct hits; `/static/*` gets `Cache-Control: private, max-age=300`. Live JSON/WebSocket responses are not long-cached.
+
+Firebase Hosting (`firebase.json`) mirrors the asset cache headers; CDN gzip/brotli applies at the edge.
+
+Smoke after `docker compose up --build`:
+
+```powershell
+curl -sI -H "Accept-Encoding: gzip" http://127.0.0.1:8080/index.html   # Cache-Control: no-cache
+curl -sI -H "Accept-Encoding: gzip" http://127.0.0.1:8000/openapi.json   # Content-Encoding: gzip
+```
 
 ## Phase 1 — Qdrant vector index
 
@@ -376,6 +422,42 @@ Always-visible controls in the app header:
 The Live switch never flips `KRAKEN_LIVE_TRADING_ENABLED` from the browser. If gates are off it shows **Blocked** with the reason.
 
 Status: `GET /api/v1/loops/status`
+
+### Trade Agent (scheduled runtime)
+
+Bridges the Fable5 TradeAgent schedule model into Neo (paper-first):
+
+| Piece | Neo path |
+|-------|----------|
+| Scheduler + watchdog | `backend/app/trading/trade_agent/` |
+| API | `GET/POST /api/v1/trade-agent/{status,start,stop,trigger/{job_id}}` |
+| CLI | `python -m backend.scripts.run_trade_agent {status\|market\|pre-market\|label\|optimize\|positions\|background}` |
+| Windows Task Scheduler bats | `scripts/schedule_*.bat` (morning / preopen / market / label / optimizer) |
+| Register tasks | `powershell -ExecutionPolicy Bypass -File .\scripts\setup_scheduled_tasks.ps1` (−`IncludeOptimizer` optional) |
+
+Slots include Berlin market scans + ET entry windows from `EVENT_DRIVEN_TRADING.md`, nightly GA optimizer, and 5‑minute positions watchdog. Enable in-API scheduler with `TRADE_AGENT_ENABLED=true` (optional `TRADE_AGENT_AUTO_START=true`). Scans drive **FableEngine dry-run** — they do not place live orders.
+
+Windows Task Scheduler (Berlin wall clock, same as Fable5 TradeAgent):
+
+| Time | Task | Bat |
+|------|------|-----|
+| 07:00 | Morning pre-market | `schedule_morning_scan.bat` |
+| 15:00 | Pre-open (~09:00 ET) | `schedule_preopen_scan.bat` |
+| 16:00 | Market hours (~10:00 ET) | `schedule_market_scan.bat` |
+| 18:00 | ML trade labeling | `schedule_label_trades.bat` |
+| 02:30 | GA optimizer (opt-in `-IncludeOptimizer`) | `schedule_optimizer.bat` |
+
+Remove tasks: `powershell -File .\scripts\setup_scheduled_tasks.ps1 -UnregisterOnly`
+
+Windows Task Scheduler (Berlin wall clock, same as Fable5 TradeAgent):
+
+| Time | Task | Bat |
+|------|------|-----|
+| 07:00 | Morning pre-market | `schedule_morning_scan.bat` |
+| 15:00 | Pre-open (~09:00 ET) | `schedule_preopen_scan.bat` |
+| 16:00 | Market hours (~10:00 ET) | `schedule_market_scan.bat` |
+| 18:00 | ML trade labeling | `schedule_label_trades.bat` |
+| 02:30 | GA optimizer (opt-in) | `schedule_optimizer.bat` |
 
 ### Positions control desk
 

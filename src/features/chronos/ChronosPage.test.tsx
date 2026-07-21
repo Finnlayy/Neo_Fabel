@@ -12,6 +12,17 @@ const mockStatus = {
   vocab: { coarse: 1024, fine: 1024, full_bits: 20 },
   features: ["open", "high", "low", "close", "volume", "amount"],
   matplotlib_available: true,
+  indicators_available: true,
+  vectorbt_available: true,
+  deps: {
+    numpy: true,
+    pandas: true,
+    matplotlib: true,
+    torch: true,
+    vectorbt: true,
+    pinets_cli: true,
+    research_ready: true,
+  },
 };
 
 const mockTokenize = vi.fn(async () => ({
@@ -83,6 +94,19 @@ vi.mock("../../api/chronos", () => ({
   })),
   bsqDecode: vi.fn(async () => ({ z: Array(20).fill(0.1), scale: 0.22, paper_only: true })),
   bsqEncode: vi.fn(),
+  fetchChronosIndicators: vi.fn(async () => ({
+    paper_only: true,
+    indicators: { rsi: 55.2, ema_distance_pct: 0.12, atr_pct: 1.8 },
+    engine: "numpy_pandas",
+  })),
+  fetchChronosBacktest: vi.fn(async () => ({
+    paper_only: true,
+    strategy: "ema_cross_8_21",
+    total_return_pct: 2.5,
+    sharpe: 0.8,
+    max_drawdown_pct: -1.2,
+    trades: 4,
+  })),
 }));
 
 vi.mock("../../api/ohlcv", () => ({
@@ -125,14 +149,16 @@ describe("ChronosPage", () => {
       expect(screen.getByText(/Loaded: 4 bars/i)).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /^Tokenize$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Pipeline/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Tokenize/i }));
     await waitFor(() => {
       expect(mockTokenize).toHaveBeenCalled();
-      expect(screen.getByTestId("chronos-s1-len").textContent).toBe("4");
-    });
-    await waitFor(() => {
       expect(screen.getByTestId("chronos-charts")).toBeTruthy();
       expect(screen.getByAltText(/OHLC lookback/i)).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Advanced/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("chronos-s1-len").textContent).toBe("4");
     });
   });
 
@@ -146,6 +172,7 @@ describe("ChronosPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/Loaded: 4 bars/i)).toBeTruthy();
     });
+    fireEvent.click(screen.getByRole("button", { name: /Forecast/i }));
     fireEvent.click(screen.getByTestId("chronos-predict"));
     await waitFor(() => {
       expect(predictChronos).toHaveBeenCalled();

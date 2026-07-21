@@ -12,12 +12,24 @@ from backend.app.signals.repository import SignalRepository, new_route
 
 logger = logging.getLogger("neo_fabel.signals.bootstrap")
 
+# Shared route keys — per-pair engine strategy_ids (fable_grid_btcusd, …) map here.
 FABLE_STRATEGIES: tuple[tuple[str, str], ...] = (
-    ("fable_grid_default", "Fable Grid (auto)"),
+    ("fable_grid_opportunity", "Fable Grid Opportunities (auto)"),
     ("fable_dca_default", "Fable DCA (auto)"),
 )
 
 DEV_OWNER_UID = "local-dev"
+
+
+def _paper_pair_allowlist(settings: Settings) -> str:
+    if getattr(settings, "paper_allow_all_pairs", True):
+        return "*"
+    pairs = ",".join(
+        p.strip().upper().replace("/", "").replace("-", "")
+        for p in settings.kraken_pair_allowlist.split(",")
+        if p.strip()
+    )
+    return pairs or "ADAUSD,XRPUSD,ADAEUR,XRPEUR"
 
 
 async def ensure_fable_routes(
@@ -28,18 +40,27 @@ async def ensure_fable_routes(
     if not settings.fable_engine_enabled or not settings.signal_routes_enabled:
         return
 
-    pairs = ",".join(
-        p.strip().upper().replace("/", "").replace("-", "")
-        for p in settings.kraken_pair_allowlist.split(",")
-        if p.strip()
-    ) or "BTCUSD"
+    pairs = _paper_pair_allowlist(settings)
 
     async with session_factory() as session:
         repo = SignalRepository(session)
         created = 0
+        updated = 0
         for strategy_id, name in FABLE_STRATEGIES:
             existing = await repo.find_enabled_route_by_strategy(strategy_id)
             if existing is not None:
+                if (
+                    getattr(settings, "paper_allow_all_pairs", True)
+                    and existing.pair_allowlist.strip() != "*"
+                ):
+                    existing.pair_allowlist = "*"
+                    existing.version = int(existing.version or 1) + 1
+                    updated += 1
+                    logger.info(
+                        "updated fable route allowlist strategy_id=%s route_id=%s -> *",
+                        strategy_id,
+                        existing.id,
+                    )
                 continue
             route = new_route(
                 owner_uid=DEV_OWNER_UID,
@@ -59,5 +80,5 @@ async def ensure_fable_routes(
             await repo.create_route(route)
             created += 1
             logger.info("bootstrapped fable route strategy_id=%s route_id=%s", strategy_id, route.id)
-        if created:
+        if created or updated:
             await session.commit()

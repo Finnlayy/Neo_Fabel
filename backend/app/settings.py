@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     kraken_pair_allowlist: str = Field(
         default="ADAUSD,XRPUSD,ADAEUR,XRPEUR", validation_alias="KRAKEN_PAIR_ALLOWLIST"
     )
+    # Paper trades ignore the live allowlist and accept any symbol (manual + signal routes).
+    paper_allow_all_pairs: bool = Field(default=True, validation_alias="PAPER_ALLOW_ALL_PAIRS")
     # Unattended live algo loop (header switch). Manual live desk can work with live=true + autonomy>=3
     # while this stays false (supervised-first).
     kraken_live_algo_enabled: bool = Field(default=False, validation_alias="KRAKEN_LIVE_ALGO_ENABLED")
@@ -48,6 +50,17 @@ class Settings(BaseSettings):
     auth_dev_bypass: bool = Field(default=True, validation_alias="AUTH_DEV_BYPASS")
     # Paper ledger without Kraken CLI (required on native Windows — CLI is Linux/macOS/WSL).
     paper_local_ledger: bool = Field(default=True, validation_alias="PAPER_LOCAL_LEDGER")
+    paper_max_open_positions: int = Field(
+        default=20,
+        ge=1,
+        le=100,
+        validation_alias="PAPER_MAX_OPEN_POSITIONS",
+    )
+    # Symbols the paper engine scans for opportunities (defaults to MARKET_STREAM_SYMBOLS).
+    paper_opportunity_symbols: str = Field(
+        default="",
+        validation_alias="PAPER_OPPORTUNITY_SYMBOLS",
+    )
     paper_starting_balance_usd: Decimal = Field(default=Decimal("10000"), validation_alias="PAPER_STARTING_BALANCE_USD")
     paper_futures_starting_margin_usd: Decimal = Field(
         default=Decimal("10000"), validation_alias="PAPER_FUTURES_STARTING_MARGIN_USD"
@@ -72,6 +85,9 @@ class Settings(BaseSettings):
     signal_routes_enabled: bool = Field(default=False, validation_alias="SIGNAL_ROUTES_ENABLED")
     tradingview_ingress_enabled: bool = Field(default=False, validation_alias="TRADINGVIEW_INGRESS_ENABLED")
     mcp_signal_adapter_enabled: bool = Field(default=False, validation_alias="MCP_SIGNAL_ADAPTER_ENABLED")
+    # Rust fable-mcp → LocalPaperLedger HTTP bridge (paper-only; never live).
+    fable_mcp_bridge_enabled: bool = Field(default=False, validation_alias="FABLE_MCP_BRIDGE_ENABLED")
+    fable_mcp_bridge_token: str = Field(default="", validation_alias="FABLE_MCP_BRIDGE_TOKEN")
     signal_worker_enabled: bool = Field(default=False, validation_alias="SIGNAL_WORKER_ENABLED")
     signal_execution_enabled: bool = Field(default=False, validation_alias="SIGNAL_EXECUTION_ENABLED")
     ai_advisory_enabled: bool = Field(default=False, validation_alias="AI_ADVISORY_ENABLED")
@@ -209,6 +225,9 @@ class Settings(BaseSettings):
         default=300, validation_alias="TRADE_AGENT_WATCHDOG_SECONDS", ge=60, le=3600
     )
 
+    # Idle-market feedback / error guard (paper-first coaching + light param nudges).
+    feedback_engine_enabled: bool = Field(default=True, validation_alias="FEEDBACK_ENGINE_ENABLED")
+
     # Genetic forward optimizer (paper research; no live orders).
     ga_optimizer_enabled: bool = Field(default=True, validation_alias="GA_OPTIMIZER_ENABLED")
     ga_data_dir: str | None = Field(default=None, validation_alias="GA_DATA_DIR")
@@ -251,6 +270,35 @@ class Settings(BaseSettings):
     telegram_auto_respond: bool = Field(default=True, validation_alias="TELEGRAM_AUTO_RESPOND")
     manus_telegram_chat_id: str | None = Field(default=None, validation_alias="MANUS_TELEGRAM_CHAT_ID")
     glint_telegram_chat_id: str | None = Field(default=None, validation_alias="GLINT_TELEGRAM_CHAT_ID")
+    live_session_telegram_heartbeat_enabled: bool = Field(
+        default=True,
+        validation_alias="LIVE_SESSION_TELEGRAM_HEARTBEAT_ENABLED",
+    )
+    live_session_telegram_heartbeat_seconds: int = Field(
+        default=3600,
+        ge=60,
+        le=86_400,
+        validation_alias="LIVE_SESSION_TELEGRAM_HEARTBEAT_SECONDS",
+    )
+    # Outbound: Signal Routes / paper fills → Telegram (+ UI feed mirror).
+    telegram_trade_signals_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "TELEGRAM_TRADE_SIGNALS_ENABLED",
+            "TELEGRAM_NOTIFICATIONS_ENABLED",
+        ),
+    )
+    # API-online heartbeat (independent of live trading sessions).
+    telegram_system_heartbeat_enabled: bool = Field(
+        default=True,
+        validation_alias="TELEGRAM_SYSTEM_HEARTBEAT_ENABLED",
+    )
+    telegram_system_heartbeat_seconds: int = Field(
+        default=1800,
+        ge=60,
+        le=86_400,
+        validation_alias="TELEGRAM_SYSTEM_HEARTBEAT_SECONDS",
+    )
 
     # Optional provider keys (stored for CLI/integrations; extra="ignore" alone would drop typing).
     # NOTE: OPENAI_API_KEY also feeds aiprimetech via AliasChoices when AIPRIMETECH_API_KEY is unset.

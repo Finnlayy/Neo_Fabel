@@ -89,21 +89,21 @@ Strict V1 body:
   "signal_id": "BPRC_PRO:Long:1784301420000",
   "occurred_at": "2026-07-18T12:37:00Z",
   "strategy_id": "BPRC_PRO",
-  "pair": "BTCUSD",
+  "pair": "ADAUSD",
   "side": "buy",
-  "volume": "0.001",
+  "volume": "100",
   "order_type": "market",
   "price": null,
   "order_id": "Long",
-  "raw_symbol": "KRAKEN:BTCUSD",
-  "observed_price": "118500.25"
+  "raw_symbol": "KRAKEN:ADAUSD",
+  "observed_price": "0.45"
 }
 ```
 
 Contract rules:
 
 - Forbid unknown fields and bound every string, collection, decimal precision, JSON depth, and total body size.
-- Require an explicit Kraken pair; never infer `BTCUSD` from a TradingView symbol.
+- Require an Tradingview-Pair; always infer from a TradingView symbol.
 - Accept only canonical UTC timestamps within the configured freshness/future-skew window.
 - Use strict decimal parsing: no exponent, NaN, infinity, zero, or negative volume.
 - Remove `credential` before canonical persistence, AI evaluation, tracing, and logging.

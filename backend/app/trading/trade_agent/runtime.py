@@ -99,6 +99,10 @@ class TradeAgentRuntime:
                 return await jobs.run_market_scan(reason=f"{reason}:{job_id}")
             if job_id == "label_trades":
                 return await jobs.run_label_trades()
+            if job_id == "feedback_idle":
+                from backend.app.trading.feedback import feedback_engine
+
+                return await feedback_engine.run_cycle(reason=f"{reason}:feedback_idle")
             if job_id == "optimizer_night":
                 return await jobs.run_optimizer()
             if job_id == "check_status":

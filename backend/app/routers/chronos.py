@@ -10,10 +10,13 @@ from pydantic import BaseModel, Field
 from backend.app.auth import require_user
 from backend.app.chronos.bsq import BinarySphericalQuantizer, LATENT_DIM
 from backend.app.chronos.charts import build_chronos_charts, matplotlib_available
+from backend.app.chronos.deps import chronos_deps_status
+from backend.app.chronos.indicators import compute_indicator_context, indicators_available
 from backend.app.chronos.normalize import ChronosNormalizer, OHLCVA_DIM
 from backend.app.chronos.pipeline import tokenize_ohlcva, tokenize_result_to_dict
 from backend.app.chronos.plot_prediction import build_prediction_charts
 from backend.app.chronos.predictor import ChronosPredictor
+from backend.app.chronos.vectorbt_eval import simple_momentum_backtest_summary, vectorbt_available
 
 router = APIRouter(prefix="/api/v1/chronos", tags=["chronos"])
 
@@ -89,24 +92,34 @@ def _validate_bars(bars: list[list[float]]) -> None:
             )
 
 
+CHRONOS_PIPELINE_STATUS = "Phase-1 substrate ready — awaiting lookback tokenize."
+
+
 @router.get("/status")
 async def chronos_status(_user: dict[str, Any] = Depends(require_user)) -> dict[str, Any]:
+    deps = chronos_deps_status()
     return {
         "agent": "chronos",
         "paper_only": True,
         "live_trading": False,
         "phase": 1,
+        "pipeline_status": CHRONOS_PIPELINE_STATUS,
         "encoder": "stub_linear_v1",
         "latent_dim": LATENT_DIM,
         "vocab": {"coarse": 1024, "fine": 1024, "full_bits": 20},
         "features": ["open", "high", "low", "close", "volume", "amount"],
         "normalization": {"type": "causal_zscore", "ddof": 0, "clip": 5.0, "eps": 1e-6},
         "matplotlib_available": matplotlib_available(),
+        "deps": deps,
+        "indicators_available": indicators_available(),
+        "vectorbt_available": vectorbt_available(),
         "endpoints": {
             "normalize": "POST /api/v1/chronos/normalize",
             "tokenize": "POST /api/v1/chronos/tokenize",
             "charts": "POST /api/v1/chronos/charts",
             "predict": "POST /api/v1/chronos/predict",
+            "indicators": "POST /api/v1/chronos/indicators",
+            "research_backtest": "POST /api/v1/chronos/research/backtest",
             "bsq_encode": "POST /api/v1/chronos/bsq/encode",
             "bsq_decode": "POST /api/v1/chronos/bsq/decode",
         },
@@ -256,6 +269,50 @@ async def chronos_predict(
     else:
         payload["chart_error"] = "matplotlib not installed"
     return payload
+
+
+@router.post("/indicators")
+async def chronos_indicators(
+    body: OhlcvaWindowRequest,
+    _user: dict[str, Any] = Depends(require_user),
+) -> dict[str, Any]:
+    """RSI / EMA distance / ATR% from numpy+pandas (PineTS optional via pinets CLI)."""
+    if not indicators_available():
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "chronos_indicators_missing",
+                "message": 'Install optional deps: pip install -e ".[chronos]"',
+            },
+        )
+    _validate_bars(body.bars)
+    try:
+        ctx = compute_indicator_context(body.bars)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"code": "indicators_error", "message": str(exc)}) from exc
+    return {"paper_only": True, "indicators": ctx, "engine": "numpy_pandas"}
+
+
+@router.post("/research/backtest")
+async def chronos_research_backtest(
+    body: OhlcvaWindowRequest,
+    _user: dict[str, Any] = Depends(require_user),
+) -> dict[str, Any]:
+    """Paper-only vectorbt sanity metric on the lookback window (no live orders)."""
+    if not vectorbt_available():
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "vectorbt_missing",
+                "message": 'Install optional deps: pip install -e ".[chronos]"',
+            },
+        )
+    _validate_bars(body.bars)
+    try:
+        summary = simple_momentum_backtest_summary(body.bars)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"code": "backtest_error", "message": str(exc)}) from exc
+    return summary
 
 
 @router.post("/bsq/encode")

@@ -18,6 +18,8 @@ def build_kraken_cli(settings: Settings) -> KrakenCli:
         binary=settings.kraken_binary,
         timeout_seconds=settings.kraken_timeout_seconds,
         allow_trade_commands=settings.trade_commands_enabled,
+        api_key=settings.kraken_api_key,
+        api_secret=settings.kraken_api_secret,
     )
 
 
@@ -43,6 +45,7 @@ def build_paper_router(settings: Settings) -> PaperExecutionRouter:
         starting_margin_usd=settings.paper_futures_starting_margin_usd,
         maker_fee_rate=settings.paper_maker_fee_rate,
         taker_fee_rate=settings.paper_taker_fee_rate,
+        max_open_positions=settings.paper_max_open_positions,
     )
 
     spot_public = KrakenPublicClient(timeout_seconds=settings.kraken_timeout_seconds)

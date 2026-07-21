@@ -23,6 +23,13 @@ def test_guardrails_reject_unknown_pair():
     assert exc.value.code == "pair_not_allowed"
 
 
+def test_guardrails_star_allowlist_forbidden_on_live():
+    rails = TradingGuardrails(pair_allowlist=frozenset({"*"}))
+    with pytest.raises(GuardrailViolation) as exc:
+        rails.check_order(pair="DOGEUSD", volume=Decimal("0.001"), open_positions=0)
+    assert exc.value.code == "pair_allowlist_wildcard_forbidden"
+
+
 def test_guardrails_reject_oversized_order():
     rails = TradingGuardrails(max_order_size=Decimal("0.01"), pair_allowlist=frozenset({"BTCUSD"}))
     with pytest.raises(GuardrailViolation) as exc:

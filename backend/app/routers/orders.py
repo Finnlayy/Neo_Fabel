@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from backend.app.auth import require_trading_admin, require_trading_admin_recent
 from backend.app.database import SessionFactory
-from backend.app.integrations.kraken_cli import KrakenCli, KrakenCliError
+from backend.app.integrations.kraken_cli import KrakenCliError
 from backend.app.integrations.kraken_status import assert_safe_to_trade_pair
-from backend.app.integrations.paper_factory import build_paper_router
+from backend.app.integrations.paper_factory import build_kraken_cli, build_paper_router
 from backend.app.paper_orders import PaperOrderService
 from backend.app.schemas import (
     AmendOrderRequest,
@@ -33,13 +33,8 @@ def _request_id(request: Request) -> str:
     return getattr(request.state, "request_id", None) or request.headers.get("X-Request-ID") or "unknown"
 
 
-def _cli() -> KrakenCli:
-    settings = get_settings()
-    return KrakenCli(
-        binary=settings.kraken_binary,
-        timeout_seconds=settings.kraken_timeout_seconds,
-        allow_trade_commands=settings.trade_commands_enabled,
-    )
+def _cli():
+    return build_kraken_cli(get_settings())
 
 
 def _assert_live_manual() -> None:

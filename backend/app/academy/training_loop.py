@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from backend.app.academy.academy_curriculum import academy_curriculum
-from backend.app.academy.agent_defs import NEO_AGENT_NAMES
+from backend.app.academy.agent_defs import NEO_AGENT_NAMES, academy_trainable_agents
 from backend.app.academy.agent_registry import agent_registry
 from backend.app.academy.chronos_drills import chronos_auto_decision
 from backend.app.academy.drill_market import resolve_academy_source
@@ -179,7 +179,7 @@ class TrainingLoopService:
         decisions: list[str] = []
         cycle_results = []
 
-        for scout in NEO_AGENT_NAMES:
+        for scout in academy_trainable_agents(trading_only=self._cfg().academy_train_trading_only):
             difficulty = random.randint(1, 3)
             drill = training_drills.generate_random_drill(scout, difficulty=difficulty)
             identity = agent_registry.get_identity(scout)
@@ -267,7 +267,11 @@ class TrainingLoopService:
             "errors_last_5min": self.errors_last_5min,
             "recent_drills": self.recent_drills,
             "diversity": self.diversity_stats.model_dump(),
-            "agents": list(NEO_AGENT_NAMES),
+            "agents": list(
+                academy_trainable_agents(trading_only=cfg.academy_train_trading_only)
+            ),
+            "agents_all": list(NEO_AGENT_NAMES),
+            "train_trading_only": bool(cfg.academy_train_trading_only),
             "paper_only": True,
             "drill_market_source": resolve_academy_source(cfg),
             "academy_drill_live_data": bool(cfg.academy_drill_live_data),

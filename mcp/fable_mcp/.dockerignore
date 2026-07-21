@@ -1,0 +1,3 @@
+# Ignore build artifacts when context is mcp/fable_mcp
+target/
+**/*.rs.bk

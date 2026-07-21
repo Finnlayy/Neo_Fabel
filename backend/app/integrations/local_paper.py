@@ -75,6 +75,7 @@ class LocalPaperLedger:
     maker_fee_rate: Decimal = Decimal("0")
     taker_fee_rate: Decimal = Decimal("0.0005")
     fee_model: str = "kraken_pro_tier5"
+    max_open_positions: int = 20
     _path: Any = field(default_factory=ledger_path, repr=False)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
     _price_resolver: PriceResolver | None = field(default=None, repr=False)
@@ -86,6 +87,29 @@ class LocalPaperLedger:
 
     def set_price_resolver(self, resolver: PriceResolver) -> None:
         self._price_resolver = resolver
+
+    def open_position_count(self) -> int:
+        """Distinct open spot lots + futures positions."""
+        lots = self._spot.get("lots") or {}
+        spot_n = sum(1 for rows in lots.values() if rows)
+        fut_n = len(self._futures.get("positions") or {})
+        return int(spot_n + fut_n)
+
+    def _assert_open_capacity(self, *, pair: str, market_type: MarketType, side: str) -> None:
+        """Block opening a *new* concurrent position beyond max_open_positions."""
+        if market_type == "spot":
+            if side != "buy":
+                return
+            lots = (self._spot.get("lots") or {}).get(pair) or []
+            if lots:
+                return  # adding to existing spot position
+        else:
+            if pair in (self._futures.get("positions") or {}):
+                return  # existing futures symbol
+        if self.open_position_count() >= int(self.max_open_positions):
+            raise ValueError(
+                f"paper max open positions reached ({self.max_open_positions})"
+            )
 
     def _load_or_init(self) -> dict[str, Any]:
         path = self._path
@@ -189,6 +213,8 @@ class LocalPaperLedger:
         volume: Decimal,
         order_type: Literal["market", "limit"],
         price: Decimal | None,
+        *,
+        rationale: str | None = None,
     ) -> dict[str, Any]:
         book = self._spot
         fill_price = await self._resolve_price("spot", pair, order_type, price)
@@ -227,6 +253,7 @@ class LocalPaperLedger:
             fee_rate=fee_rate,
             realized_pnl=realized_pnl,
             leverage=1,
+            rationale=rationale,
         )
 
     async def _futures_order(
@@ -237,6 +264,8 @@ class LocalPaperLedger:
         order_type: Literal["market", "limit"],
         price: Decimal | None,
         leverage: int,
+        *,
+        rationale: str | None = None,
     ) -> dict[str, Any]:
         book = self._futures
         lev = max(1, min(int(leverage), 50))
@@ -339,6 +368,7 @@ class LocalPaperLedger:
             fee_rate=fee_rate,
             realized_pnl=realized_pnl,
             leverage=lev,
+            rationale=rationale,
         )
 
     def _append_fill(
@@ -355,10 +385,11 @@ class LocalPaperLedger:
         fee_rate: Decimal,
         realized_pnl: Decimal,
         leverage: int,
+        rationale: str | None = None,
     ) -> dict[str, Any]:
         order_id = f"LOCAL-{uuid4().hex[:12].upper()}"
         now = datetime.now(UTC).isoformat()
-        fill = {
+        fill: dict[str, Any] = {
             "txid": order_id,
             "id": order_id,
             "market_type": market_type,
@@ -381,6 +412,8 @@ class LocalPaperLedger:
             "source": "local-paper-ledger",
             "pnl": _fmt(realized_pnl),
         }
+        if rationale:
+            fill["rationale"] = str(rationale).strip()[:180]
         fills = list(book.get("fills") or [])
         fills.append(fill)
         book["fills"] = fills[-2000:]
@@ -404,19 +437,24 @@ class LocalPaperLedger:
         *,
         market_type: MarketType = "spot",
         leverage: int = 1,
+        rationale: str | None = None,
     ) -> dict[str, Any]:
         if side not in {"buy", "sell"} or order_type not in {"market", "limit"}:
             raise ValueError("unsupported paper order")
         if volume <= 0 or (order_type == "limit" and (price is None or price <= 0)):
             raise ValueError("invalid paper order values")
+        clipped = str(rationale).strip()[:180] if rationale else None
 
         inst = resolve_instrument(market_type, pair, leverage=leverage)
         async with self._lock:
+            self._assert_open_capacity(pair=inst.symbol, market_type=inst.market_type, side=side)
             if inst.market_type == "futures":
                 return await self._futures_order(
-                    side, inst.symbol, volume, order_type, price, leverage
+                    side, inst.symbol, volume, order_type, price, leverage, rationale=clipped
                 )
-            return await self._spot_order(side, inst.symbol, volume, order_type, price)
+            return await self._spot_order(
+                side, inst.symbol, volume, order_type, price, rationale=clipped
+            )
 
     async def paper_status(self) -> dict[str, Any]:
         async with self._lock:
@@ -435,12 +473,15 @@ class LocalPaperLedger:
             "spot": {
                 "usd_balance": self._spot.get("usd_balance"),
                 "starting_balance_usd": self._spot.get("starting_balance_usd"),
+                "open_positions": sum(1 for rows in (self._spot.get("lots") or {}).values() if rows),
             },
             "futures": {
                 "margin_balance_usd": self._futures.get("margin_balance_usd"),
                 "starting_margin_usd": self._futures.get("starting_margin_usd"),
                 "open_positions": len(self._futures.get("positions") or {}),
             },
+            "open_positions_total": self.open_position_count(),
+            "max_open_positions": int(self.max_open_positions),
             "usd_balance": self._spot.get("usd_balance"),
             "starting_balance_usd": self._spot.get("starting_balance_usd"),
             "orders": orders,
@@ -507,6 +548,7 @@ def get_local_paper_ledger(
     starting_margin_usd: Decimal | None = None,
     maker_fee_rate: Decimal | None = None,
     taker_fee_rate: Decimal | None = None,
+    max_open_positions: int | None = None,
 ) -> LocalPaperLedger:
     global _LEDGER
     if _LEDGER is None:
@@ -515,7 +557,10 @@ def get_local_paper_ledger(
             starting_margin_usd=starting_margin_usd or Decimal("10000"),
             maker_fee_rate=maker_fee_rate if maker_fee_rate is not None else Decimal("0"),
             taker_fee_rate=taker_fee_rate if taker_fee_rate is not None else Decimal("0.0005"),
+            max_open_positions=int(max_open_positions) if max_open_positions is not None else 20,
         )
+    elif max_open_positions is not None:
+        _LEDGER.max_open_positions = int(max_open_positions)
     return _LEDGER
 
 

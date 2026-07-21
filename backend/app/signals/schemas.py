@@ -18,6 +18,14 @@ def _forbid_exponent(value: Decimal) -> Decimal:
     return value
 
 
+def _reject_exponent_literal(value: object) -> object:
+    """Reject scientific notation before Decimal coercion (e.g. '1e-3')."""
+    if isinstance(value, str) and any(ch in value.lower() for ch in ("e",)):
+        # Allow plain decimals / signs / dots only — 'e' always means exponent here.
+        raise ValueError("exponent notation is not allowed")
+    return value
+
+
 class TradingViewWebhookBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -55,6 +63,11 @@ class TradingViewWebhookBody(BaseModel):
             raise ValueError("pair contains unsupported characters")
         return normalized
 
+    @field_validator("volume", "price", "observed_price", "pattern_confidence", mode="before")
+    @classmethod
+    def no_exponent_literal(cls, value: object) -> object:
+        return _reject_exponent_literal(value)
+
     @field_validator("volume", "price", "observed_price", "pattern_confidence")
     @classmethod
     def strict_decimal(cls, value: Decimal | None) -> Decimal | None:
@@ -89,7 +102,7 @@ class SignalRouteCreate(BaseModel):
 
     name: str = Field(min_length=1, max_length=128)
     strategy_id: str = Field(min_length=1, max_length=64)
-    pair_allowlist: str = Field(default="BTCUSD", max_length=512)
+    pair_allowlist: str = Field(default="ADAUSD,XRPUSD,ADAEUR,XRPEUR", max_length=512)
     max_volume: Decimal = Field(default=Decimal("0.01"), gt=Decimal("0"), max_digits=24, decimal_places=12)
     max_notional: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
     allowed_order_types: str = Field(default="market,limit", max_length=64)
@@ -217,11 +230,25 @@ class McpSubmitArgs(BaseModel):
             raise ValueError("pair contains unsupported characters")
         return normalized
 
+    @field_validator("volume", "price", "observed_price", "pattern_confidence", mode="before")
+    @classmethod
+    def no_exponent_literal(cls, value: object) -> object:
+        return _reject_exponent_literal(value)
+
+    @field_validator("idempotency_key", "strategy_id")
+    @classmethod
+    def no_control_chars(cls, value: str) -> str:
+        if any(ord(ch) < 32 for ch in value):
+            raise ValueError("control characters are not allowed")
+        return value
+
     def volume_decimal(self) -> Decimal:
         try:
             value = Decimal(self.volume)
         except InvalidOperation as exc:
             raise ValueError("invalid volume") from exc
+        if value <= 0:
+            raise ValueError("volume must be positive")
         return _forbid_exponent(value)
 
     def price_decimal(self) -> Decimal | None:
@@ -231,6 +258,19 @@ class McpSubmitArgs(BaseModel):
             value = Decimal(self.price)
         except InvalidOperation as exc:
             raise ValueError("invalid price") from exc
+        if value <= 0:
+            raise ValueError("price must be positive")
+        return _forbid_exponent(value)
+
+    def observed_price_decimal(self) -> Decimal | None:
+        if self.observed_price is None:
+            return None
+        try:
+            value = Decimal(self.observed_price)
+        except InvalidOperation as exc:
+            raise ValueError("invalid observed_price") from exc
+        if value <= 0:
+            raise ValueError("observed_price must be positive")
         return _forbid_exponent(value)
 
     def pattern_confidence_decimal(self) -> Decimal | None:

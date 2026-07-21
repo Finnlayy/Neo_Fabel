@@ -46,6 +46,8 @@ services:
       SIGNAL_ROUTES_ENABLED: ${SIGNAL_ROUTES_ENABLED:-false}
       TRADINGVIEW_INGRESS_ENABLED: ${TRADINGVIEW_INGRESS_ENABLED:-false}
       MCP_SIGNAL_ADAPTER_ENABLED: ${MCP_SIGNAL_ADAPTER_ENABLED:-false}
+      FABLE_MCP_BRIDGE_ENABLED: ${FABLE_MCP_BRIDGE_ENABLED:-true}
+      FABLE_MCP_BRIDGE_TOKEN: ${FABLE_MCP_BRIDGE_TOKEN:-}
       SIGNAL_WORKER_ENABLED: "false"
       SIGNAL_EXECUTION_ENABLED: ${SIGNAL_EXECUTION_ENABLED:-false}
       AI_ADVISORY_ENABLED: ${AI_ADVISORY_ENABLED:-false}
@@ -72,6 +74,33 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+
+  # Rust fable-mcp sidecar — health HTTP for compose; MCP stdio is for Cursor clients
+  # (use release binary or `docker compose exec fable-mcp fable-mcp --stdio`).
+  fable-mcp:
+    build:
+      context: ./mcp/fable_mcp
+      dockerfile: Dockerfile
+    environment:
+      FABLE_MCP_MODE: health
+      FABLE_MCP_HEALTH_PORT: "9100"
+      FABLE_MCP_BRIDGE_URL: http://api:8000
+      FABLE_MCP_BRIDGE_ENABLED: ${FABLE_MCP_BRIDGE_ENABLED:-true}
+      FABLE_MCP_BRIDGE_TOKEN: ${FABLE_MCP_BRIDGE_TOKEN:-}
+      FABLE_MCP_DEFAULT_PAIR: ${FABLE_MCP_DEFAULT_PAIR:-ADAUSD}
+      KRAKEN_LIVE_TRADING_ENABLED: "false"
+    ports:
+      - "9100:9100"
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9100/"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - mcp
 
   signal-worker:
     build:

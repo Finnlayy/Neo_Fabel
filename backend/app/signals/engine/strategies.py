@@ -32,6 +32,7 @@ class StrategyState:
     dca_steps_filled: set[int] = field(default_factory=set)
     dca_entry_avg: float | None = None
     dca_units: Decimal = Decimal("0")
+    adaptive_zones: list[tuple[float, float]] | None = None
 
 
 class Strategy(Protocol):
@@ -58,28 +59,54 @@ class GridStrategy:
         if config.kind != "grid":
             raise ValueError("GridStrategy requires kind=grid")
         self.config = config
-        lo = float(config.range_low)  # type: ignore[arg-type]
-        hi = float(config.range_high)  # type: ignore[arg-type]
-        n = int(config.grid_count)
+        self._zones: list[tuple[float, float]] | None = None
+        if not config.adaptive_range:
+            lo = float(config.range_low)  # type: ignore[arg-type]
+            hi = float(config.range_high)  # type: ignore[arg-type]
+            n = int(config.grid_count)
+            step = (hi - lo) / n
+            self._zones = [(lo + i * step, lo + (i + 1) * step) for i in range(n)]
+
+    def _resolve_zones(
+        self, candles: list[dict[str, Any]], state: StrategyState
+    ) -> list[tuple[float, float]]:
+        if self._zones is not None:
+            return self._zones
+        if state.adaptive_zones is not None:
+            return state.adaptive_zones
+        closes = _closes(candles)
+        if len(closes) < 5:
+            return []
+        window = closes[-min(len(closes), 80) :]
+        lo = min(window) * 0.995
+        hi = max(window) * 1.005
+        if hi <= lo:
+            mid = closes[-1]
+            lo, hi = mid * 0.99, mid * 1.01
+        n = int(self.config.grid_count)
         step = (hi - lo) / n
-        # Zone i covers [lo + i*step, lo + (i+1)*step); mid used for triggers.
-        self._zones = [(lo + i * step, lo + (i + 1) * step) for i in range(n)]
+        zones = [(lo + i * step, lo + (i + 1) * step) for i in range(n)]
+        state.adaptive_zones = zones
+        return zones
 
     def evaluate(self, candles: list[dict[str, Any]], state: StrategyState) -> list[SignalIntent]:
         closes = _closes(candles)
         if not closes:
             return []
         price = closes[-1]
+        zones = self._resolve_zones(candles, state)
+        if not zones:
+            return []
         # Act only on the zone that contains price (last zone is closed on the high edge).
         zone_i: int | None = None
-        for i, (z_lo, z_hi) in enumerate(self._zones):
-            last = i == len(self._zones) - 1
+        for i, (z_lo, z_hi) in enumerate(zones):
+            last = i == len(zones) - 1
             if (z_lo <= price < z_hi) or (last and z_lo <= price <= z_hi):
                 zone_i = i
                 break
         if zone_i is None:
             return []
-        z_lo, z_hi = self._zones[zone_i]
+        z_lo, z_hi = zones[zone_i]
         mid = (z_lo + z_hi) / 2.0
         held = state.grid_inventory.get(zone_i, 0)
         if price <= mid and held == 0:
@@ -94,7 +121,7 @@ class GridStrategy:
                     reason=f"grid_buy_zone_{zone_i}",
                     zone=zone_i,
                     price=price,
-                    meta={"zone_low": z_lo, "zone_high": z_hi, "mid": mid},
+                    meta={"zone_low": z_lo, "zone_high": z_hi, "mid": mid, "adaptive": self.config.adaptive_range},
                 )
             ]
         if price >= mid and held > 0:
@@ -109,7 +136,7 @@ class GridStrategy:
                     reason=f"grid_sell_zone_{zone_i}",
                     zone=zone_i,
                     price=price,
-                    meta={"zone_low": z_lo, "zone_high": z_hi, "mid": mid},
+                    meta={"zone_low": z_lo, "zone_high": z_hi, "mid": mid, "adaptive": self.config.adaptive_range},
                 )
             ]
         return []

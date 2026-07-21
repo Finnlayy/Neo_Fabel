@@ -54,6 +54,42 @@ def test_grid_golden_intents_deterministic():
     assert state.grid_inventory.get(0) == 0
 
 
+def test_adaptive_grid_from_candles():
+    cfg = StrategyConfig(
+        strategy_id="adapt",
+        kind="grid",
+        pair="SOLUSD",
+        adaptive_range=True,
+        grid_count=4,
+        volume_per_zone=Decimal("0.01"),
+    )
+    strat = GridStrategy(cfg)
+    state = StrategyState()
+    # Flat-ish tape around 100 → adaptive zones; mid of lower zone triggers buy.
+    history = [_candle(98 + i * 0.5) for i in range(20)]
+    history.append(_candle(97.0))
+    intents = strat.evaluate(history, state)
+    assert state.adaptive_zones is not None
+    assert len(state.adaptive_zones) == 4
+    # May or may not buy depending on zone mid — at least zones resolved without error.
+    assert isinstance(intents, list)
+
+
+def test_paper_opportunity_pairs_scans_full_watchlist():
+    from backend.app.signals.engine.generator import default_strategies, paper_opportunity_pairs
+
+    # Max open=3 does not shrink the scan universe — capacity only gates new buys.
+    settings = Settings(
+        paper_max_open_positions=3,
+        paper_opportunity_symbols="BTC/USD,ETH/USD,SOL/USD,XRP/USD,ADA/USD",
+    )
+    pairs = paper_opportunity_pairs(settings)
+    assert pairs == ["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "ADAUSD"]
+    strats = default_strategies(settings)
+    assert len(strats) == 5
+    assert all(s.adaptive_range for s in strats)
+
+
 def test_dca_drawdown_and_take_profit_golden():
     cfg = StrategyConfig(
         strategy_id="d1",

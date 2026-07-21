@@ -15,6 +15,7 @@ def test_default_slots_include_tradeagent_bats_and_et_windows():
     ids = {s.job_id for s in DEFAULT_SLOTS}
     assert "market_scan_hours" in ids
     assert "label_trades" in ids
+    assert "feedback_idle" in ids
     assert "optimizer_night" in ids
     assert "et_power_hour" in ids
     assert "market_scan_morning" in ids

@@ -79,6 +79,41 @@ async def test_build_auto_reply_status_command():
 async def test_build_auto_reply_trade_invalid():
     from backend.app.integrations.telegram_daemon import build_auto_reply
 
-    settings = Settings(gemini_api_key="")
-    reply = await build_auto_reply(settings, "/trade oops", "trader")
+    settings = Settings(gemini_api_key="", telegram_chat_id="999")
+    reply = await build_auto_reply(settings, "/trade oops", "trader", chat_id="999")
     assert "INVALID" in reply
+
+
+@pytest.mark.asyncio
+async def test_build_auto_reply_trade_unauthorized_chat():
+    from backend.app.integrations.telegram_daemon import build_auto_reply
+
+    settings = Settings(gemini_api_key="", telegram_chat_id="999")
+    reply = await build_auto_reply(settings, "/trade buy ada 1", "attacker", chat_id="111")
+    assert "UNAUTHORIZED" in reply
+
+
+@pytest.mark.asyncio
+async def test_build_auto_reply_approve_unauthorized_chat():
+    from backend.app.integrations.telegram_daemon import build_auto_reply
+
+    settings = Settings(gemini_api_key="", telegram_chat_id="999")
+    reply = await build_auto_reply(
+        settings,
+        "/approve 5diV3vz6Umj7UH7bYGBExg",
+        "attacker",
+        chat_id="111",
+    )
+    assert "UNAUTHORIZED" in reply
+
+
+def test_approve_regex_accepts_token_urlsafe_ids():
+    import secrets
+
+    from backend.app.integrations.telegram_daemon import _APPROVE_RE
+
+    pid = secrets.token_urlsafe(16)
+    match = _APPROVE_RE.match(f"/approve {pid}")
+    assert match is not None
+    assert match.group(2) == pid
+    assert _APPROVE_RE.match("/approve deadbeef") is None  # too short / old hex shape

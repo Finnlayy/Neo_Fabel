@@ -7,7 +7,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.app.academy.agent_defs import NEO_AGENT_NAMES
+from backend.app.academy.agent_defs import (
+    ACADEMY_TRAINABLE_NAMES,
+    NEO_AGENT_NAMES,
+    TRADING_AGENT_NAMES,
+)
 from backend.app.academy.blind_patterns import BlindCandle, make_pattern_scenario, scan_blind_patterns
 from backend.app.academy.paths import ACADEMY_DATA_DIR
 from backend.app.academy.training_drills import training_drills
@@ -41,9 +45,22 @@ def test_neo_agents_mapped() -> None:
     orch = get_agent_definition("orchestrator")
     assert orch is not None
     assert orch.drill_type == "orchestration_teamwork"
+    assert orch.trades is False
+    assert orch.academy_train is False
     chronos = get_agent_definition("chronos")
     assert chronos is not None
     assert chronos.drill_type == "kline_language"
+    assert chronos.trades is True
+    assert chronos.academy_train is False  # self-taught — not Academy auto-drilled
+    # Auto-train subset: trading path minus Chronos / meta / briefing.
+    assert "orchestrator" not in TRADING_AGENT_NAMES
+    assert "analytic" not in TRADING_AGENT_NAMES
+    assert "chronos" in TRADING_AGENT_NAMES
+    assert "chronos" not in ACADEMY_TRAINABLE_NAMES
+    assert "kraken_broker" in ACADEMY_TRAINABLE_NAMES
+    assert "rna_smart" in ACADEMY_TRAINABLE_NAMES
+    assert set(ACADEMY_TRAINABLE_NAMES).issubset(set(TRADING_AGENT_NAMES))
+    assert set(TRADING_AGENT_NAMES).issubset(set(NEO_AGENT_NAMES))
 
 
 def test_chronos_kline_drill() -> None:
@@ -165,6 +182,11 @@ def test_agency_roster(authenticated_user: None) -> None:
     assert chronos["agenda"]
     assert chronos["lifetask"]
     assert chronos["level"] >= 1
+    assert chronos.get("trades") is True
+    assert chronos.get("academy_train") is False
+    orch = next(a for a in body["agents"] if a["id"] == "orchestrator")
+    assert orch.get("trades") is False
+    assert orch.get("academy_train") is False
     assert "confidence" in chronos
     assert "experience" in chronos
 
@@ -174,7 +196,12 @@ def test_academy_registry_and_cycle(authenticated_user: None) -> None:
     assert status.status_code == 200
     body = status.json()
     assert body["paper_only"] is True
-    assert "orchestrator" in body["agents"]
+    assert body.get("train_trading_only") is True
+    assert "kraken_broker" in body["agents"]
+    assert "orchestrator" not in body["agents"]
+    assert "chronos" not in body["agents"]  # self-taught
+    assert "orchestrator" in body.get("agents_all", [])
+    assert "chronos" in body.get("agents_all", [])
 
     registry = client.get("/api/v1/academy/agents/registry")
     assert registry.status_code == 200
@@ -224,7 +251,7 @@ def test_train_cycle_writes_drill_and_career_logs(authenticated_user: None) -> N
 
     assert _file_size(drills_path) > before_drills
     assert _file_size(careers_path) > before_careers
-    # One prediction_result line per Neo agent in the cycle.
+    # One prediction_result line per trading agent in the cycle (not meta roles).
     # Slice by bytes (st_size), not str indices — JSONL may contain multi-byte UTF-8.
     new_career_bytes = careers_path.read_bytes()[before_careers:].decode("utf-8", errors="replace")
-    assert new_career_bytes.count('"prediction_result"') >= len(NEO_AGENT_NAMES)
+    assert new_career_bytes.count('"prediction_result"') >= len(ACADEMY_TRAINABLE_NAMES)

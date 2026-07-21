@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import re
 from dataclasses import dataclass
 from decimal import Decimal
@@ -45,6 +46,49 @@ class KrakenCli:
     binary: str = "kraken"
     timeout_seconds: float = 15.0
     allow_trade_commands: bool = False
+    api_key: str | None = None
+    api_secret: str | None = None
+
+    def _command_env(self) -> dict[str, str]:
+        """Subprocess env: inherit OS env and inject Kraken creds from Settings/vault."""
+        env = os.environ.copy()
+        if self.api_key and not env.get("KRAKEN_API_KEY"):
+            env["KRAKEN_API_KEY"] = self.api_key
+        if self.api_secret and not env.get("KRAKEN_API_SECRET"):
+            env["KRAKEN_API_SECRET"] = self.api_secret
+        # Windows kraken.exe shims invoke WSL — credentials must cross via WSLENV.
+        if os.name == "nt" and (env.get("KRAKEN_API_KEY") or env.get("KRAKEN_API_SECRET")):
+            parts: list[str] = []
+            if env.get("KRAKEN_API_KEY"):
+                parts.append("KRAKEN_API_KEY/u")
+            if env.get("KRAKEN_API_SECRET"):
+                parts.append("KRAKEN_API_SECRET/u")
+            existing = env.get("WSLENV", "")
+            for part in parts:
+                if part not in existing.split(":"):
+                    existing = f"{part}:{existing}" if existing else part
+            env["WSLENV"] = existing
+        return env
+
+    @staticmethod
+    def _failure_message(payload: dict[str, Any] | Any, stderr: bytes) -> str:
+        if isinstance(payload, dict):
+            for key in ("message", "detail", "error_description"):
+                text = payload.get(key)
+                if text and str(text).strip() and str(text).strip() != str(payload.get("error", "")).strip():
+                    return str(text).strip()
+            err = payload.get("error")
+            if err and str(err).strip() not in {"", "api", "auth"}:
+                return str(err).strip()
+        stderr_text = stderr.decode("utf-8", errors="replace").strip()
+        if stderr_text:
+            try:
+                parsed = json.loads(stderr_text)
+                if isinstance(parsed, dict):
+                    return KrakenCli._failure_message(parsed, b"")
+            except json.JSONDecodeError:
+                return stderr_text
+        return "kraken command failed"
 
     async def _run(self, args: list[str]) -> dict[str, Any]:
         if not args:
@@ -68,8 +112,9 @@ class KrakenCli:
                 *command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=self._command_env(),
             )
-            stdout, _stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout_seconds)
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout_seconds)
         except FileNotFoundError as exc:
             raise KrakenCliError("config", "kraken executable is not installed") from exc
         except NotImplementedError as exc:
@@ -93,7 +138,8 @@ class KrakenCli:
             raise KrakenCliError("parse", "kraken returned invalid JSON") from exc
         if process.returncode != 0:
             category = str(payload.get("error", "api")) if isinstance(payload, dict) else "api"
-            raise KrakenCliError(category, "kraken command failed", retryable=category in {"network", "rate_limit"})
+            message = self._failure_message(payload, stderr)
+            raise KrakenCliError(category, message, retryable=category in {"network", "rate_limit"})
         if not isinstance(payload, dict):
             raise KrakenCliError("parse", "kraken returned a non-object JSON value")
         return payload

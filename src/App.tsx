@@ -712,6 +712,14 @@ export default function App() {
     );
   };
 
+  const handleUpdateAgentLastAction = (id: string, lastAction: string) => {
+    setSubAgents((prev) =>
+      prev.map((agent) =>
+        agent.id === id ? { ...agent, lastAction: lastAction.slice(0, 200) } : agent,
+      ),
+    );
+  };
+
   const handleOptimizeThresholds = (multiplier: number) => {
     // update adaptive agent status to optimizing and then active
     setSubAgents((prev) =>
@@ -1376,6 +1384,7 @@ export default function App() {
                 marketLive={marketLive}
                 subAgents={subAgents}
                 onUpdateAgentStatus={handleUpdateAgentStatus}
+                onUpdateAgentLastAction={handleUpdateAgentLastAction}
                 rnaPattern={rnaPattern}
               />
             )}

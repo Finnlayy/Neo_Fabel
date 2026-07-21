@@ -26,13 +26,27 @@ async def submit_trading_signal(
     settings = get_settings()
     if not settings.mcp_signal_adapter_enabled:
         raise HTTPException(status_code=503, detail={"code": "mcp_disabled", "message": "MCP adapter disabled"})
+    # Bound Content-Length when present; JSON body size is also capped by ASGI/proxy.
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            if int(content_length) > settings.signal_max_body_bytes:
+                raise HTTPException(
+                    status_code=413,
+                    detail={"code": "body_too_large", "message": "payload too large"},
+                )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "invalid_content_length", "message": "invalid Content-Length"},
+            ) from exc
     scheme, _, token = (authorization or "").partition(" ")
-    if scheme.lower() != "bearer" or not token:
+    if scheme.lower() != "bearer" or not token.strip():
         raise HTTPException(status_code=401, detail={"code": "auth_failed", "message": "authentication failed"})
     # Reject admin-like fields if a client smuggles them via raw JSON (extra=forbid on args).
     request_id = str(uuid4())
     service = SignalSubmissionService(settings)
-    return await service.submit_mcp(session, bearer=token, args=args, request_id=request_id)
+    return await service.submit_mcp(session, bearer=token.strip(), args=args, request_id=request_id)
 
 
 def mcp_tool_descriptor() -> dict:

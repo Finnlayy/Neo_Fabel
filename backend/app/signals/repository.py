@@ -251,6 +251,19 @@ class SignalRepository:
         )
         return int(value or 0)
 
+    async def open_exposure_for_route(self, route_id: str) -> Decimal:
+        """Sum buy volumes for events that still count as open paper exposure."""
+        from .policy import OPEN_EXPOSURE_STATUSES
+
+        value = await self.session.scalar(
+            select(func.coalesce(func.sum(SignalEvent.volume), 0)).where(
+                SignalEvent.route_id == route_id,
+                SignalEvent.side == "buy",
+                SignalEvent.status.in_(tuple(OPEN_EXPOSURE_STATUSES)),
+            )
+        )
+        return Decimal(str(value or 0))
+
 
 def new_audit(
     *,

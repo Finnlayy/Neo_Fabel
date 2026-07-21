@@ -122,13 +122,21 @@ class TelegramBot:
             params["drop_pending_updates"] = True
         return await self._get("deleteWebhook", params=params)
 
-    async def send_message(self, text: str) -> dict[str, Any]:
+    async def send_message(
+        self,
+        text: str,
+        *,
+        parse_mode: str | None = None,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         if not self.settings.telegram_bot_token:
             raise TelegramNotConfigured("TELEGRAM_BOT_TOKEN is not configured")
         chat_id = self.settings.telegram_chat_id or self.settings.manus_telegram_chat_id
         if not chat_id:
             raise TelegramNotConfigured("TELEGRAM_CHAT_ID is not configured")
-        return await self.send_message_to(chat_id, text)
+        return await self.send_message_to(
+            chat_id, text, parse_mode=parse_mode, reply_markup=reply_markup
+        )
 
     async def send_message_to(
         self,
@@ -136,13 +144,30 @@ class TelegramBot:
         text: str,
         *,
         parse_mode: str | None = None,
+        reply_markup: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if not self.settings.telegram_bot_token:
             raise TelegramNotConfigured("TELEGRAM_BOT_TOKEN is not configured")
         payload: dict[str, Any] = {"chat_id": chat_id, "text": text[:4000]}
         if parse_mode:
             payload["parse_mode"] = parse_mode
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
         return await self._post("sendMessage", payload)
+
+    async def answer_callback_query(
+        self,
+        callback_query_id: str,
+        *,
+        text: str | None = None,
+        show_alert: bool = False,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"callback_query_id": callback_query_id}
+        if text:
+            payload["text"] = text[:200]
+        if show_alert:
+            payload["show_alert"] = True
+        return await self._post("answerCallbackQuery", payload)
 
     async def poll_updates(self) -> list[dict[str, Any]]:
         """On-demand poll (used when daemon disabled)."""

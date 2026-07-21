@@ -26,6 +26,17 @@ class TradingGuardrails:
 
     def assert_pair_allowed(self, pair: str) -> str:
         normalized = pair.strip().upper().replace("/", "").replace("-", "")
+        # Live guardrails never honor * / ALL — that bypass is paper-only via PAPER_ALLOW_ALL_PAIRS.
+        if not self.pair_allowlist:
+            raise GuardrailViolation(
+                "pair_allowlist_empty",
+                "live pair allowlist is empty — refuse all pairs",
+            )
+        if "*" in self.pair_allowlist or "ALL" in self.pair_allowlist:
+            raise GuardrailViolation(
+                "pair_allowlist_wildcard_forbidden",
+                "wildcard pair allowlist is not permitted on live guardrails",
+            )
         if normalized not in self.pair_allowlist:
             raise GuardrailViolation(
                 "pair_not_allowed",

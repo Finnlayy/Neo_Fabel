@@ -11,6 +11,9 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
+
+from .http_static_cache import StaticCacheMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import require_trading_admin, require_trading_admin_recent, require_user
@@ -51,6 +54,7 @@ from .routers.kraken_status import router as kraken_status_router
 from .routers.orders import router as orders_router
 from .routers.integrations_settings import router as integrations_settings_router
 from .routers.tvremix import router as tvremix_router
+from .routers.mcp_paper import router as mcp_paper_router
 from .integrations.onnx.paths import ensure_onnx_data_dir
 from .integrations.onnx.runtime import ensure_seed_models, netron_static_dir, onnx_deps_available
 from .academy.training_loop import training_loop
@@ -142,8 +146,20 @@ async def lifespan(_app: FastAPI):
         except Exception:  # noqa: BLE001 — optional feed must not block API start
             logger.exception("telegram daemon start failed")
     try:
+        from .integrations.telegram_trade_notify import start_system_heartbeat
+
+        await start_system_heartbeat(settings)
+    except Exception:  # noqa: BLE001 — optional notify must not block API start
+        logger.exception("telegram system heartbeat start failed")
+    try:
         yield
     finally:
+        try:
+            from .integrations.telegram_trade_notify import stop_system_heartbeat
+
+            await stop_system_heartbeat(settings)
+        except Exception:  # noqa: BLE001
+            logger.exception("telegram system heartbeat stop failed")
         if settings.telegram_daemon_enabled:
             from .integrations.telegram_daemon import stop_telegram_daemon
 
@@ -247,8 +263,12 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID"],
 )
+# Compress JSON/HTML/static when clients accept gzip (direct :8000 / Vite proxy / nginx upstream).
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
+app.add_middleware(StaticCacheMiddleware)
 app.include_router(signal_router)
 app.include_router(mcp_router)
+app.include_router(mcp_paper_router)
 app.include_router(ai_router)
 app.include_router(tvapi_router)
 app.include_router(telegram_router)
@@ -303,11 +323,9 @@ def request_id(request: Request) -> str:
 
 
 def kraken() -> KrakenCli:
-    return KrakenCli(
-        binary=settings.kraken_binary,
-        timeout_seconds=settings.kraken_timeout_seconds,
-        allow_trade_commands=settings.trade_commands_enabled,
-    )
+    from backend.app.integrations.paper_factory import build_kraken_cli
+
+    return build_kraken_cli(settings)
 
 
 def paper_router() -> PaperExecutionRouter:
@@ -467,6 +485,8 @@ async def trading_autonomy() -> dict:
             "min_trade_interval_seconds": guardrails.min_trade_interval_seconds,
             "pair_allowlist": sorted(guardrails.pair_allowlist),
         },
+        "paper_allow_all_pairs": settings.paper_allow_all_pairs,
+        "paper_max_open_positions": settings.paper_max_open_positions,
         "live_algo_enabled": settings.kraken_live_algo_enabled,
         "required_for_level4": [
             "KRAKEN_AUTONOMY_LEVEL=4",

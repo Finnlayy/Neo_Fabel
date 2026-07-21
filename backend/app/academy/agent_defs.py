@@ -15,6 +15,11 @@ class AgentDefinition:
     profession: str
     agenda: str
     lifetask: str
+    # On the trading decision path (Agency / capital-adjacent roles).
+    trades: bool = True
+    # Included in Academy night/manual auto-cycles.
+    # False for meta roles and self-taught agents (Chronos runs its own loop).
+    academy_train: bool = True
 
 
 # Maps Jules scouts → Neo INITIAL_SUB_AGENTS ids.
@@ -28,6 +33,8 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
         profession="Agency Director",
         agenda="Align swarm packets, skill routing, and execution gates into one coherent plan.",
         lifetask="Keep the agency paper-safe while maximizing coordinated decision quality.",
+        trades=False,
+        academy_train=False,
     ),
     AgentDefinition(
         name="market_data",
@@ -38,6 +45,7 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
         profession="Market Intelligence Officer",
         agenda="Ingest multi-venue ticks, depth, and OHLCV so every peer shares one tape truth.",
         lifetask="Never leave the agency blind — freshness and coverage before narrative.",
+        trades=True,
     ),
     AgentDefinition(
         name="rna_smart",
@@ -48,6 +56,7 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
         profession="Blind Geometry Specialist",
         agenda="Read candlestick structure as relative geometry — no symbols, no absolute prices.",
         lifetask="Surface honest pattern bias the agency can debate without look-ahead leakage.",
+        trades=True,
     ),
     AgentDefinition(
         name="risk_gov",
@@ -58,6 +67,7 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
         profession="Chief Risk Officer",
         agenda="Enforce drawdown, autonomy, and compliance shields before any capital path.",
         lifetask="Block toxic regimes early; protect the agency from irreversible live risk.",
+        trades=True,
     ),
     AgentDefinition(
         name="kraken_broker",
@@ -68,6 +78,7 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
         profession="Execution Specialist",
         agenda="Route paper fills cleanly; report slippage and rejects without live side-effects.",
         lifetask="Make execution telemetry trustworthy so strategy never invents fills.",
+        trades=True,
     ),
     AgentDefinition(
         name="predictive",
@@ -78,6 +89,7 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
         profession="Regime Strategist",
         agenda="Project short-horizon vectors and volatility corridors for planning only.",
         lifetask="Warn the agency when regimes shift before they become losses.",
+        trades=True,
     ),
     AgentDefinition(
         name="chronos",
@@ -88,6 +100,9 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
         profession="K-Line Language Scientist",
         agenda="Tokenize OHLCVA via causal Z-score + BSQ; forecast with coarse/fine structure.",
         lifetask="Teach the agency the language of markets — paper signals, never auto-execution.",
+        trades=True,
+        # Chronos self-teaches via its own pipeline; Academy does not auto-drill it.
+        academy_train=False,
     ),
     AgentDefinition(
         name="analytic",
@@ -98,6 +113,8 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
         profession="Portfolio Analyst",
         agenda="Compile performance, yield, and multi-asset context into decision-ready briefs.",
         lifetask="Turn ledger noise into clear agency scorecards.",
+        trades=False,
+        academy_train=False,
     ),
     AgentDefinition(
         name="adaptive",
@@ -108,10 +125,19 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
         profession="Parameter Researcher",
         agenda="Retune thresholds and sizing as regimes evolve — always under risk_gov veto.",
         lifetask="Keep the agency adaptive without becoming reckless.",
+        trades=True,
     ),
 )
 
 NEO_AGENT_NAMES: tuple[str, ...] = tuple(d.name for d in NEO_AGENT_DEFINITIONS)
+
+# Trading-path roles (includes Chronos; excludes meta/briefing).
+TRADING_AGENT_NAMES: tuple[str, ...] = tuple(d.name for d in NEO_AGENT_DEFINITIONS if d.trades)
+
+# Academy auto-cycle roster (trading path minus self-taught / meta).
+ACADEMY_TRAINABLE_NAMES: tuple[str, ...] = tuple(
+    d.name for d in NEO_AGENT_DEFINITIONS if d.academy_train and d.trades
+)
 
 _BY_NAME = {d.name: d for d in NEO_AGENT_DEFINITIONS}
 
@@ -126,6 +152,17 @@ _LEVEL_THRESHOLDS: tuple[tuple[int, str, int], ...] = (
 
 def get_agent_definition(name: str) -> AgentDefinition | None:
     return _BY_NAME.get(name)
+
+
+def academy_trainable_agents(*, trading_only: bool = True) -> tuple[str, ...]:
+    """Agents included in Academy training cycles.
+
+    Chronos is never auto-trained (self-taught). When trading_only is False,
+    meta roles may join, but self-taught agents still stay out.
+    """
+    if trading_only:
+        return ACADEMY_TRAINABLE_NAMES
+    return tuple(d.name for d in NEO_AGENT_DEFINITIONS if d.academy_train)
 
 
 def experience_rank(total_calls: int) -> tuple[int, str]:

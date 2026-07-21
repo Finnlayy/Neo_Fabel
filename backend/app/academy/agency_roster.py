@@ -45,6 +45,8 @@ def build_agency_roster() -> list[dict[str, Any]]:
                 "current_streak": streak,
                 "badges": badges,
                 "drill_type": definition.drill_type,
+                "trades": definition.trades,
+                "academy_train": definition.academy_train,
                 "status": "ACTIVE" if total_calls > 0 or definition.name == "orchestrator" else "STANDBY",
             }
         )

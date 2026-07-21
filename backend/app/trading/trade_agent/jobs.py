@@ -20,12 +20,12 @@ def _session_factory() -> Any:
 
 
 async def _paper_status() -> dict[str, Any]:
-    from backend.app.integrations.kraken_cli import KrakenCli
+    from backend.app.integrations.paper_factory import build_kraken_cli
     from backend.app.integrations.paper_router import PaperExecutionRouter
     from backend.app.settings import get_settings as gs
 
     settings = gs()
-    cli = KrakenCli(settings)
+    cli = build_kraken_cli(settings)
     router = PaperExecutionRouter(cli=cli, prefer_local=bool(settings.paper_local_ledger))
     return await router.paper_status()
 
@@ -101,6 +101,8 @@ async def run_label_trades(*, lookback_days: int = 14, settings: Settings | None
                 "pnl": pnl,
                 "symbol": row.get("symbol") or row.get("asset") or row.get("pair"),
                 "side": row.get("side") or row.get("type"),
+                "rationale": row.get("rationale")
+                or f"PAPER {str(row.get('side') or '?').upper()} {row.get('pair') or row.get('symbol') or '?'} pnl={pnl}",
                 "source": "paper_ledger",
             }
             fh.write(json.dumps(rec) + "\n")

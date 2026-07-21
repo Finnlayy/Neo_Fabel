@@ -68,7 +68,9 @@ class SignalRoute(Base):
     mode: Mapped[str] = mapped_column(String(16), nullable=False, default="advisory")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     execution_target: Mapped[str] = mapped_column(String(32), nullable=False, default="kraken_paper")
-    pair_allowlist: Mapped[str] = mapped_column(Text, nullable=False, default="BTCUSD")
+    pair_allowlist: Mapped[str] = mapped_column(
+        Text, nullable=False, default="ADAUSD,XRPUSD,ADAEUR,XRPEUR"
+    )
     max_volume: Mapped[Decimal] = mapped_column(Numeric(24, 12), nullable=False, default=Decimal("0.01"))
     max_notional: Mapped[Decimal | None] = mapped_column(Numeric(24, 12), nullable=True)
     allowed_order_types: Mapped[str] = mapped_column(String(64), nullable=False, default="market,limit")

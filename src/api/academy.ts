@@ -33,6 +33,8 @@ export type AcademyStatus = {
     status: string;
   };
   agents: string[];
+  agents_all?: string[];
+  train_trading_only?: boolean;
   paper_only: boolean;
   drill_market_source?: string;
   academy_drill_live_data?: boolean;

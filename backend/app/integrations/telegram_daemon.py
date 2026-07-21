@@ -28,9 +28,36 @@ from .telegram_bot import (
 logger = logging.getLogger(__name__)
 
 _daemon_task: asyncio.Task[None] | None = None
+
+
+def _authorized_telegram_chat_ids(settings: Settings) -> set[str]:
+    """Operator chats allowed to run /trade, /approve, /reject, and approval callbacks."""
+    ids: set[str] = set()
+    for raw in (
+        settings.telegram_chat_id,
+        settings.manus_telegram_chat_id,
+        settings.glint_telegram_chat_id,
+    ):
+        if raw is None:
+            continue
+        text = str(raw).strip()
+        if text:
+            ids.add(text)
+    return ids
+
+
+def _chat_authorized(settings: Settings, chat_id: int | str | None) -> bool:
+    if chat_id is None:
+        return False
+    allowed = _authorized_telegram_chat_ids(settings)
+    if not allowed:
+        return False
+    return str(chat_id).strip() in allowed
 _stop_event: asyncio.Event | None = None
 
 _TRADE_RE = re.compile(r"^/trade(?:@\w+)?\s+(\w+)\s+(\w+)\s+([\d.]+)", re.I)
+# Matches secrets.token_urlsafe(16+) proposal IDs (base64url), not only hex.
+_APPROVE_RE = re.compile(r"^/(approve|reject)(?:@\w+)?\s+([A-Za-z0-9_-]{16,64})\b", re.I)
 
 
 def wake_up_daemon() -> None:
@@ -164,9 +191,33 @@ async def _gemini_reply(settings: Settings, text: str, from_name: str) -> str:
         )
 
 
-async def build_auto_reply(settings: Settings, text: str, from_name: str) -> str:
+async def build_auto_reply(
+    settings: Settings,
+    text: str,
+    from_name: str,
+    *,
+    chat_id: int | str | None = None,
+) -> str:
     lower = text.lower().strip()
     state = get_telegram_state()
+    privileged = _chat_authorized(settings, chat_id)
+
+    approve_match = _APPROVE_RE.match(text.strip())
+    if approve_match:
+        if not privileged:
+            return "🚫 <b>UNAUTHORIZED</b> — approve/reject only from the configured operator chat."
+        action, proposal_id = approve_match.groups()
+        from backend.app.trading.trade_approvals import execute_approved_proposal, reject_proposal
+
+        if action.lower() == "approve":
+            result = await execute_approved_proposal(proposal_id, by=f"telegram:{from_name}")
+            if result.get("ok"):
+                return f"✅ <b>APPROVED</b> <code>{proposal_id}</code> — order dispatched."
+            return f"⚠️ <b>APPROVE FAILED</b> <code>{proposal_id}</code>\n{result.get('reason') or result.get('error')}"
+        result = await reject_proposal(proposal_id, by=f"telegram:{from_name}")
+        if result.get("ok"):
+            return f"❌ <b>REJECTED</b> <code>{proposal_id}</code>"
+        return f"⚠️ <b>REJECT FAILED</b> <code>{proposal_id}</code>\n{result.get('reason')}"
 
     if lower.startswith("/start") or lower.startswith("/help"):
         return (
@@ -175,7 +226,8 @@ async def build_auto_reply(settings: Settings, text: str, from_name: str) -> str
             "🔹 <code>/status</code> — daemon telemetry\n"
             "🔹 <code>/balance</code> — paper ledger balances\n"
             "🔹 <code>/market</code> — live Kraken spot indexes\n"
-            "🔹 <code>/trade buy|sell asset amount</code> — paper route\n\n"
+            "🔹 <code>/trade buy|sell asset amount</code> — paper route\n"
+            "🔹 <code>/approve id</code> / <code>/reject id</code> — live trade gate\n\n"
             "<i>Or send any prompt for Gemini neural consult.</i>"
         )
     if lower.startswith("/status"):
@@ -197,6 +249,8 @@ async def build_auto_reply(settings: Settings, text: str, from_name: str) -> str
         body = await _fetch_market_lines(settings)
         return f"📈 <b>LIVE PRICE FEED</b>\n\n{body}\n\n<i>Kraken public spot indexes.</i>"
     if lower.startswith("/trade"):
+        if not privileged:
+            return "🚫 <b>UNAUTHORIZED</b> — paper /trade only from the configured operator chat."
         match = _TRADE_RE.match(text.strip())
         if not match:
             return (
@@ -228,7 +282,7 @@ async def _handle_incoming_message(
         wake_up_daemon()
 
     if settings.telegram_auto_respond:
-        reply = await build_auto_reply(settings, text, from_name)
+        reply = await build_auto_reply(settings, text, from_name, chat_id=chat_id)
         try:
             await bot.send_message_to(chat_id, reply, parse_mode="HTML")
         except Exception:  # noqa: BLE001
@@ -283,6 +337,11 @@ async def run_daemon_poll(settings: Settings) -> None:
         if update_id > state.last_update_id:
             state.last_update_id = update_id
 
+        callback = update.get("callback_query")
+        if isinstance(callback, dict):
+            await _handle_callback_query(bot, settings, callback)
+            continue
+
         message = update.get("message")
         if not isinstance(message, dict):
             continue
@@ -328,6 +387,64 @@ async def run_daemon_poll(settings: Settings) -> None:
             )
 
     _evaluate_throttle(settings)
+
+
+async def _handle_callback_query(bot: TelegramBot, settings: Settings, callback: dict[str, Any]) -> None:
+    data = str(callback.get("data") or "")
+    cq_id = str(callback.get("id") or "")
+    from_user = callback.get("from") if isinstance(callback.get("from"), dict) else {}
+    from_name = str(from_user.get("username") or from_user.get("first_name") or "User")
+    message = callback.get("message") if isinstance(callback.get("message"), dict) else {}
+    chat = message.get("chat") if isinstance(message.get("chat"), dict) else {}
+    chat_id = chat.get("id")
+
+    state = get_telegram_state()
+    state._last_message_monotonic = time.monotonic()
+    if state.is_throttled:
+        wake_up_daemon()
+
+    if not data.startswith("tv:"):
+        if cq_id:
+            await bot.answer_callback_query(cq_id, text="ignored")
+        return
+
+    if not _chat_authorized(settings, chat_id):
+        if cq_id:
+            await bot.answer_callback_query(cq_id, text="unauthorized chat")
+        return
+
+    parts = data.split(":")
+    if len(parts) != 3:
+        if cq_id:
+            await bot.answer_callback_query(cq_id, text="bad callback")
+        return
+    _, action, proposal_id = parts
+    from backend.app.trading.trade_approvals import execute_approved_proposal, reject_proposal
+
+    if action == "ok":
+        result = await execute_approved_proposal(proposal_id, by=f"telegram:{from_name}")
+        note = "Approved ✅" if result.get("ok") else f"Failed: {result.get('reason') or result.get('error')}"
+    elif action == "no":
+        result = await reject_proposal(proposal_id, by=f"telegram:{from_name}")
+        note = "Rejected ❌" if result.get("ok") else f"Failed: {result.get('reason')}"
+    else:
+        note = "unknown action"
+
+    if cq_id:
+        try:
+            await bot.answer_callback_query(cq_id, text=note[:180])
+        except Exception:  # noqa: BLE001
+            pass
+    if chat_id is not None:
+        try:
+            await bot.send_message_to(
+                chat_id,
+                f"🔐 Trade <code>{proposal_id}</code>: {note}",
+                parse_mode="HTML",
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("callback reply failed")
+
 
 
 async def _daemon_loop(settings: Settings, stop_event: asyncio.Event) -> None:

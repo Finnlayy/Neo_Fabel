@@ -50,6 +50,31 @@ async def trade_agent_stop(
     return {**(await trade_agent.stop()), "request_id": _rid(request)}
 
 
+@router.post("/feedback/run")
+async def trade_agent_feedback_run(
+    request: Request,
+    _user: dict[str, Any] = Depends(require_trading_admin_recent),
+) -> dict[str, Any]:
+    from backend.app.trading.feedback import feedback_engine
+
+    result = await feedback_engine.run_cycle(reason="api", force=True)
+    return {**result, "request_id": _rid(request)}
+
+
+@router.get("/feedback/status")
+async def trade_agent_feedback_status(
+    _user: dict[str, Any] = Depends(require_trading_admin),
+) -> dict[str, Any]:
+    from backend.app.trading.feedback import feedback_engine
+
+    settings = get_settings()
+    return {
+        "enabled": settings.feedback_engine_enabled,
+        "gate": feedback_engine.is_idle_or_paper_quiet(settings),
+        "last_run": feedback_engine.last_run,
+    }
+
+
 @router.post("/trigger/{job_id}")
 async def trade_agent_trigger(
     job_id: str,
@@ -62,6 +87,7 @@ async def trade_agent_trigger(
         "market_scan_preopen",
         "market_scan_hours",
         "label_trades",
+        "feedback_idle",
         "optimizer_night",
         "check_status",
         "check_positions",

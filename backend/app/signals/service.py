@@ -345,13 +345,21 @@ class SignalSubmissionService:
         repo = SignalRepository(session)
         # Bind route from credential — never accept route_id from tool args.
         credential, route = await self._resolve_mcp_bearer(repo, bearer)
-        volume = args.volume_decimal()
-        price = args.price_decimal()
-        observed = None
-        if args.observed_price is not None:
-            from decimal import Decimal as D
-
-            observed = D(args.observed_price)
+        try:
+            volume = args.volume_decimal()
+            price = args.price_decimal()
+            observed = args.observed_price_decimal()
+            pattern_confidence = args.pattern_confidence_decimal()
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "invalid_args", "message": str(exc)},
+            ) from exc
+        if args.order_type == "limit" and price is None:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "missing_price", "message": "price is required for limit orders"},
+            )
         return await self._accept(
             repo,
             route=route,
@@ -370,7 +378,7 @@ class SignalSubmissionService:
             raw_symbol=None,
             observed_price=observed,
             pattern_bias=args.pattern_bias,
-            pattern_confidence=args.pattern_confidence_decimal(),
+            pattern_confidence=pattern_confidence,
             request_id=request_id,
             external_correlation_id=None,
         )
@@ -387,6 +395,7 @@ class SignalSubmissionService:
         volume: Decimal,
         observed_price: Decimal | None,
         request_id: str,
+        rationale: str | None = None,
     ) -> SignalReceipt:
         """In-process intake for FableEngine — no credential; route bound by strategy_id."""
         if not (self.settings.signal_routes_enabled and self.settings.fable_engine_enabled):
@@ -396,6 +405,9 @@ class SignalSubmissionService:
             )
         repo = SignalRepository(session)
         route = await repo.find_enabled_route_by_strategy(strategy_id)
+        if route is None and strategy_id.startswith("fable_grid_"):
+            # Per-pair opportunity grids share the bootstrapped fable_grid_opportunity route.
+            route = await repo.find_enabled_route_by_strategy("fable_grid_opportunity")
         if route is None:
             raise HTTPException(
                 status_code=404,
@@ -423,7 +435,8 @@ class SignalSubmissionService:
             signal_id=signal_id,
             schema_version=1,
             occurred_at_raw=occurred_at,
-            strategy_id=strategy_id,
+            # Bind to the shared opportunity route id when per-pair grids are used.
+            strategy_id=route.strategy_id,
             pair=pair,
             side=side,
             volume=volume,
@@ -436,6 +449,7 @@ class SignalSubmissionService:
             external_correlation_id=None,
             pattern_bias=pattern_bias,
             pattern_confidence=pattern_confidence,
+            rationale=(rationale or "")[:180] or None,
         )
 
     async def _accept(
@@ -461,6 +475,7 @@ class SignalSubmissionService:
         external_correlation_id: str | None,
         pattern_bias: str | None = None,
         pattern_confidence: Decimal | None = None,
+        rationale: str | None = None,
     ) -> SignalReceipt:
         try:
             occurred_at = parse_occurred_at(occurred_at_raw)
@@ -537,6 +552,7 @@ class SignalSubmissionService:
                 **(
                     {"pattern_confidence": str(pattern_confidence)} if pattern_confidence is not None else {}
                 ),
+                **({"rationale": rationale} if rationale else {}),
             },
         )
         job = SignalJob(

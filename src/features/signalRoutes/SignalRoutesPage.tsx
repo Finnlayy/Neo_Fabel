@@ -52,6 +52,11 @@ export default function SignalRoutesPage() {
       if (apiErr.code === "auth_unconfigured" || apiErr.code === "session_expired") {
         setError(apiErr.code === "auth_unconfigured" ? "Firebase auth is not configured." : "Session expired. Sign in again.");
       }
+      if (apiErr.code === "signal_admin_required") {
+        setError(
+          "signal_admin claim required — grant it with: python scripts/set_firebase_claims.py --email YOU@EMAIL --signal-admin  then sign out/in. Or sign out to use AUTH_DEV_BYPASS on localhost.",
+        );
+      }
     }
   }, [selectedId]);
 
@@ -64,7 +69,7 @@ export default function SignalRoutesPage() {
 
   async function onCreate() {
     try {
-      const route = await createSignalRoute({ name, strategy_id: strategyId, pair_allowlist: "BTCUSD,ETHUSD" });
+      const route = await createSignalRoute({ name, strategy_id: strategyId, pair_allowlist: "ADAUSD,XRPUSD" });
       setMessage(`Created route ${route.name} (disabled, advisory).`);
       setSelectedId(route.id);
       await reload();
@@ -101,8 +106,15 @@ export default function SignalRoutesPage() {
       await reload();
     } catch (err) {
       const apiErr = err as ApiError;
-      setError(apiErr.code === "route_version_conflict" ? "Route changed elsewhere — reloaded." : apiErr.message);
+      const conflict =
+        apiErr.code === "route_version_conflict"
+          ? "Route changed elsewhere — reloaded."
+          : apiErr.message;
+      setConfirmBypass(false);
+      setConfirmEnable(false);
+      // reload() clears error at start — re-apply after refresh so the user still sees it
       await reload();
+      setError(conflict);
     }
   }
 

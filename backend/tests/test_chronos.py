@@ -103,7 +103,7 @@ def test_chronos_agent_registered() -> None:
     assert "chronos" in NEO_AGENT_NAMES
     defn = get_agent_definition("chronos")
     assert defn is not None
-    assert defn.drill_type == "regime_identification"
+    assert defn.drill_type == "kline_language"
 
 
 def test_api_status_and_tokenize(authenticated_user: None) -> None:
@@ -113,6 +113,13 @@ def test_api_status_and_tokenize(authenticated_user: None) -> None:
     assert body["paper_only"] is True
     assert body["live_trading"] is False
     assert body["phase"] == 1
+    assert "pipeline_status" in body
+    assert "lookback tokenize" in body["pipeline_status"].lower()
+    assert "deps" in body
+    assert "numpy" in body["deps"]
+    assert "torch" in body["deps"]
+    assert "vectorbt" in body["deps"]
+    assert "pinets_cli" in body["deps"]
 
     bars = _synthetic_ohlcva(8)
     tok = client.post("/api/v1/chronos/tokenize", json={"bars": bars})

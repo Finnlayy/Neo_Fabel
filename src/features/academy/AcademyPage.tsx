@@ -197,7 +197,8 @@ export default function AcademyPage() {
           <div>
             <h2 className="text-lg font-bold text-white tracking-tight">Agent Academy</h2>
             <p className="text-slate-500 mt-1 max-w-xl">
-              Synthetic drills and career tracking for Neo sub-agents. Paper / training only — no live orders.
+              Synthetic drills for trading-path agents (market, risk, execution, …). Chronos self-teaches;
+              meta roles stay in Agency — neither is auto-trained. Paper only — no live orders.
             </p>
           </div>
         </div>
@@ -273,9 +274,19 @@ export default function AcademyPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <section className="xl:col-span-1 space-y-3">
-          <h3 className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Agents</h3>
+          <h3 className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
+            Agents
+            {status?.train_trading_only ? (
+              <span className="ml-2 font-normal text-slate-600 normal-case tracking-normal">
+                · trading path only
+              </span>
+            ) : null}
+          </h3>
           <ul className="space-y-2 max-h-80 overflow-y-auto">
-            {agents.map((a) => (
+            {(status?.agents?.length
+              ? agents.filter((a) => status.agents.includes(a.name))
+              : agents
+            ).map((a) => (
               <li key={a.name}>
                 <button
                   type="button"

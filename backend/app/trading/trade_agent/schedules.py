@@ -31,6 +31,7 @@ DEFAULT_SLOTS: tuple[ScheduleSlot, ...] = (
     ScheduleSlot("market_scan_preopen", 15, 0, "Europe/Berlin", "Pre-open US session scan"),
     ScheduleSlot("market_scan_hours", 16, 0, "Europe/Berlin", "Market-hours scan (10:00 ET)"),
     ScheduleSlot("label_trades", 18, 0, "Europe/Berlin", "Label paper fills for ML (12:00 ET)"),
+    ScheduleSlot("feedback_idle", 18, 30, "Europe/Berlin", "Idle-market feedback / error guard"),
     ScheduleSlot("optimizer_night", 2, 30, "Europe/Berlin", "Overnight GA / param optimizer"),
     # Event-driven ET entry windows (crypto 24/7 still uses these as priority ticks)
     ScheduleSlot("et_gap_momentum", 9, 35, "America/New_York", "Gap & morning momentum (ET)"),

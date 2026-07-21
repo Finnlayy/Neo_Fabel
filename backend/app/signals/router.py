@@ -218,7 +218,10 @@ async def tradingview_parse_preview(
     _user: dict = Depends(require_signal_admin),
 ) -> dict:
     """Dry-run: natural TV JSON → Neo body + Kraken order fields (no route submit)."""
+    settings = get_settings()
     body_bytes = await request.body()
+    if len(body_bytes) > settings.signal_max_body_bytes:
+        raise HTTPException(status_code=413, detail={"code": "body_too_large", "message": "payload too large"})
     try:
         raw = json.loads(body_bytes.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:

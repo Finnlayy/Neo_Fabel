@@ -6,9 +6,11 @@ import {
   startPaperLoop,
   stopLiveLoop,
   stopPaperLoop,
+  type LiveStartConfig,
   type LoopsStatus,
 } from "../api/loops";
 import {ApiError} from "../api/client";
+import {LiveStartConfirmModal} from "./LiveStartConfirmModal";
 
 type Props = {
   language?: "en" | "de";
@@ -138,12 +140,12 @@ export default function TradingLoopSwitches({language = "en"}: Props) {
     setConfirmLive(true);
   };
 
-  const confirmStartLive = async () => {
+  const confirmStartLive = async (config: LiveStartConfig) => {
     setConfirmLive(false);
     setBusyLive(true);
     setError("");
     try {
-      await startLiveLoop();
+      await startLiveLoop(config);
       await reload();
     } catch (err) {
       setError(formatErr(err));
@@ -232,6 +234,16 @@ export default function TradingLoopSwitches({language = "en"}: Props) {
             : null}
         </span>
       ) : null}
+      {status?.live.running && status.live.session ? (
+        <span className="text-[8px] font-mono text-rose-300/90 max-w-[320px] leading-tight">
+          {status.live.session.session_name} · €{status.live.session.max_margin_eur} · ≤
+          {status.live.session.max_concurrent_trades} trades ·{" "}
+          {status.live.session.position_sizing?.mode || "half_kelly"}
+          {status.live.session.symbol_allowlist?.length
+            ? ` · ${status.live.session.symbol_allowlist.join(",")}`
+            : ""}
+        </span>
+      ) : null}
       {error ? (
         <span className="text-[8px] font-mono text-rose-400 max-w-[280px] leading-tight">{error}</span>
       ) : null}
@@ -240,34 +252,11 @@ export default function TradingLoopSwitches({language = "en"}: Props) {
       ) : null}
 
       {confirmLive ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-slate-950 border border-rose-500/40 rounded-lg p-4 max-w-md w-full font-mono space-y-3 shadow-xl">
-            <h3 className="text-sm font-bold text-rose-300 uppercase tracking-widest">
-              {de ? "Live-Algo bestätigen" : "Confirm live algo"}
-            </h3>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              {de
-                ? "Startet die Live-Session (Deadman + Orchestrator-Loop). Echte Orders erfordern weiterhin KRAKEN_LIVE_TRADING_ENABLED und Autonomy ≥ 4 in der Umgebung — dieser Schalter schaltet Live-Trading nicht selbst frei."
-                : "Starts the live session (deadman + orchestrator loop). Real orders still require KRAKEN_LIVE_TRADING_ENABLED and autonomy ≥ 4 in the environment — this switch does not enable live trading by itself."}
-            </p>
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="button"
-                className="px-3 py-1.5 text-[10px] border border-white/15 text-slate-300 rounded cursor-pointer"
-                onClick={() => setConfirmLive(false)}
-              >
-                {de ? "Abbrechen" : "Cancel"}
-              </button>
-              <button
-                type="button"
-                className="px-3 py-1.5 text-[10px] bg-rose-500/20 border border-rose-500/40 text-rose-200 rounded cursor-pointer font-bold"
-                onClick={() => void confirmStartLive()}
-              >
-                {de ? "Live starten" : "Start live"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <LiveStartConfirmModal
+          de={de}
+          onCancel={() => setConfirmLive(false)}
+          onConfirm={(config) => void confirmStartLive(config)}
+        />
       ) : null}
     </div>
   );

@@ -58,3 +58,22 @@ async def test_router_prefer_local_skips_cli(isolated_ledger: LocalPaperLedger) 
     result = await router.paper_order("buy", "BTCUSD", Decimal("0.001"), "market", None)
     assert result["source"] == "local-paper-ledger"
     cli.paper_order.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_paper_max_open_positions_allows_twenty_default(isolated_ledger: LocalPaperLedger) -> None:
+    assert isolated_ledger.max_open_positions == 20
+    status = await isolated_ledger.paper_status()
+    assert status["max_open_positions"] == 20
+
+
+@pytest.mark.asyncio
+async def test_paper_rejects_beyond_max_open_positions(isolated_ledger: LocalPaperLedger) -> None:
+    isolated_ledger.max_open_positions = 2
+    await isolated_ledger.paper_order("buy", "BTCUSD", Decimal("0.001"), "market", None)
+    await isolated_ledger.paper_order("buy", "ETHUSD", Decimal("0.01"), "market", None)
+    with pytest.raises(ValueError, match="max open positions"):
+        await isolated_ledger.paper_order("buy", "SOLUSD", Decimal("0.1"), "market", None)
+    # Adding to an existing position is still allowed
+    await isolated_ledger.paper_order("buy", "BTCUSD", Decimal("0.001"), "market", None)
+    assert isolated_ledger.open_position_count() == 2
