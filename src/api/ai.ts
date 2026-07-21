@@ -2,6 +2,23 @@ import {apiRequest} from "./client";
 import {tradesForAnalyzeWire} from "./chatWire";
 import type {AgentStatusPacket, GenerativePlan, Trade} from "../types";
 
+export type AiSpend = {
+  day?: string | null;
+  provider?: string;
+  spent_eur?: number;
+  limit_eur?: number;
+  remaining_eur?: number;
+  calls_today?: number;
+  budget_exhausted?: boolean;
+  budget_used_pct?: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  event_count?: number;
+  tracked?: boolean;
+  daily_budget_eur?: number;
+};
+
 export type AiHealth = {
   configured: boolean;
   provider: "gemini" | "openrouter" | "groq" | "cerebras" | "aiprimetech" | "none" | string;
@@ -11,6 +28,12 @@ export type AiHealth = {
   deterministic_fallback?: boolean;
   chat_enabled?: boolean;
   rotate?: boolean;
+  spend?: AiSpend;
+  aiprimetech?: AiSpend & {
+    base_url?: string;
+    default_model?: string;
+    models?: unknown[];
+  };
 };
 
 export type ChatMessage = {role: "user" | "assistant" | "system"; content: string};

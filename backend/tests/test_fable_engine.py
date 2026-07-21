@@ -129,14 +129,27 @@ async def test_engine_dry_run_records_without_executor():
     assert engine.dry_runs[-1]["pair"] == "BTCUSD"
 
 
-def test_engine_start_fail_closed_when_live_autonomy():
+def test_engine_start_dry_run_allows_elevated_autonomy():
+    """Dry-run paper loop may coexist with autonomy > 2 (live desk env)."""
     settings = Settings(
-        kraken_live_trading_enabled=False,
+        kraken_live_trading_enabled=True,
         kraken_autonomy_level=4,
         fable_engine_enabled=True,
         fable_engine_dry_run=True,
     )
     engine = FableEngine(settings=settings, engine=EngineSettings(enabled=True, dry_run=True, strategies=[]))
+    engine.assert_start_safe()
+
+
+def test_engine_start_fail_closed_when_live_autonomy_not_dry_run():
+    settings = Settings(
+        kraken_live_trading_enabled=False,
+        kraken_autonomy_level=4,
+        fable_engine_enabled=True,
+        fable_engine_dry_run=False,
+        signal_execution_enabled=True,
+    )
+    engine = FableEngine(settings=settings, engine=EngineSettings(enabled=True, dry_run=False, strategies=[]))
     with pytest.raises(SignalSafetyError):
         engine.assert_start_safe()
 

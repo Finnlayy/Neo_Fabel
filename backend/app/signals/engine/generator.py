@@ -18,7 +18,7 @@ from backend.app.settings import Settings
 from backend.app.signals.engine.config import EngineSettings, StrategyConfig
 from backend.app.signals.engine.ratelimit import TokenBucket
 from backend.app.signals.engine.strategies import SignalIntent, StrategyState, build_strategy
-from backend.app.signals.safety import SignalSafetyError, assert_signal_paper_only
+from backend.app.signals.safety import SignalSafetyError
 
 logger = logging.getLogger("neo_fabel.signals.engine")
 
@@ -94,7 +94,9 @@ class FableEngine:
 
     def assert_start_safe(self) -> None:
         """Fail-closed gates before the loop starts."""
-        assert_signal_paper_only(self.app_settings)
+        from backend.app.signals.safety import assert_fable_engine_start_safe
+
+        assert_fable_engine_start_safe(self.app_settings, dry_run=bool(self.engine.dry_run))
         if not self.engine.dry_run and not self.app_settings.signal_execution_enabled:
             raise SignalSafetyError(
                 "FableEngine refuses start: FABLE_ENGINE_DRY_RUN=false requires SIGNAL_EXECUTION_ENABLED=true"

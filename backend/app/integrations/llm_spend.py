@@ -87,6 +87,38 @@ def snapshot(provider: str, limit_eur: float, day: date | None = None) -> SpendS
         )
 
 
+def token_totals(provider: str, day: date | None = None) -> dict[str, int]:
+    """Sum prompt/completion tokens from today's ledger events."""
+    with _LOCK:
+        data = _read(provider, day)
+        events = list(data.get("events") or [])
+    prompt = sum(int(e.get("prompt_tokens") or 0) for e in events if isinstance(e, dict))
+    completion = sum(int(e.get("completion_tokens") or 0) for e in events if isinstance(e, dict))
+    return {
+        "prompt_tokens": prompt,
+        "completion_tokens": completion,
+        "total_tokens": prompt + completion,
+        "event_count": len(events),
+    }
+
+
+def provider_spend_payload(provider: str, limit_eur: float) -> dict[str, Any]:
+    snap = snapshot(provider, limit_eur)
+    tokens = token_totals(provider)
+    pct = 0.0 if snap.limit_eur <= 0 else min(100.0, (snap.spent_eur / snap.limit_eur) * 100.0)
+    return {
+        "day": snap.day,
+        "provider": snap.provider,
+        "spent_eur": snap.spent_eur,
+        "limit_eur": snap.limit_eur,
+        "remaining_eur": snap.remaining_eur,
+        "calls_today": snap.calls,
+        "budget_exhausted": snap.exhausted,
+        "budget_used_pct": round(pct, 2),
+        **tokens,
+    }
+
+
 def assert_budget_available(provider: str, limit_eur: float, *, reserve_eur: float = 0.005) -> SpendSnapshot:
     snap = snapshot(provider, limit_eur)
     if snap.remaining_eur < reserve_eur:

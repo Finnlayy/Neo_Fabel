@@ -91,9 +91,11 @@ class TradingLoopsService:
             return {"started": False, "reason": "ALREADY_RUNNING", "engine": existing.status()}
 
         base = engine_settings_from_app(settings)
+        # UI paper loop is always dry-run: record intents only, never place orders.
+        # This may coexist with live env flags used by the Positions desk.
         eng_settings = EngineSettings(
             enabled=True,
-            dry_run=base.dry_run,
+            dry_run=True,
             poll_seconds=base.poll_seconds,
             market_rpm=base.market_rpm,
             onnx_bias=base.onnx_bias,
@@ -117,7 +119,6 @@ class TradingLoopsService:
         set_fable_engine(engine)
 
         async def _run() -> None:
-            self._paper_running = True
             self._paper_last_error = None
             try:
                 await engine.run_forever(force=True)
@@ -128,6 +129,8 @@ class TradingLoopsService:
                 self._paper_running = False
                 self._paper_task = None
 
+        self._paper_running = True
+        self._paper_last_error = None
         self._paper_task = asyncio.create_task(_run(), name="trading-paper-loop")
         return {"started": True, "mode": "paper", "engine": engine.status()}
 

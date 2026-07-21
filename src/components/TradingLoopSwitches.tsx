@@ -35,16 +35,32 @@ function SwitchPill({
       title={title}
       disabled={busy || disabled}
       onClick={onToggle}
-      className={`flex flex-col items-stretch min-w-[108px] px-2.5 py-1.5 rounded-sm border font-mono text-left cursor-pointer transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+      aria-pressed={on}
+      className={`relative flex flex-col items-stretch min-w-[118px] px-2.5 py-1.5 rounded-sm border font-mono text-left cursor-pointer transition-all disabled:opacity-40 disabled:cursor-not-allowed overflow-hidden ${
         on
-          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+          ? "bg-emerald-500/20 border-emerald-400/60 text-emerald-200 shadow-[0_0_18px_rgba(16,185,129,0.35)]"
           : "bg-white/5 border-white/10 text-slate-300 hover:border-cyan-500/30"
       }`}
     >
-      <span className="text-[8px] uppercase tracking-widest text-slate-500">{label}</span>
-      <span className="text-[11px] font-bold flex items-center gap-1.5 mt-0.5">
-        <span className={`w-1.5 h-1.5 rounded-full ${on ? "bg-emerald-400 animate-pulse" : "bg-slate-600"}`} />
-        {busy ? "…" : on ? "ON" : "OFF"}
+      {on ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-sm border border-emerald-400/50 animate-pulse"
+        />
+      ) : null}
+      <span className="text-[8px] uppercase tracking-widest text-slate-500 relative z-[1]">{label}</span>
+      <span className="text-[11px] font-bold flex items-center gap-1.5 mt-0.5 relative z-[1]">
+        <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+          {on ? (
+            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/60 animate-ping" />
+          ) : null}
+          <span
+            className={`relative inline-flex h-2 w-2 rounded-full ${
+              on ? "bg-emerald-400 shadow-[0_0_10px_#34d399]" : "bg-slate-600"
+            }`}
+          />
+        </span>
+        {busy ? "…" : on ? "ONLINE" : "OFFLINE"}
       </span>
     </button>
   );
@@ -74,6 +90,22 @@ export default function TradingLoopSwitches({language = "en"}: Props) {
     return () => window.clearInterval(id);
   }, [reload]);
 
+  const formatErr = (err: unknown): string => {
+    if (err instanceof ApiError) {
+      if (err.code === "safety") {
+        return de
+          ? `Paper-Loop Sicherheit: ${err.message}`
+          : `Paper loop safety: ${err.message}`;
+      }
+      if (err.code === "recent_auth_required") {
+        return de ? "Bitte erneut anmelden (frische Auth nötig)" : "Re-authenticate to toggle loops";
+      }
+      return err.message;
+    }
+    if (err instanceof Error) return err.message;
+    return String(err);
+  };
+
   const onPaper = async () => {
     setBusyPaper(true);
     setError("");
@@ -82,13 +114,8 @@ export default function TradingLoopSwitches({language = "en"}: Props) {
       else await startPaperLoop();
       await reload();
     } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : String(err);
-      setError(msg);
+      setError(formatErr(err));
+      await reload();
     } finally {
       setBusyPaper(false);
     }
@@ -102,7 +129,7 @@ export default function TradingLoopSwitches({language = "en"}: Props) {
         await stopLiveLoop();
         await reload();
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        setError(formatErr(err));
       } finally {
         setBusyLive(false);
       }
@@ -119,13 +146,7 @@ export default function TradingLoopSwitches({language = "en"}: Props) {
       await startLiveLoop();
       await reload();
     } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : String(err);
-      setError(msg);
+      setError(formatErr(err));
       await reload();
     } finally {
       setBusyLive(false);
@@ -149,7 +170,7 @@ export default function TradingLoopSwitches({language = "en"}: Props) {
       await killTradingLoops();
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(formatErr(err));
     } finally {
       setBusyLive(false);
       setBusyPaper(false);
@@ -164,6 +185,11 @@ export default function TradingLoopSwitches({language = "en"}: Props) {
       ? "Live-Algo via Orchestrator (Level 4)"
       : "Live algo via orchestrator (Level 4)";
 
+  const paperHint =
+    status?.paper.last_error && !status.paper.running
+      ? status.paper.last_error
+      : null;
+
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
@@ -172,7 +198,10 @@ export default function TradingLoopSwitches({language = "en"}: Props) {
           on={Boolean(status?.paper.running)}
           busy={busyPaper}
           onToggle={() => void onPaper()}
-          title={de ? "Paper-Algo-Loop starten/stoppen" : "Start/stop paper algo loop"}
+          title={
+            paperHint ||
+            (de ? "Paper-Algo-Loop starten/stoppen (dry-run)" : "Start/stop paper algo loop (dry-run)")
+          }
         />
         <SwitchPill
           label={de ? "Live-Algo" : "Live algo"}
@@ -196,15 +225,18 @@ export default function TradingLoopSwitches({language = "en"}: Props) {
         <span className="text-[8px] font-mono text-amber-400/90 max-w-[280px] leading-tight">
           {de ? "Algo gesperrt: " : "Algo blocked: "}
           {status?.live.blocked_reason}
-          {(status?.live.supervised_manual
+          {status?.live.supervised_manual
             ? de
               ? " — Manual Positions OK"
               : " — manual Positions OK"
-            : null)}
+            : null}
         </span>
       ) : null}
       {error ? (
-        <span className="text-[8px] font-mono text-rose-400 max-w-[240px] leading-tight">{error}</span>
+        <span className="text-[8px] font-mono text-rose-400 max-w-[280px] leading-tight">{error}</span>
+      ) : null}
+      {paperHint && !error ? (
+        <span className="text-[8px] font-mono text-amber-400/90 max-w-[280px] leading-tight">{paperHint}</span>
       ) : null}
 
       {confirmLive ? (

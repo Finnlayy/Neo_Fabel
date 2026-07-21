@@ -43,6 +43,18 @@ def assert_signal_paper_only(settings: Settings) -> None:
         raise SignalSafetyError("signal execution requires autonomy level paper (2)")
 
 
+def assert_fable_engine_start_safe(settings: Settings, *, dry_run: bool) -> None:
+    """Start gates for FableEngine.
+
+    Dry-run (UI paper loop) may run in a process that also has live env flags
+    for the Positions desk — it only records intents and never places orders.
+    Non-dry-run still requires a fully paper-only composition.
+    """
+    if dry_run:
+        return
+    assert_signal_paper_only(settings)
+
+
 def assert_signals_module_imports() -> None:
     """Scan signal package AST so tests fail if live Kraken symbols are referenced."""
     offenders: list[str] = []

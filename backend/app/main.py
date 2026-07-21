@@ -46,6 +46,7 @@ from .routers.tvapi import router as tvapi_router
 from .routers.vector import router as vector_router
 from .routers.ga import router as ga_router
 from .routers.loops import router as loops_router
+from .routers.trade_agent import router as trade_agent_router
 from .routers.kraken_status import router as kraken_status_router
 from .routers.orders import router as orders_router
 from .routers.integrations_settings import router as integrations_settings_router
@@ -58,6 +59,7 @@ from .signals.router import router as signal_router
 from .signals.safety import assert_signals_module_imports
 from .trading.autonomy import AutonomyLevel
 from .trading.loops import trading_loops
+from .trading.trade_agent import trade_agent
 
 logger = logging.getLogger("neo_fabel.api")
 from .trading.session import Level4Session
@@ -120,6 +122,11 @@ async def lifespan(_app: FastAPI):
             logger.exception("fable route bootstrap failed")
     if settings.training_loop_auto_start and settings.training_loop_enabled:
         await training_loop.start()
+    if settings.trade_agent_auto_start and settings.trade_agent_enabled:
+        try:
+            await trade_agent.start(settings)
+        except Exception:  # noqa: BLE001
+            logger.exception("trade agent auto-start failed")
     engine_task: asyncio.Task | None = None
     if settings.fable_engine_enabled:
         from .database import SessionFactory
@@ -157,6 +164,10 @@ async def lifespan(_app: FastAPI):
                 pass
             set_fable_engine(None)
         training_loop.stop_now()
+        try:
+            await trade_agent.stop()
+        except Exception:  # noqa: BLE001
+            logger.exception("trade agent shutdown failed")
         try:
             await trading_loops.shutdown()
         except Exception:  # noqa: BLE001
@@ -248,6 +259,7 @@ app.include_router(onnx_router)
 app.include_router(chronos_router)
 app.include_router(ga_router)
 app.include_router(loops_router)
+app.include_router(trade_agent_router)
 app.include_router(kraken_status_router)
 app.include_router(orders_router)
 app.include_router(integrations_settings_router)

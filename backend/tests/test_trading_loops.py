@@ -66,6 +66,27 @@ async def test_live_start_runs_when_gates_ok():
 
 
 @pytest.mark.asyncio
+async def test_paper_start_works_with_live_env_when_dry_run():
+    """UI paper loop must start even if live trading env is on (dry-run only)."""
+    from backend.app.signals.engine.generator import set_fable_engine
+
+    set_fable_engine(None)
+    service = TradingLoopsService()
+    settings = Settings(
+        kraken_live_trading_enabled=True,
+        kraken_autonomy_level=4,
+        kraken_live_algo_enabled=False,
+        fable_engine_dry_run=True,
+        signal_routes_enabled=False,
+    )
+    result = await service.start_paper(settings, session_factory=MagicMock())
+    assert result["started"] is True
+    assert service.status(settings)["paper"]["running"] is True
+    stop = await service.stop_paper()
+    assert stop["stopped"] is True
+
+
+@pytest.mark.asyncio
 async def test_status_reports_can_start():
     service = TradingLoopsService()
     blocked = service.status(

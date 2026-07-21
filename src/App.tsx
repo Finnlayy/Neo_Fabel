@@ -10,6 +10,7 @@ import PositionsPage from "./features/positions/PositionsPage";
 import AuthPanel from "./auth/AuthPanel";
 import IntegrationsSettingsPanel from "./features/settings/IntegrationsSettingsPanel";
 import CommandOverview from "./components/CommandOverview";
+import OsSystemOverview from "./components/OsSystemOverview";
 import OrderbookHeatmap3D from "./components/OrderbookHeatmap3D";
 import { fetchCryptoTickers, fetchEquityTickers, fetchOrderBook, upsertTickerHistory } from "./api/market";
 import { connectMarketStream } from "./api/marketStream";
@@ -199,10 +200,21 @@ export default function App() {
   const orchestratorScore = Math.round(
     Math.max(0, Math.min(100, avgEfficiency * 0.65 + Math.max(0, 100 - avgAbsChange * 10) * 0.35)),
   );
-  // Composite index: live breadth / sentiment from ticker changes.
-  const compositeIndex = Math.round(Math.max(0, Math.min(100, bullishPct)));
-  const sentimentLabel =
-    bullishPct >= 55 ? `${bullishPct.toFixed(1)}% Bullish` : bullishPct <= 45 ? `${(100 - bullishPct).toFixed(1)}% Bearish` : `${bullishPct.toFixed(1)}% Mixed`;
+  // Sentiment: gauge + side label share one strength metric (dominant-side %).
+  const sentimentBias: "Bullish" | "Bearish" | "Mixed" =
+    bullishPct >= 55 ? "Bullish" : bullishPct <= 45 ? "Bearish" : "Mixed";
+  const sentimentStrength =
+    sentimentBias === "Bearish" ? 100 - bullishPct : bullishPct;
+  const compositeIndex = Math.max(0, Math.min(100, sentimentStrength));
+  const sentimentLabel = `${compositeIndex.toFixed(1)}% ${
+    language === "de"
+      ? sentimentBias === "Bullish"
+        ? "Bullisch"
+        : sentimentBias === "Bearish"
+          ? "Bearisch"
+          : "Gemischt"
+      : sentimentBias
+  }`;
   const anomalyLabel = avgAbsChange >= 8 ? (language === "de" ? "Volatilität hoch" : "High volatility") : t("noneDetected");
   const latencyLabel = queueLatencyMs !== null ? `${queueLatencyMs}ms` : "—";
 
@@ -236,54 +248,6 @@ export default function App() {
     });
   }, [rnaPattern, activeSymbol]);
 
-  const osTelemetryRows = [
-    {
-      label: language === "de" ? "Markt" : "Market",
-      value: marketLive
-        ? `LIVE · ${marketSource ?? "stream"} · ${tickers.length} tkr`
-        : language === "de"
-          ? "STALE / kein Stream"
-          : "STALE / no stream",
-      tone: marketLive ? "text-emerald-400" : "text-amber-400",
-    },
-    {
-      label: language === "de" ? "Orderbuch" : "Depth",
-      value: orderBookOnline
-        ? language === "de"
-          ? "ONLINE"
-          : "ONLINE"
-        : language === "de"
-          ? "OFFLINE"
-          : "OFFLINE",
-      tone: orderBookOnline ? "text-emerald-400" : "text-slate-500",
-    },
-    {
-      label: "AI",
-      value: aiStatusLabel,
-      tone: aiStatusLabel.includes("OFFLINE") ? "text-rose-400" : "text-cyan-400",
-    },
-    {
-      label: language === "de" ? "Ausführung" : "Exec",
-      value: `${readyStatus?.execution ?? "unknown"} · L${readyStatus?.autonomy_level ?? "—"}`,
-      tone: "text-slate-300",
-    },
-    {
-      label: language === "de" ? "Agenten" : "Agents",
-      value: `${agentsActive}/${subAgents.length} ACTIVE${agentsOptimizing ? ` · ${agentsOptimizing} OPT` : ""}${agentsAlert ? ` · ${agentsAlert} ALERT` : ""}`,
-      tone: agentsAlert ? "text-rose-400" : agentsOptimizing ? "text-amber-400" : "text-emerald-400",
-    },
-    {
-      label: language === "de" ? "Compliance" : "Compliance",
-      value: isComplianceActive
-        ? language === "de"
-          ? "ON · Paper only"
-          : "ON · paper only"
-        : language === "de"
-          ? "OFF"
-          : "OFF",
-      tone: isComplianceActive ? "text-rose-300" : "text-amber-400",
-    },
-  ] as const;
   const osFooter = activePlan
     ? language === "de"
       ? `Aktive Direktive: "${activePlan.planTitle}" · ${allocation.length} Allokations-Knoten · ${trades.length} Paper-Rows.`
@@ -1111,6 +1075,7 @@ export default function App() {
                         label={t("index")}
                         stroke="#06b6d4"
                         textClass="text-cyan-400"
+                        precision={1}
                       />
 
                       <div className="flex-1 space-y-1 pl-4 text-[10px]">
@@ -1133,32 +1098,38 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* OS telemetry — live backend/agent state, not marketing copy */}
-                  <div className="bg-slate-900/40 border border-white/5 rounded-xl p-5 glow-rose flex flex-col justify-between h-56 transition-all duration-300 hover:border-white/10 hover:bg-slate-900/60">
-                    <div className="space-y-2.5 min-h-0">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <span className="text-purple-400 font-bold uppercase tracking-wider text-[11px]">
-                          {t("systemOverview")}
-                        </span>
-                        <span className="text-[9px] text-purple-500/70 border border-purple-500/30 px-1.5 py-0.5 rounded">
-                          {language === "de" ? "OS TELEMETRIE" : "OS TELEMETRY"}
-                        </span>
-                      </div>
-                      <div className="space-y-1 text-[9px] font-mono overflow-y-auto max-h-[7.5rem] pr-1">
-                        {osTelemetryRows.map((row) => (
-                          <div key={row.label} className="flex justify-between gap-2 border-b border-white/5 pb-0.5">
-                            <span className="text-slate-500 uppercase shrink-0">{row.label}</span>
-                            <span className={`text-right truncate ${row.tone}`}>{row.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="pt-2 bg-slate-950/40 border border-white/5 p-2.5 rounded-lg text-[9px] text-slate-300 flex items-start gap-2">
-                      <Sparkles className={`w-4 h-4 text-purple-400 shrink-0 mt-0.5 ${activePlan || agentsOptimizing ? "animate-pulse" : ""}`} />
-                      <span className="leading-relaxed line-clamp-3">{osFooter}</span>
-                    </div>
-                  </div>
+                  {/* OS telemetry — live backend/agent state + token meter */}
+                  <OsSystemOverview
+                    language={language}
+                    marketLive={marketLive}
+                    marketSource={marketSource}
+                    tickerCount={tickers.length}
+                    orderBookOnline={orderBookOnline}
+                    aiStatusLabel={aiStatusLabel}
+                    execLabel={`${readyStatus?.execution ?? "unknown"} · L${readyStatus?.autonomy_level ?? "—"}`}
+                    agentsActive={agentsActive}
+                    agentsTotal={subAgents.length}
+                    agentsOptimizing={agentsOptimizing}
+                    agentsAlert={agentsAlert}
+                    isComplianceActive={isComplianceActive}
+                    onToggleCompliance={() => {
+                      setIsComplianceActive(!isComplianceActive);
+                      setSubAgents((prev) =>
+                        prev.map((a) =>
+                          a.id === "risk_gov"
+                            ? {
+                                ...a,
+                                lastAction: `Manually toggled safe override compliance rig to ${!isComplianceActive ? "ON" : "OFF"}.`,
+                              }
+                            : a,
+                        ),
+                      );
+                    }}
+                    footer={osFooter}
+                    planActive={Boolean(activePlan)}
+                    onNavigate={setActiveTab}
+                    onAiStatus={setAiStatusLabel}
+                  />
                 </div>
 
                 {/* SubAgentsSection Overview */}
@@ -1495,6 +1466,7 @@ export default function App() {
                         label={t("index")}
                         stroke="#06b6d4"
                         textClass="text-cyan-400"
+                        precision={1}
                       />
 
                       <div className="flex-1 space-y-1 pl-4 text-[10px]">
@@ -1517,31 +1489,37 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-900/40 border border-white/5 rounded-xl p-5 glow-rose flex flex-col justify-between h-56 transition-all duration-300 hover:border-white/10 hover:bg-slate-900/60">
-                    <div className="space-y-2.5 min-h-0">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <span className="text-purple-400 font-bold uppercase tracking-wider text-[11px]">
-                          OS SYSTEM OVERVIEW
-                        </span>
-                        <span className="text-[9px] text-purple-500/70 border border-purple-500/30 px-1.5 py-0.5 rounded">
-                          OS TELEMETRY
-                        </span>
-                      </div>
-                      <div className="space-y-1 text-[9px] font-mono overflow-y-auto max-h-[7.5rem] pr-1">
-                        {osTelemetryRows.map((row) => (
-                          <div key={row.label} className="flex justify-between gap-2 border-b border-white/5 pb-0.5">
-                            <span className="text-slate-500 uppercase shrink-0">{row.label}</span>
-                            <span className={`text-right truncate ${row.tone}`}>{row.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="pt-2 bg-slate-950/40 border border-white/5 p-2.5 rounded-lg text-[9px] text-slate-300 flex items-start gap-2">
-                      <Sparkles className={`w-4 h-4 text-purple-400 shrink-0 mt-0.5 ${activePlan || agentsOptimizing ? "animate-pulse" : ""}`} />
-                      <span className="leading-relaxed line-clamp-3">{osFooter}</span>
-                    </div>
-                  </div>
+                  <OsSystemOverview
+                    language={language}
+                    marketLive={marketLive}
+                    marketSource={marketSource}
+                    tickerCount={tickers.length}
+                    orderBookOnline={orderBookOnline}
+                    aiStatusLabel={aiStatusLabel}
+                    execLabel={`${readyStatus?.execution ?? "unknown"} · L${readyStatus?.autonomy_level ?? "—"}`}
+                    agentsActive={agentsActive}
+                    agentsTotal={subAgents.length}
+                    agentsOptimizing={agentsOptimizing}
+                    agentsAlert={agentsAlert}
+                    isComplianceActive={isComplianceActive}
+                    onToggleCompliance={() => {
+                      setIsComplianceActive(!isComplianceActive);
+                      setSubAgents((prev) =>
+                        prev.map((a) =>
+                          a.id === "risk_gov"
+                            ? {
+                                ...a,
+                                lastAction: `Manually toggled safe override compliance rig to ${!isComplianceActive ? "ON" : "OFF"}.`,
+                              }
+                            : a,
+                        ),
+                      );
+                    }}
+                    footer={osFooter}
+                    planActive={Boolean(activePlan)}
+                    onNavigate={setActiveTab}
+                    onAiStatus={setAiStatusLabel}
+                  />
                 </div>
 
                 <SubAgentsSection 

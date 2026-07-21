@@ -186,6 +186,8 @@ class Settings(BaseSettings):
     )
     # When false (default), Academy drills use offline fixtures — training loop never needs network.
     academy_drill_live_data: bool = Field(default=False, validation_alias="ACADEMY_DRILL_LIVE_DATA")
+    # Auto-train only agents on the trading path (exclude orchestrator / briefing roles).
+    academy_train_trading_only: bool = Field(default=True, validation_alias="ACADEMY_TRAIN_TRADING_ONLY")
 
     # Fable Engine — internal Grid/DCA signal generators (dry-run default; paper-only).
     fable_engine_enabled: bool = Field(default=False, validation_alias="FABLE_ENGINE_ENABLED")
@@ -198,6 +200,14 @@ class Settings(BaseSettings):
         default="auto", validation_alias="FABLE_ENGINE_CANDLE_SOURCE"
     )
     fable_engine_interval: str = Field(default="5m", validation_alias="FABLE_ENGINE_INTERVAL")
+
+    # Trade Agent — scheduled scans / labeling / optimizer (paper-first; from Fable5 TradeAgent).
+    trade_agent_enabled: bool = Field(default=False, validation_alias="TRADE_AGENT_ENABLED")
+    trade_agent_auto_start: bool = Field(default=False, validation_alias="TRADE_AGENT_AUTO_START")
+    trade_agent_watchdog_enabled: bool = Field(default=True, validation_alias="TRADE_AGENT_WATCHDOG_ENABLED")
+    trade_agent_watchdog_seconds: int = Field(
+        default=300, validation_alias="TRADE_AGENT_WATCHDOG_SECONDS", ge=60, le=3600
+    )
 
     # Genetic forward optimizer (paper research; no live orders).
     ga_optimizer_enabled: bool = Field(default=True, validation_alias="GA_OPTIMIZER_ENABLED")

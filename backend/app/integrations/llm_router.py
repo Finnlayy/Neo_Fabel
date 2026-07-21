@@ -20,8 +20,8 @@ from .llm_spend import (
     DailyBudgetExceeded,
     assert_budget_available,
     estimate_cost_eur,
+    provider_spend_payload,
     record_spend,
-    snapshot,
     tokens_from_messages,
 )
 
@@ -111,16 +111,30 @@ class LlmRouter:
         }
         if self._is_configured("aiprimetech"):
             budget = float(self.settings.aiprimetech_daily_budget_eur)
-            snap = snapshot("aiprimetech", budget)
+            spend = {**provider_spend_payload("aiprimetech", budget), "tracked": True}
             payload["aiprimetech"] = {
                 "base_url": (self.settings.aiprimetech_base_url or AIPRIMETECH_BASE_URL).rstrip("/"),
                 "default_model": self.settings.aiprimetech_default_model,
                 "daily_budget_eur": budget,
-                "spent_eur": snap.spent_eur,
-                "remaining_eur": snap.remaining_eur,
-                "calls_today": snap.calls,
-                "budget_exhausted": snap.exhausted,
                 "models": list_models_public(),
+                **spend,
+            }
+            payload["spend"] = spend
+        else:
+            payload["spend"] = {
+                "day": None,
+                "provider": primary or "none",
+                "spent_eur": 0.0,
+                "limit_eur": 0.0,
+                "remaining_eur": 0.0,
+                "calls_today": 0,
+                "budget_exhausted": False,
+                "budget_used_pct": 0.0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "event_count": 0,
+                "tracked": False,
             }
         return payload
 

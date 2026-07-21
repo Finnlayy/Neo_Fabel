@@ -1,9 +1,16 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
-import { fetchLoopsStatus, type LoopsStatus } from "../api/loops";
+import {
+  fetchLoopsStatus,
+  startLiveLoop,
+  startPaperLoop,
+  stopLiveLoop,
+  stopPaperLoop,
+  type LoopsStatus,
+} from "../api/loops";
 import { fetchPaperPerformance, fetchPaperStatus } from "../api/paper";
 import { fetchCryptoTickers } from "../api/market";
-import { apiRequest } from "../api/client";
+import { ApiError, apiRequest } from "../api/client";
 import { fetchSignalStatus, fetchSubmissions } from "../features/signalRoutes/api";
 import type { MainTab } from "../types";
 
@@ -14,15 +21,58 @@ type Props = {
 
 type EquityPoint = { t: string; equity: number };
 
-function Pill({ ok, label }: { ok: boolean; label: string }) {
+function Pill({
+  ok,
+  label,
+  title,
+  busy,
+  disabled,
+  onClick,
+}: {
+  ok: boolean;
+  label: string;
+  title?: string;
+  busy?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  const interactive = Boolean(onClick);
+  const className = `inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[9px] uppercase tracking-wider transition-all ${
+    ok
+      ? "border-emerald-400/60 text-emerald-200 bg-emerald-500/15 shadow-[0_0_12px_rgba(16,185,129,0.3)]"
+      : "border-slate-600 text-slate-400 bg-white/5"
+  } ${interactive ? "cursor-pointer hover:border-cyan-400/40" : ""} ${
+    disabled || busy ? "opacity-40 cursor-not-allowed" : ""
+  }`;
+
+  const body = (
+    <>
+      <span className="relative flex h-2 w-2 items-center justify-center">
+        {ok ? <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/50 animate-ping" /> : null}
+        <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${ok ? "bg-emerald-400" : "bg-slate-500"}`} />
+      </span>
+      {busy ? "…" : label}
+    </>
+  );
+
+  if (interactive) {
+    return (
+      <button
+        type="button"
+        title={title}
+        disabled={busy || disabled}
+        onClick={onClick}
+        aria-pressed={ok}
+        className={className}
+      >
+        {body}
+      </button>
+    );
+  }
+
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[9px] uppercase tracking-wider ${
-        ok ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10" : "border-slate-600 text-slate-400 bg-white/5"
-      }`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-emerald-400 animate-pulse" : "bg-slate-500"}`} />
-      {label}
+    <span title={title} className={className}>
+      {body}
     </span>
   );
 }
@@ -52,6 +102,15 @@ export default function CommandOverview({ language, onNavigate }: Props) {
   const [lastSignal, setLastSignal] = useState<string>(de ? "keine" : "none");
   const [queueDepth, setQueueDepth] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [busyPaper, setBusyPaper] = useState(false);
+  const [busyLive, setBusyLive] = useState(false);
+  const [confirmLive, setConfirmLive] = useState(false);
+
+  const reloadLoops = useCallback(async () => {
+    const data = await fetchLoopsStatus();
+    setLoops(data);
+    return data;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +180,76 @@ export default function CommandOverview({ language, onNavigate }: Props) {
     krakenStatus === "minor" ||
     krakenStatus === "ok";
 
+  const formatErr = (err: unknown): string => {
+    if (err instanceof ApiError) {
+      if (err.code === "recent_auth_required") {
+        return de ? "Bitte erneut anmelden (frische Auth nötig)" : "Re-authenticate to toggle loops";
+      }
+      return err.message;
+    }
+    if (err instanceof Error) return err.message;
+    return String(err);
+  };
+
+  const onPaperToggle = async () => {
+    setBusyPaper(true);
+    setError(null);
+    try {
+      if (loops?.paper.running) await stopPaperLoop();
+      else await startPaperLoop();
+      await reloadLoops();
+    } catch (err) {
+      setError(formatErr(err));
+      try {
+        await reloadLoops();
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setBusyPaper(false);
+    }
+  };
+
+  const onLiveToggle = async () => {
+    if (loops?.live.running) {
+      setBusyLive(true);
+      setError(null);
+      try {
+        await stopLiveLoop();
+        await reloadLoops();
+      } catch (err) {
+        setError(formatErr(err));
+      } finally {
+        setBusyLive(false);
+      }
+      return;
+    }
+    setConfirmLive(true);
+  };
+
+  const confirmStartLive = async () => {
+    setConfirmLive(false);
+    setBusyLive(true);
+    setError(null);
+    try {
+      await startLiveLoop();
+      await reloadLoops();
+    } catch (err) {
+      setError(formatErr(err));
+      try {
+        await reloadLoops();
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setBusyLive(false);
+    }
+  };
+
+  const liveBlocked = Boolean(loops && !loops.live.can_start && !loops.live.running);
+  const paperOn = Boolean(loops?.paper.running);
+  const liveOn = Boolean(loops?.live.running);
+
   return (
     <section className="rounded-xl border border-cyan-500/20 bg-slate-950/70 p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -128,14 +257,79 @@ export default function CommandOverview({ language, onNavigate }: Props) {
           {de ? "Kommando-Übersicht" : "Command Overview"}
         </h2>
         <div className="flex flex-wrap gap-2">
-          <Pill ok={Boolean(loops?.paper.running)} label={de ? "Paper-Loop" : "Paper loop"} />
-          <Pill ok={Boolean(loops?.live.running)} label={de ? "Live-Algo" : "Live algo"} />
-          <Pill ok={(loops?.live.autonomy ?? 0) >= 3} label={`L${loops?.live.autonomy ?? "—"}`} />
-          <Pill ok={krakenOk} label={`Kraken ${krakenStatus}`} />
+          <Pill
+            ok={paperOn}
+            busy={busyPaper}
+            label={paperOn ? (de ? "Paper ONLINE" : "Paper ONLINE") : de ? "Paper-Loop" : "Paper loop"}
+            title={de ? "Paper-Algo-Loop starten/stoppen" : "Start/stop paper algo loop"}
+            onClick={() => void onPaperToggle()}
+          />
+          <Pill
+            ok={liveOn}
+            busy={busyLive}
+            disabled={liveBlocked}
+            label={liveOn ? (de ? "Live ONLINE" : "Live ONLINE") : de ? "Live-Algo" : "Live algo"}
+            title={
+              liveBlocked
+                ? loops?.live.blocked_reason || (de ? "Live-Gates fehlen" : "Live gates missing")
+                : de
+                  ? "Live-Algo starten/stoppen"
+                  : "Start/stop live algo"
+            }
+            onClick={() => void onLiveToggle()}
+          />
+          <Pill
+            ok={(loops?.live.autonomy ?? 0) >= 3}
+            label={`L${loops?.live.autonomy ?? "—"}`}
+            title={de ? "Autonomy-Level (Env)" : "Autonomy level (env)"}
+          />
+          <Pill
+            ok={krakenOk}
+            label={`Kraken ${krakenStatus}`}
+            title={de ? "Kraken Systemstatus" : "Kraken system status"}
+            onClick={() => onNavigate?.("terminal")}
+          />
         </div>
       </div>
 
+      {liveBlocked ? (
+        <p className="text-[9px] font-mono text-amber-400/90">
+          {de ? "Live gesperrt: " : "Live blocked: "}
+          {loops?.live.blocked_reason}
+        </p>
+      ) : null}
       {error && <p className="text-[10px] text-rose-400">{error}</p>}
+
+      {confirmLive ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-slate-950 border border-rose-500/40 rounded-lg p-4 max-w-md w-full font-mono space-y-3 shadow-xl">
+            <h3 className="text-sm font-bold text-rose-300 uppercase tracking-widest">
+              {de ? "Live-Algo bestätigen" : "Confirm live algo"}
+            </h3>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              {de
+                ? "Startet die Live-Session (Deadman). Echte Orders brauchen weiterhin die Env-Gates."
+                : "Starts the live session (deadman). Real orders still require env gates."}
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                className="px-3 py-1.5 text-[10px] border border-white/15 text-slate-300 rounded cursor-pointer"
+                onClick={() => setConfirmLive(false)}
+              >
+                {de ? "Abbrechen" : "Cancel"}
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1.5 text-[10px] bg-rose-500/20 border border-rose-500/40 text-rose-200 rounded cursor-pointer font-bold"
+                onClick={() => void confirmStartLive()}
+              >
+                {de ? "Live starten" : "Start live"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
         <div className="lg:col-span-3 h-28 rounded-lg border border-white/5 bg-black/30 overflow-hidden relative">

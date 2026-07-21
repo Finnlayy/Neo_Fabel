@@ -28,6 +28,8 @@ backend/data/ga_runs/*
 !backend/data/ga_runs/.gitkeep
 backend/data/ga_cache/*
 !backend/data/ga_cache/.gitkeep
+backend/data/trade_agent/*
+!backend/data/trade_agent/.gitkeep
 backend/.ga_recovery/
 secrets/
 .cursor/
