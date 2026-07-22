@@ -1,0 +1,92 @@
+{
+  "ok": true,
+  "at": "2026-07-21T15:36:19.571226+00:00",
+  "reason": "engine_tick_180",
+  "gate": {
+    "allow": true,
+    "paper_only": true,
+    "paper_on": true,
+    "live_on": false,
+    "engine_idle": false,
+    "acute": false,
+    "ticks": 180,
+    "dry_run_count": 123,
+    "last_error": null
+  },
+  "notes": [
+    "intake_failures=40 last=rejected:ingress_disabled",
+    "intent: GRID BUY XRPUSD @ 1.145: zone 3, mid=1.146 \u2014 grid_buy_zone_3",
+    "intent: GRID BUY SOLUSD @ 77.82: zone 0, mid=77.85 \u2014 grid_buy_zone_0",
+    "intent: GRID SELL SOLUSD @ 77.88: zone 0, mid=77.85 \u2014 grid_sell_zone_0",
+    "intent: GRID BUY SOLUSD @ 77.85: zone 0, mid=77.85 \u2014 grid_buy_zone_0",
+    "intent: GRID SELL XRPUSD @ 1.146: zone 3, mid=1.146 \u2014 grid_sell_zone_3"
+  ],
+  "packets": [
+    {
+      "id": "orchestrator",
+      "status": "FEEDBACK",
+      "lastAction": "intake_failures=40 last=rejected:ingress_disabled; intent: GRID BUY XRPUSD @ 1.145: zone 3, mid=1.146 \u2014 grid_buy_zone_3",
+      "directive": "Incorporate trade rationales; refuse live_gated; paper-only adapts."
+    },
+    {
+      "id": "risk_gov",
+      "status": "OK",
+      "lastAction": "error_streak=0 loss_streak=0",
+      "directive": "Tighten size if loss_streak>=3; clear after quiet wins."
+    },
+    {
+      "id": "adaptive",
+      "status": "IDLE",
+      "lastAction": "intake_failures=40 last=rejected:ingress_disabled; intent: GRID BUY XRPUSD @ 1.145: zone 3, mid=1.146 \u2014 grid_buy_zone_3",
+      "directive": "Apply poll/risk nudges only on acute streaks; log rationale."
+    }
+  ],
+  "dry_runs_reviewed": 40,
+  "labels_reviewed": 0,
+  "error_streak": 0,
+  "loss_streak": 0,
+  "prompt_evolution": {
+    "evolved": true,
+    "reason": "routing_or_drill_failures",
+    "version_id": "orchestrator_v2837_shot_opt",
+    "signals": {
+      "should_evolve": true,
+      "reason": "routing_or_drill_failures",
+      "notes": [
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork"
+      ],
+      "live_accepted": 0,
+      "routing_fails": 14,
+      "drill_misses": 14,
+      "peer_weak": 0
+    }
+  },
+  "param_adapts": []
+}

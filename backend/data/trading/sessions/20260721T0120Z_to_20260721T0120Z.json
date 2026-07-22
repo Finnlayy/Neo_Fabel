@@ -1,0 +1,26 @@
+{
+  "session_name": "20260721T0120Z_to_20260721T0120Z",
+  "started_at": "2026-07-21T01:20:47.453803Z",
+  "ended_at": "2026-07-21T01:20:47.455806Z",
+  "max_margin_eur": 10.0,
+  "starting_capital_eur": 10.0,
+  "max_concurrent_trades": 2,
+  "symbol_allowlist": [],
+  "position_sizing": {
+    "mode": "manual",
+    "manual_notional_eur": 5.0,
+    "win_rate": 0.55,
+    "avg_win": 0.08,
+    "avg_loss": 0.03,
+    "max_fraction": 0.25,
+    "min_notional_eur": 1.0
+  },
+  "autonomy": 4,
+  "deadman_seconds": 60,
+  "uptime_seconds": 0.001002,
+  "time_in_trades_seconds": 0.0,
+  "peak_open_trades": 0,
+  "samples": 1,
+  "status": "stopped",
+  "last_open_trades": 0
+}

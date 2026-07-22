@@ -1,0 +1,92 @@
+{
+  "ok": true,
+  "at": "2026-07-21T15:17:26.393749+00:00",
+  "reason": "engine_tick_150",
+  "gate": {
+    "allow": true,
+    "paper_only": true,
+    "paper_on": true,
+    "live_on": false,
+    "engine_idle": false,
+    "acute": false,
+    "ticks": 150,
+    "dry_run_count": 106,
+    "last_error": null
+  },
+  "notes": [
+    "intake_failures=40 last=rejected:ingress_disabled",
+    "intent: GRID SELL ADAUSD @ 0.1758: zone 2, mid=0.1758 \u2014 grid_sell_zone_2",
+    "intent: GRID SELL BTCUSD @ 6.677e+04: zone 3, mid=6.675e+04 \u2014 grid_sell_zone_3",
+    "intent: GRID BUY ADAUSD @ 0.1756: zone 2, mid=0.1758 \u2014 grid_buy_zone_2",
+    "intent: GRID BUY BTCUSD @ 6.672e+04: zone 3, mid=6.675e+04 \u2014 grid_buy_zone_3",
+    "intent: GRID BUY DOTUSD @ 0.8573: zone 1, mid=0.8575 \u2014 grid_buy_zone_1"
+  ],
+  "packets": [
+    {
+      "id": "orchestrator",
+      "status": "FEEDBACK",
+      "lastAction": "intake_failures=40 last=rejected:ingress_disabled; intent: GRID SELL ADAUSD @ 0.1758: zone 2, mid=0.1758 \u2014 grid_sell_zone_2",
+      "directive": "Incorporate trade rationales; refuse live_gated; paper-only adapts."
+    },
+    {
+      "id": "risk_gov",
+      "status": "OK",
+      "lastAction": "error_streak=0 loss_streak=0",
+      "directive": "Tighten size if loss_streak>=3; clear after quiet wins."
+    },
+    {
+      "id": "adaptive",
+      "status": "IDLE",
+      "lastAction": "intake_failures=40 last=rejected:ingress_disabled; intent: GRID SELL ADAUSD @ 0.1758: zone 2, mid=0.1758 \u2014 grid_sell_zone_2",
+      "directive": "Apply poll/risk nudges only on acute streaks; log rationale."
+    }
+  ],
+  "dry_runs_reviewed": 40,
+  "labels_reviewed": 0,
+  "error_streak": 0,
+  "loss_streak": 0,
+  "prompt_evolution": {
+    "evolved": true,
+    "reason": "routing_or_drill_failures",
+    "version_id": "orchestrator_v2836_shot_opt",
+    "signals": {
+      "should_evolve": true,
+      "reason": "routing_or_drill_failures",
+      "notes": [
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork"
+      ],
+      "live_accepted": 0,
+      "routing_fails": 14,
+      "drill_misses": 14,
+      "peer_weak": 0
+    }
+  },
+  "param_adapts": []
+}
