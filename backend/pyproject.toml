@@ -19,6 +19,9 @@ dependencies = [
   # Install from PyPI (not git clone) — wheels ship the platform runtime binary.
   # Source: https://github.com/google-antigravity/antigravity-sdk-python
   "google-antigravity>=0.1.7,<1",
+  # Official Google GenAI SDK — used only by app/integrations/llm_provider.py (example/opt-in).
+  # The app's main Gemini path is gemini_client.py (raw httpx REST, wired into llm_router.py).
+  "google-genai>=0.1.1",
 ]
 
 [build-system]

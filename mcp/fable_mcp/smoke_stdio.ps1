@@ -14,7 +14,7 @@ if (-not (Test-Path $exe)) {
     Write-Error "Release binary not found. Run: cargo build --release --manifest-path mcp/fable_mcp/Cargo.toml"
 }
 
-$env:FABLE_MCP_BRIDGE_ENABLED = "false"
+$env:FABLE_MCP_BRIDGE_ENABLED = "true"
 $env:RUST_LOG = "fable_mcp=warn"
 
 $requests = @(
