@@ -18,6 +18,7 @@ dependencies = [
   # Install from PyPI (not git clone) — wheels ship the platform runtime binary.
   # Source: https://github.com/google-antigravity/antigravity-sdk-python
   "google-antigravity>=0.1.7,<1",
+  "aiofiles>=24.1.0,<25",
 ]
 
 [build-system]
