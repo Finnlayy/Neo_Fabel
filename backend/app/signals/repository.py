@@ -59,6 +59,26 @@ class SignalRepository:
         await self.session.flush()
         return route
 
+
+    async def get_active_credential_by_digest(self, route_id: str, kind: str, digest: str) -> SignalRouteCredential | None:
+        return await self.session.scalar(
+            select(SignalRouteCredential).where(
+                SignalRouteCredential.route_id == route_id,
+                SignalRouteCredential.kind == kind,
+                SignalRouteCredential.digest == digest,
+                SignalRouteCredential.revoked_at.is_(None),
+            )
+        )
+
+    async def get_active_mcp_credential_by_digest(self, digest: str) -> SignalRouteCredential | None:
+        return await self.session.scalar(
+            select(SignalRouteCredential).where(
+                SignalRouteCredential.kind == "mcp_bearer",
+                SignalRouteCredential.digest == digest,
+                SignalRouteCredential.revoked_at.is_(None),
+            )
+        )
+
     async def active_credentials(self, route_id: str, kind: str) -> list[SignalRouteCredential]:
         result = await self.session.scalars(
             select(SignalRouteCredential).where(
