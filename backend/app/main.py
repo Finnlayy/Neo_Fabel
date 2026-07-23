@@ -7,10 +7,9 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import require_trading_admin, require_trading_admin_recent, require_user
-from .database import SessionFactory, get_session
+from .database import SessionFactory
 from .integrations.alpha_vantage import AlphaVantageClient, AlphaVantageError
 from .integrations.ccxt_market import CcxtMarketClient, compact_pair, to_ccxt_symbol
 from .integrations.kraken_cli import KrakenCli, KrakenCliError
