@@ -485,6 +485,18 @@ class SignalSubmissionService:
         kind: str,
         plaintext: str,
     ) -> SignalRouteCredential:
+        from .auth import digest_credential
+
+        expected_digest_v1 = digest_credential(plaintext, self.settings, pepper_version="v1")
+        credential = await repo.get_active_credential_by_digest(route.id, kind, expected_digest_v1)
+
+        if credential is not None:
+            # Inline the expires_at and revoked_at check to skip verify_credential overhead entirely
+            if credential.revoked_at is None:
+                if credential.expires_at is None or credential.expires_at > datetime.now(UTC):
+                    return credential
+
+        # Fallback for other pepper versions or if not found
         for credential in await repo.active_credentials(route.id, kind):
             if verify_credential(
                 plaintext,
@@ -500,9 +512,21 @@ class SignalSubmissionService:
     async def _resolve_mcp_bearer(
         self, repo: SignalRepository, bearer: str
     ) -> tuple[SignalRouteCredential, SignalRoute]:
-        # Scan active MCP credentials; constant-time per credential via hmac.compare_digest.
-        from sqlalchemy import select
+        from .auth import digest_credential
 
+        expected_digest_v1 = digest_credential(bearer, self.settings, pepper_version="v1")
+        credential = await repo.get_active_mcp_credential_by_digest(expected_digest_v1)
+
+        if credential is not None:
+            # Inline the expires_at and revoked_at check to skip verify_credential overhead entirely
+            if credential.revoked_at is None:
+                if credential.expires_at is None or credential.expires_at > datetime.now(UTC):
+                    route = await repo.get_route(credential.route_id)
+                    if route is not None:
+                        return credential, route
+
+        # Fallback to scanning if not found (e.g., different pepper version)
+        from sqlalchemy import select
         from ..models import SignalRouteCredential as Cred
 
         result = await repo.session.scalars(
