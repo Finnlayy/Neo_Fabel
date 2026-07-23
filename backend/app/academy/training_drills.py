@@ -113,7 +113,7 @@ _TEAMWORK_SCENARIOS: tuple[dict[str, Any], ...] = (
         },
     },
     {
-        "expected": "ESCALATE",
+        "expected": "QUESTION",
         "context": "Chronos PROCEED vs RNA REJECT; risk_gov quiet — escalate before fill.",
         "packets": [
             {

@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { ChronosBacktestResponse, ChronosIndicatorsResponse } from "../../../api/chronos";
+import type { ChronosBacktestResponse, ChronosIndicatorsResponse } from "../../api/chronos";
 
 type ClosePoint = { i: number; close: number };
 

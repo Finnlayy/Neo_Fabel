@@ -41,8 +41,10 @@ def test_signal_routes_list_requires_auth(no_dev_bypass):
     assert "mcptok_" not in blob
 
 
-def test_webhook_unknown_route_fails_closed_when_flags_off():
+def test_webhook_unknown_route_fails_closed_when_flags_off(no_dev_bypass, monkeypatch):
     """Default-off product: ingress returns disabled, never executes."""
+    monkeypatch.setattr(no_dev_bypass, "signal_routes_enabled", False)
+    monkeypatch.setattr(no_dev_bypass, "tradingview_ingress_enabled", False)
     response = client.post(
         "/api/v1/webhooks/tradingview/missing-public-key",
         json={

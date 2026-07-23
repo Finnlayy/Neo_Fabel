@@ -26,6 +26,7 @@ export interface Trade {
   type: "BUY" | "SELL";
   price: number;
   amount: number;
+  positionCost: number;
   pnl: number;
   status: "COMPLETED" | "PENDING" | "HALTED";
 }

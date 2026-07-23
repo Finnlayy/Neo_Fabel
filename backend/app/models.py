@@ -213,3 +213,46 @@ class SignalAuditEvent(Base):
     policy_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
     details: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
+
+
+class OrchestratorDecisionLog(Base):
+    """User-scoped audit record for advisory-only orchestrator output."""
+
+    __tablename__ = "orchestrator_decisions"
+    __table_args__ = (
+        CheckConstraint(
+            "decision_type IN ('market_regime', 'signal_quality', 'full_decision')",
+            name="ck_orchestrator_decisions_type",
+        ),
+        CheckConstraint(
+            "status IN ('success', 'error')",
+            name="ck_orchestrator_decisions_status",
+        ),
+        Index(
+            "ix_orchestrator_decisions_user_created",
+            "user_uid",
+            "created_at",
+        ),
+        Index(
+            "ix_orchestrator_decisions_user_type_created",
+            "user_uid",
+            "decision_type",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_uid: Mapped[str] = mapped_column(String(128), nullable=False)
+    request_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)
+    decision_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    input_summary: Mapped[dict] = mapped_column(JSON, nullable=False)
+    output_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    reasoning: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )

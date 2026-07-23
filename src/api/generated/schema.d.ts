@@ -183,6 +183,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/signals/tv-parse-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tradingview Parse Preview
+         * @description Dry-run: natural TV JSON → Neo body + Kraken order fields (no route submit).
+         */
+        post: operations["tradingview_parse_preview_api_v1_signals_tv_parse_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/webhooks/tradingview/{public_route_key}": {
         parameters: {
             query?: never;
@@ -235,6 +255,26 @@ export interface paths {
          * @description Route-scoped MCP adapter tool. Mode/target/AI cannot be selected here.
          */
         post: operations["submit_trading_signal_api_v1_mcp_signals_submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp/paper/fill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mcp Paper Fill
+         * @description Apply a paper fill from fable-mcp into LocalPaperLedger. Never places live orders.
+         */
+        post: operations["mcp_paper_fill_api_v1_mcp_paper_fill_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -323,6 +363,74 @@ export interface paths {
         put?: never;
         /** Analyze Trades */
         post: operations["analyze_trades_api_gemini_analyze_trades_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestrator/market-regime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Market Regime */
+        post: operations["market_regime_api_v1_orchestrator_market_regime_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestrator/signal-quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Signal Quality */
+        post: operations["signal_quality_api_v1_orchestrator_signal_quality_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestrator/full-decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Full Decision */
+        post: operations["full_decision_api_v1_orchestrator_full_decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orchestrator/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Decisions */
+        get: operations["decisions_api_v1_orchestrator_decisions_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1077,6 +1185,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chronos/indicators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chronos Indicators
+         * @description RSI / EMA distance / ATR% from numpy+pandas (PineTS optional via pinets CLI).
+         */
+        post: operations["chronos_indicators_api_v1_chronos_indicators_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chronos/research/backtest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chronos Research Backtest
+         * @description Paper-only vectorbt sanity metric on the lookback window (no live orders).
+         */
+        post: operations["chronos_research_backtest_api_v1_chronos_research_backtest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chronos/bsq/encode": {
         parameters: {
             query?: never;
@@ -1105,6 +1253,754 @@ export interface paths {
         put?: never;
         /** Chronos Bsq Decode */
         post: operations["chronos_bsq_decode_api_v1_chronos_bsq_decode_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ga/optimize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ga Optimize */
+        post: operations["ga_optimize_api_ga_optimize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ga/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ga Run Status */
+        get: operations["ga_run_status_api_ga_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ga/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ga List Runs */
+        get: operations["ga_list_runs_api_ga_runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ga/export-pine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ga Export Pine */
+        post: operations["ga_export_pine_api_ga_export_pine_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ga/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ga Templates */
+        get: operations["ga_templates_api_ga_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/loops/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Loops Status */
+        get: operations["loops_status_api_v1_loops_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/loops/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Live Sessions */
+        get: operations["list_live_sessions_api_v1_loops_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/loops/paper/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Paper Loop Start */
+        post: operations["paper_loop_start_api_v1_loops_paper_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/loops/paper/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Paper Loop Stop */
+        post: operations["paper_loop_stop_api_v1_loops_paper_stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/loops/live/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Live Loop Start */
+        post: operations["live_loop_start_api_v1_loops_live_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/loops/live/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Live Loop Stop */
+        post: operations["live_loop_stop_api_v1_loops_live_stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/loops/kill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trading Kill Switch
+         * @description Emergency: stop paper+live loops and cancel-all open orders when trade CLI is enabled.
+         */
+        post: operations["trading_kill_switch_api_v1_loops_kill_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trade-agent/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Trade Agent Status */
+        get: operations["trade_agent_status_api_v1_trade_agent_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trade-agent/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trade Agent Start */
+        post: operations["trade_agent_start_api_v1_trade_agent_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trade-agent/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trade Agent Stop */
+        post: operations["trade_agent_stop_api_v1_trade_agent_stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trade-agent/feedback/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trade Agent Feedback Run */
+        post: operations["trade_agent_feedback_run_api_v1_trade_agent_feedback_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trade-agent/feedback/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Trade Agent Feedback Status */
+        get: operations["trade_agent_feedback_status_api_v1_trade_agent_feedback_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trade-agent/trigger/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trade Agent Trigger */
+        post: operations["trade_agent_trigger_api_v1_trade_agent_trigger__job_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kraken/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Kraken Status
+         * @description Return page indicator + non-operational components + incidents (index).
+         */
+        get: operations["get_kraken_status_api_v1_kraken_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kraken/status/components": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Kraken Status Components
+         * @description Full expanded component list from durable memory.
+         */
+        get: operations["get_kraken_status_components_api_v1_kraken_status_components_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kraken/status/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Kraken Status
+         * @description Pull latest summary.json from status.kraken.com into server memory.
+         */
+        post: operations["refresh_kraken_status_api_v1_kraken_status_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kraken/status/check/{pair}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check Pair Status
+         * @description Gate probe: is this pair safe per status memory?
+         */
+        get: operations["check_pair_status_api_v1_kraken_status_check__pair__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Place Order */
+        post: operations["place_order_api_v1_orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Order */
+        post: operations["cancel_order_api_v1_orders_cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/cancel-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel All Orders */
+        post: operations["cancel_all_orders_api_v1_orders_cancel_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/amend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Amend Order */
+        post: operations["amend_order_api_v1_orders_amend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Order Types */
+        get: operations["order_types_api_v1_orders_types_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Integrations */
+        get: operations["get_integrations_api_v1_settings_integrations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/integrations/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Integration */
+        put: operations["put_integration_api_v1_settings_integrations__key__put"];
+        post?: never;
+        /** Delete Integration */
+        delete: operations["delete_integration_api_v1_settings_integrations__key__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/integrations/{key}/reveal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reveal Integration */
+        get: operations["reveal_integration_api_v1_settings_integrations__key__reveal_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/passwords": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Passwords */
+        get: operations["get_passwords_api_v1_settings_passwords_get"];
+        /** Put Password */
+        put: operations["put_password_api_v1_settings_passwords_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/passwords/{password_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Password */
+        delete: operations["delete_password_api_v1_settings_passwords__password_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/passwords/{password_id}/reveal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reveal Password */
+        get: operations["reveal_password_api_v1_settings_passwords__password_id__reveal_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tvremix/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tvremix Status */
+        get: operations["tvremix_status_api_v1_tvremix_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tvremix/scripts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Scripts */
+        get: operations["list_scripts_api_v1_tvremix_scripts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tvremix/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search Scripts */
+        post: operations["search_scripts_api_v1_tvremix_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tvremix/read-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Read Lines */
+        post: operations["read_lines_api_v1_tvremix_read_lines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tvremix/errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pine Errors */
+        post: operations["pine_errors_api_v1_tvremix_errors_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tvremix/strategy-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Strategy Report */
+        post: operations["strategy_report_api_v1_tvremix_strategy_report_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tvremix/strategy-sweep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Strategy Sweep */
+        post: operations["strategy_sweep_api_v1_tvremix_strategy_sweep_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tvremix/mtf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Multi Timeframe */
+        post: operations["multi_timeframe_api_v1_tvremix_mtf_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tvremix/ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ledger */
+        get: operations["get_ledger_api_v1_tvremix_ledger_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tvremix/ledger/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ledger Snapshot */
+        post: operations["ledger_snapshot_api_v1_tvremix_ledger_snapshot_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1486,6 +2382,38 @@ export interface components {
              */
             directive: string;
         };
+        /** AmendOrderRequest */
+        AmendOrderRequest: {
+            /**
+             * Mode
+             * @default live
+             * @enum {string}
+             */
+            mode: "paper" | "live";
+            /**
+             * Market Type
+             * @default spot
+             * @enum {string}
+             */
+            market_type: "spot" | "futures";
+            /** Order Id */
+            order_id: string;
+            /** Price */
+            price?: number | string | null;
+            /** Volume */
+            volume?: number | string | null;
+            /** Pair */
+            pair?: string | null;
+            /** Side */
+            side?: ("buy" | "sell") | null;
+            /** Order Type */
+            order_type?: ("market" | "limit" | "stop-loss" | "stop-loss-limit" | "take-profit" | "take-profit-limit" | "trailing-stop" | "trailing-stop-limit") | null;
+            /**
+             * Replace On Amend Fail
+             * @default true
+             */
+            replace_on_amend_fail: boolean;
+        };
         /** AnalyzeTradesRequest */
         AnalyzeTradesRequest: {
             /** Trades */
@@ -1523,6 +2451,56 @@ export interface components {
         BsqEncodeRequest: {
             /** Z */
             z: number[];
+        };
+        /** CancelAllOrdersRequest */
+        CancelAllOrdersRequest: {
+            /**
+             * Mode
+             * @default live
+             * @enum {string}
+             */
+            mode: "paper" | "live";
+            /**
+             * Market Type
+             * @default spot
+             * @enum {string}
+             */
+            market_type: "spot" | "futures";
+            /** Symbol */
+            symbol?: string | null;
+            /**
+             * Confirm
+             * @default false
+             */
+            confirm: boolean;
+        };
+        /** CancelOrderRequest */
+        CancelOrderRequest: {
+            /**
+             * Mode
+             * @default live
+             * @enum {string}
+             */
+            mode: "paper" | "live";
+            /**
+             * Market Type
+             * @default spot
+             * @enum {string}
+             */
+            market_type: "spot" | "futures";
+            /** Order Id */
+            order_id: string;
+        };
+        /** CapAmountIn */
+        CapAmountIn: {
+            /** Value */
+            value: number;
+            /**
+             * Unit
+             * @default eur
+             * @enum {string}
+             */
+            unit: "eur" | "usd" | "pct";
         };
         /** ChatContextMeta */
         ChatContextMeta: {
@@ -1726,6 +2704,80 @@ export interface components {
              */
             idempotency_key: string;
         };
+        /** DecisionHistoryItem */
+        DecisionHistoryItem: {
+            /** Id */
+            id: string;
+            /** Requestid */
+            requestId: string;
+            /**
+             * Decisiontype
+             * @enum {string}
+             */
+            decisionType: "market_regime" | "signal_quality" | "full_decision";
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "success" | "error";
+            /** Outputdata */
+            outputData: {
+                [key: string]: unknown;
+            } | null;
+            /** Reasoning */
+            reasoning: string | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp: string;
+        };
+        /** DecisionHistoryResponse */
+        DecisionHistoryResponse: {
+            /**
+             * Mode
+             * @default advisory
+             * @constant
+             */
+            mode: "advisory";
+            /**
+             * Executionallowed
+             * @default false
+             * @constant
+             */
+            executionAllowed: false;
+            /** Requestid */
+            requestId: string;
+            /**
+             * Provider
+             * @default database
+             * @constant
+             */
+            provider: "database";
+            /**
+             * Model
+             * @default audit-log
+             * @constant
+             */
+            model: "audit-log";
+            sourceCoverage: components["schemas"]["SourceCoverage"];
+            /**
+             * Auditpersisted
+             * @default true
+             */
+            auditPersisted: boolean;
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp: string;
+            /** Decisions */
+            decisions: components["schemas"]["DecisionHistoryItem"][];
+        };
         /** DrillEvaluateRequest */
         DrillEvaluateRequest: {
             drill: components["schemas"]["SyntheticDrill"];
@@ -1736,6 +2788,112 @@ export interface components {
              * @default 0.8
              */
             confidence: number;
+        };
+        /** ErrorsBody */
+        ErrorsBody: {
+            /** Script Id */
+            script_id?: string | null;
+            /** Source */
+            source?: string | null;
+        };
+        /** ExportPineRequest */
+        ExportPineRequest: {
+            /** Runid */
+            runId?: string | null;
+            /** Results */
+            results?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Template Id
+             * @default eth_glintnews_pionex_v6
+             */
+            template_id: string;
+            /**
+             * Target Symbol
+             * @default ETH/USDT
+             */
+            target_symbol: string;
+            /**
+             * Limit
+             * @default 3
+             */
+            limit: number;
+            /**
+             * Tf High
+             * @default 48
+             */
+            tf_high: string;
+            /**
+             * Tf Mid
+             * @default 12
+             */
+            tf_mid: string;
+            /**
+             * Tf Low
+             * @default 3
+             */
+            tf_low: string;
+        };
+        /** FullDecisionRequest */
+        FullDecisionRequest: {
+            /** Tickers */
+            tickers: components["schemas"]["TickerSnapshot"][];
+            /** Signals */
+            signals?: components["schemas"]["TelegramSignalSnapshot"][];
+            /** Neuralstates */
+            neuralStates?: {
+                [key: string]: components["schemas"]["NeuralStateSnapshot"];
+            };
+            /** Rnapatterns */
+            rnaPatterns?: {
+                [key: string]: components["schemas"]["RnaPatternSnapshot"];
+            };
+            /** Recenttrades */
+            recentTrades?: components["schemas"]["RecentTradeSnapshot"][];
+        };
+        /** FullDecisionResponse */
+        FullDecisionResponse: {
+            regime: components["schemas"]["MarketRegime"];
+            /** Regimeconfidence */
+            regimeConfidence: number;
+            /** Regimereasoning */
+            regimeReasoning: string;
+            /**
+             * Risklevel
+             * @default MEDIUM
+             * @enum {string}
+             */
+            riskLevel: "LOW" | "MEDIUM" | "HIGH" | "EXTREME";
+            /** Signalscores */
+            signalScores?: components["schemas"]["ScoredSignal"][];
+            strategyWeights: components["schemas"]["StrategyWeights"];
+            /**
+             * Mode
+             * @default advisory
+             * @constant
+             */
+            mode: "advisory";
+            /**
+             * Executionallowed
+             * @default false
+             * @constant
+             */
+            executionAllowed: false;
+            /** Requestid */
+            requestId: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            sourceCoverage: components["schemas"]["SourceCoverage"];
+            /** Auditpersisted */
+            auditPersisted: boolean;
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1766,6 +2924,73 @@ export interface components {
              * @default false
              */
             allow_fallback: boolean;
+        };
+        /** IntegrationUpsert */
+        IntegrationUpsert: {
+            /** Value */
+            value?: string | null;
+        };
+        /** LedgerSnapshotBody */
+        LedgerSnapshotBody: {
+            /** Script Id */
+            script_id: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Read
+             * @default true
+             */
+            read: boolean;
+        };
+        /**
+         * LiveStartRequest
+         * @description Session caps for every live start.
+         */
+        LiveStartRequest: {
+            /**
+             * Max Margin Eur
+             * @description Legacy alias for max_session_size in EUR
+             */
+            max_margin_eur?: number | null;
+            /**
+             * Max Session Size
+             * @description Max session size as {value, unit: eur|usd|pct} or EUR number
+             */
+            max_session_size?: components["schemas"]["CapAmountIn"] | number | null;
+            /** Max Concurrent Trades */
+            max_concurrent_trades: number;
+            /** Starting Capital Eur */
+            starting_capital_eur?: number | null;
+            /**
+             * Daily Loss Limit
+             * @description Daily loss limit {value, unit} — default 5% of capital
+             */
+            daily_loss_limit?: components["schemas"]["CapAmountIn"] | number | null;
+            /**
+             * Min Confidence Pct
+             * @default 0
+             */
+            min_confidence_pct: number;
+            /**
+             * Allow Pre Post Market
+             * @default true
+             */
+            allow_pre_post_market: boolean;
+            /**
+             * Human Verification
+             * @description If true, live trades require Telegram approve/reject
+             * @default false
+             */
+            human_verification: boolean;
+            /** Symbols */
+            symbols?: string[] | null;
+            /**
+             * Position Sizing Mode
+             * @default half_kelly
+             */
+            position_sizing_mode: string;
+            /** Manual Notional Eur */
+            manual_notional_eur?: number | null;
         };
         /** MarketBatchItem */
         MarketBatchItem: {
@@ -1807,6 +3032,130 @@ export interface components {
             /** Items */
             items: components["schemas"]["MarketBatchItem"][];
         };
+        /**
+         * MarketRegime
+         * @enum {string}
+         */
+        MarketRegime: "BULL_TRENDING" | "BEAR_TRENDING" | "RANGING" | "HIGH_VOLATILITY" | "CRYPTO_BOOM" | "CRYPTO_BUST";
+        /** MarketRegimeRequest */
+        MarketRegimeRequest: {
+            /** Tickers */
+            tickers: components["schemas"]["TickerSnapshot"][];
+            /** Signals */
+            signals?: components["schemas"]["TelegramSignalSnapshot"][];
+            /** Neuralstates */
+            neuralStates?: {
+                [key: string]: components["schemas"]["NeuralStateSnapshot"];
+            };
+            /** Rnapatterns */
+            rnaPatterns?: {
+                [key: string]: components["schemas"]["RnaPatternSnapshot"];
+            };
+        };
+        /** MarketRegimeResponse */
+        MarketRegimeResponse: {
+            regime: components["schemas"]["MarketRegime"];
+            /** Confidence */
+            confidence: number;
+            /** Reasoning */
+            reasoning: string;
+            /**
+             * Risklevel
+             * @default MEDIUM
+             * @enum {string}
+             */
+            riskLevel: "LOW" | "MEDIUM" | "HIGH" | "EXTREME";
+            strategyWeights: components["schemas"]["StrategyWeights"];
+            /**
+             * Mode
+             * @default advisory
+             * @constant
+             */
+            mode: "advisory";
+            /**
+             * Executionallowed
+             * @default false
+             * @constant
+             */
+            executionAllowed: false;
+            /** Requestid */
+            requestId: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            sourceCoverage: components["schemas"]["SourceCoverage"];
+            /** Auditpersisted */
+            auditPersisted: boolean;
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp: string;
+        };
+        /**
+         * McpPaperFillRequest
+         * @description Fill payload from Rust fable-mcp process_next_bar (paper only).
+         */
+        McpPaperFillRequest: {
+            /**
+             * Event
+             * @default entry
+             * @enum {string}
+             */
+            event: "entry" | "stop_loss" | "take_profit";
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "buy" | "sell";
+            /**
+             * Pair
+             * @default ADAUSD
+             */
+            pair: string;
+            /** Price */
+            price: number | string;
+            /** Volume */
+            volume: number | string;
+            /** Pnl */
+            pnl?: number | string | null;
+            /**
+             * Rationale
+             * @default
+             */
+            rationale: string;
+            /**
+             * Market Type
+             * @default spot
+             * @enum {string}
+             */
+            market_type: "spot" | "futures";
+            /**
+             * Source
+             * @default fable-mcp
+             */
+            source: string;
+        };
+        /** McpPaperFillResponse */
+        McpPaperFillResponse: {
+            /** Ok */
+            ok: boolean;
+            /**
+             * Mode
+             * @default paper
+             * @constant
+             */
+            mode: "paper";
+            /** Request Id */
+            request_id: string;
+            /** Rationale */
+            rationale: string;
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            };
+        };
         /** McpSubmitArgs */
         McpSubmitArgs: {
             /** Idempotency Key */
@@ -1837,6 +3186,45 @@ export interface components {
             pattern_bias?: ("bullish" | "bearish" | "neutral") | null;
             /** Pattern Confidence */
             pattern_confidence?: string | null;
+        };
+        /** MtfBody */
+        MtfBody: {
+            /** Symbol */
+            symbol: string;
+            /** Intervals */
+            intervals?: string[] | null;
+        };
+        /** NeuralStateSnapshot */
+        NeuralStateSnapshot: {
+            /**
+             * Prediction
+             * @default 0
+             */
+            prediction: number;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "UP" | "DOWN" | "STABLE";
+            /** Confidence */
+            confidence: number;
+            /** Testmae */
+            testMae?: number | null;
+            /** Onnxmodel */
+            onnxModel?: string | null;
+            /** Syncstatus */
+            syncStatus?: string | null;
+            /**
+             * Istraining
+             * @default false
+             */
+            isTraining: boolean;
+            /** Meanval */
+            meanVal?: number | null;
+            /** Stdval */
+            stdVal?: number | null;
+            /** Targetformula */
+            targetFormula?: string | null;
         };
         /** OhlcvBatchResponse */
         OhlcvBatchResponse: {
@@ -1903,6 +3291,71 @@ export interface components {
              * @default 5
              */
             clip_val: number;
+        };
+        /** OptimizeRequest */
+        OptimizeRequest: {
+            /**
+             * Population
+             * @default 30
+             */
+            population: number;
+            /**
+             * Generations
+             * @default 50
+             */
+            generations: number;
+            /**
+             * Elite
+             * @default 3
+             */
+            elite: number;
+            /**
+             * Mutation Rate
+             * @default 0.05
+             */
+            mutation_rate: number;
+            /**
+             * Mutation Strength
+             * @default 0.4
+             */
+            mutation_strength: number;
+            /**
+             * Crossover Threshold
+             * @default 0.2
+             */
+            crossover_threshold: number;
+            /**
+             * Train Ratio
+             * @default 0.7
+             */
+            train_ratio: number;
+            /**
+             * Max Symbols
+             * @default 40
+             */
+            max_symbols: number;
+            /**
+             * Lookback Bars
+             * @default 600
+             */
+            lookback_bars: number;
+            /**
+             * Fee R
+             * @default 0.03
+             */
+            fee_r: number;
+            /**
+             * Seed
+             * @default 42
+             */
+            seed: number;
+            /**
+             * Symbols
+             * @description Optional explicit universe (e.g. ETHUSDT). Overrides volume ranking.
+             */
+            symbols?: string[] | null;
+            /** Market Source */
+            market_source?: ("ccxt" | "cache" | "binance_fapi") | null;
         };
         /** OrchestrateRequest */
         OrchestrateRequest: {
@@ -1995,6 +3448,122 @@ export interface components {
             /** Request Id */
             request_id: string;
         };
+        /** PasswordUpsert */
+        PasswordUpsert: {
+            /** Id */
+            id?: string | null;
+            /** Label */
+            label: string;
+            /** Username */
+            username?: string | null;
+            /** Secret */
+            secret?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** PlaceOrderRequest */
+        PlaceOrderRequest: {
+            /**
+             * Mode
+             * @default paper
+             * @enum {string}
+             */
+            mode: "paper" | "live";
+            /**
+             * Market Type
+             * @default spot
+             * @enum {string}
+             */
+            market_type: "spot" | "futures";
+            /** Pair */
+            pair: string;
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "buy" | "sell";
+            /** Volume */
+            volume: number | string;
+            /**
+             * Order Type
+             * @default market
+             * @enum {string}
+             */
+            order_type: "market" | "limit" | "stop-loss" | "stop-loss-limit" | "take-profit" | "take-profit-limit" | "trailing-stop" | "trailing-stop-limit";
+            /** Price */
+            price?: number | string | null;
+            /** Price2 */
+            price2?: number | string | null;
+            /** Time In Force */
+            time_in_force?: ("GTC" | "IOC" | "GTD" | "FOK") | null;
+            /**
+             * Leverage
+             * @default 1
+             */
+            leverage: number;
+            /**
+             * Reduce Only
+             * @default false
+             */
+            reduce_only: boolean;
+            /**
+             * Validate Only
+             * @default false
+             */
+            validate_only: boolean;
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+        };
+        /** PlaceOrderResponse */
+        PlaceOrderResponse: {
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "paper" | "live";
+            /** Status */
+            status: string;
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            };
+            /** Request Id */
+            request_id: string;
+        };
+        /** ReadLinesBody */
+        ReadLinesBody: {
+            /** Script Id */
+            script_id: string;
+            /**
+             * Start Line
+             * @default 1
+             */
+            start_line: number;
+            /**
+             * End Line
+             * @default 120
+             */
+            end_line: number;
+            /** Name */
+            name?: string | null;
+        };
+        /** RecentTradeSnapshot */
+        RecentTradeSnapshot: {
+            /** Asset */
+            asset: string;
+            /** Positioncost */
+            positionCost: number;
+            /** Price */
+            price: number;
+        };
         /** RnaContextUpdate */
         RnaContextUpdate: {
             /**
@@ -2006,6 +3575,37 @@ export interface components {
             confidence: number | string;
             /** Symbol */
             symbol?: string | null;
+        };
+        /** RnaPatternSnapshot */
+        RnaPatternSnapshot: {
+            /**
+             * Bias
+             * @enum {string}
+             */
+            bias: "bullish" | "bearish" | "neutral";
+            /** Confidence */
+            confidence: number;
+        };
+        /** ScoredSignal */
+        ScoredSignal: {
+            /** Quality */
+            quality: number;
+            recommendation: components["schemas"]["SignalRecommendation"];
+            /** Reasoning */
+            reasoning: string;
+            factors: components["schemas"]["SignalFactors"];
+            /** Symbol */
+            symbol: string;
+        };
+        /** SearchBody */
+        SearchBody: {
+            /** Query */
+            query: string;
+            /**
+             * Limit
+             * @default 30
+             */
+            limit: number;
         };
         /** SignalAutomationStatus */
         SignalAutomationStatus: {
@@ -2042,6 +3642,67 @@ export interface components {
             /** Advisory Ready */
             advisory_ready: boolean;
         };
+        /** SignalFactors */
+        SignalFactors: {
+            /** Sentimentscore */
+            sentimentScore: number;
+            /** Neuralpredictionscore */
+            neuralPredictionScore: number;
+            /** Patternscore */
+            patternScore: number;
+            /** Rnascore */
+            rnaScore: number;
+            /** Positionsizerisk */
+            positionSizeRisk: number;
+        };
+        /** SignalQualityRequest */
+        SignalQualityRequest: {
+            signal: components["schemas"]["TelegramSignalSnapshot"];
+            /** Symbol */
+            symbol: string;
+            /** Currentprice */
+            currentPrice: number;
+            neuralPrediction?: components["schemas"]["NeuralStateSnapshot"] | null;
+            rnaPattern?: components["schemas"]["RnaPatternSnapshot"] | null;
+            /** Positioncost */
+            positionCost?: number | null;
+            marketRegime: components["schemas"]["MarketRegime"];
+        };
+        /** SignalQualityResponse */
+        SignalQualityResponse: {
+            /** Quality */
+            quality: number;
+            recommendation: components["schemas"]["SignalRecommendation"];
+            /** Reasoning */
+            reasoning: string;
+            factors: components["schemas"]["SignalFactors"];
+            /**
+             * Mode
+             * @default advisory
+             * @constant
+             */
+            mode: "advisory";
+            /**
+             * Executionallowed
+             * @default false
+             * @constant
+             */
+            executionAllowed: false;
+            /** Requestid */
+            requestId: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            sourceCoverage: components["schemas"]["SourceCoverage"];
+            /** Auditpersisted */
+            auditPersisted: boolean;
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp: string;
+        };
         /** SignalReceipt */
         SignalReceipt: {
             /**
@@ -2069,6 +3730,11 @@ export interface components {
             /** Request Id */
             request_id: string;
         };
+        /**
+         * SignalRecommendation
+         * @enum {string}
+         */
+        SignalRecommendation: "STRONG_BUY" | "BUY" | "HOLD" | "AVOID";
         /** SignalRouteCreate */
         SignalRouteCreate: {
             /** Name */
@@ -2077,7 +3743,7 @@ export interface components {
             strategy_id: string;
             /**
              * Pair Allowlist
-             * @default BTCUSD
+             * @default ADAUSD,XRPUSD,ADAEUR,XRPEUR
              */
             pair_allowlist: string;
             /**
@@ -2224,6 +3890,30 @@ export interface components {
             /** Advisory Decision */
             advisory_decision?: string | null;
         };
+        /** SourceCoverage */
+        SourceCoverage: {
+            /** Marketdata */
+            marketData: boolean;
+            /** Telegramsignals */
+            telegramSignals: boolean;
+            /** Neuralstates */
+            neuralStates: boolean;
+            /** Rnapatterns */
+            rnaPatterns: boolean;
+            /** Recenttrades */
+            recentTrades: boolean;
+        };
+        /** StrategyWeights */
+        StrategyWeights: {
+            /** Sentiment */
+            sentiment: number;
+            /** Neural */
+            neural: number;
+            /** Rnapattern */
+            rnaPattern: number;
+            /** Technicalpattern */
+            technicalPattern: number;
+        };
         /** SyntheticDrill */
         SyntheticDrill: {
             /** Drill Id */
@@ -2249,6 +3939,38 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** TelegramSignalSnapshot */
+        TelegramSignalSnapshot: {
+            /** Id */
+            id: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp: string;
+            /**
+             * Channel
+             * @default
+             */
+            channel: string;
+            /**
+             * Message
+             * @default
+             */
+            message: string;
+            /**
+             * Sentiment
+             * @enum {string}
+             */
+            sentiment: "BULLISH" | "BEARISH" | "NEUTRAL";
+            /**
+             * Actionable
+             * @default false
+             */
+            actionable: boolean;
+            /** Symbol */
+            symbol?: string | null;
+        };
         /** TickerResponse */
         TickerResponse: {
             /** Pair */
@@ -2268,6 +3990,17 @@ export interface components {
             request_id: string;
         } & {
             [key: string]: unknown;
+        };
+        /** TickerSnapshot */
+        TickerSnapshot: {
+            /** Symbol */
+            symbol: string;
+            /** Price */
+            price: number;
+            /** Change */
+            change: number;
+            /** History */
+            history?: number[];
         };
         /** TrainRequest */
         TrainRequest: {
@@ -2789,6 +4522,28 @@ export interface operations {
             };
         };
     };
+    tradingview_parse_preview_api_v1_signals_tv_parse_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     tradingview_webhook_api_v1_webhooks_tradingview__public_route_key__post: {
         parameters: {
             query?: never;
@@ -2899,6 +4654,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SignalReceipt"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mcp_paper_fill_api_v1_mcp_paper_fill_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpPaperFillRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpPaperFillResponse"];
                 };
             };
             /** @description Validation Error */
@@ -3044,6 +4834,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AnalyzeTradesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    market_regime_api_v1_orchestrator_market_regime_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarketRegimeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketRegimeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    signal_quality_api_v1_orchestrator_signal_quality_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignalQualityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignalQualityResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    full_decision_api_v1_orchestrator_full_decision_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FullDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FullDecisionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decisions_api_v1_orchestrator_decisions_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                type?: ("market_regime" | "signal_quality" | "full_decision") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionHistoryResponse"];
                 };
             };
             /** @description Validation Error */
@@ -4365,6 +6286,76 @@ export interface operations {
             };
         };
     };
+    chronos_indicators_api_v1_chronos_indicators_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OhlcvaWindowRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chronos_research_backtest_api_v1_chronos_research_backtest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OhlcvaWindowRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     chronos_bsq_encode_api_v1_chronos_bsq_encode_post: {
         parameters: {
             query?: never;
@@ -4410,6 +6401,1307 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["BsqDecodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ga_optimize_api_ga_optimize_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OptimizeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ga_run_status_api_ga_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ga_list_runs_api_ga_runs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ga_export_pine_api_ga_export_pine_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportPineRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ga_templates_api_ga_templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    loops_status_api_v1_loops_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    list_live_sessions_api_v1_loops_sessions_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    paper_loop_start_api_v1_loops_paper_start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    paper_loop_stop_api_v1_loops_paper_stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    live_loop_start_api_v1_loops_live_start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LiveStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    live_loop_stop_api_v1_loops_live_stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    trading_kill_switch_api_v1_loops_kill_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    trade_agent_status_api_v1_trade_agent_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    trade_agent_start_api_v1_trade_agent_start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    trade_agent_stop_api_v1_trade_agent_stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    trade_agent_feedback_run_api_v1_trade_agent_feedback_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    trade_agent_feedback_status_api_v1_trade_agent_feedback_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    trade_agent_trigger_api_v1_trade_agent_trigger__job_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_kraken_status_api_v1_kraken_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    get_kraken_status_components_api_v1_kraken_status_components_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    refresh_kraken_status_api_v1_kraken_status_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    check_pair_status_api_v1_kraken_status_check__pair__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pair: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    place_order_api_v1_orders_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaceOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceOrderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_order_api_v1_orders_cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_all_orders_api_v1_orders_cancel_all_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelAllOrdersRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    amend_order_api_v1_orders_amend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AmendOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    order_types_api_v1_orders_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    get_integrations_api_v1_settings_integrations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    put_integration_api_v1_settings_integrations__key__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_integration_api_v1_settings_integrations__key__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reveal_integration_api_v1_settings_integrations__key__reveal_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_passwords_api_v1_settings_passwords_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    put_password_api_v1_settings_passwords_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_password_api_v1_settings_passwords__password_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                password_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reveal_password_api_v1_settings_passwords__password_id__reveal_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                password_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tvremix_status_api_v1_tvremix_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    list_scripts_api_v1_tvremix_scripts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    search_scripts_api_v1_tvremix_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_lines_api_v1_tvremix_read_lines_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadLinesBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pine_errors_api_v1_tvremix_errors_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ErrorsBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    strategy_report_api_v1_tvremix_strategy_report_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    strategy_sweep_api_v1_tvremix_strategy_sweep_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    multi_timeframe_api_v1_tvremix_mtf_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MtfBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ledger_api_v1_tvremix_ledger_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    ledger_snapshot_api_v1_tvremix_ledger_snapshot_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LedgerSnapshotBody"];
             };
         };
         responses: {

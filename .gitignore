@@ -15,6 +15,7 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 .runtime/
+.runtime-cache/
 backend/data/academy/*
 !backend/data/academy/.gitkeep
 backend/data/paper/*

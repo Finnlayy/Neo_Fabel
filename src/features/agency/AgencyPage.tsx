@@ -25,7 +25,7 @@ function ConfidenceBar({ value }: { value: number }) {
   );
 }
 
-function AgentJobCard({ agent, de }: { agent: AgencyAgentCard; de: boolean }) {
+function AgentJobCard({ agent, de }: { agent: AgencyAgentCard; de: boolean; key?: React.Key }) {
   return (
     <article
       data-testid={`agency-card-${agent.id}`}

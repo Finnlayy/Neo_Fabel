@@ -15,6 +15,7 @@ import type {TelegramSignal} from "../types";
 interface TelegramFeedProps {
   onSignalAction: (prompt: string) => void;
   onSimulateTradeSignal: (asset: string, type: "BUY" | "SELL", isManual?: boolean) => void;
+  onSignalsChange?: (signals: TelegramSignal[]) => void;
   autoExecute?: boolean;
   setAutoExecute?: (val: boolean) => void;
 }
@@ -37,6 +38,7 @@ const extractType = (msg: string): "BUY" | "SELL" => {
 export default function TelegramFeed({
   onSignalAction,
   onSimulateTradeSignal,
+  onSignalsChange,
   autoExecute: controlledAutoExecute,
   setAutoExecute: controlledSetAutoExecute,
 }: TelegramFeedProps) {
@@ -56,6 +58,10 @@ export default function TelegramFeed({
   const [daemonState, setDaemonState] = useState<TelegramDaemonStatus | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(0);
+
+  useEffect(() => {
+    onSignalsChange?.(signals);
+  }, [onSignalsChange, signals]);
 
   const reload = useCallback(async () => {
     try {

@@ -158,7 +158,9 @@ def test_vector_ready_503_when_down(monkeypatch: pytest.MonkeyPatch) -> None:
         store_module.reset_qdrant_store_for_tests()
 
 
-def test_vector_data_operations_require_authentication() -> None:
+def test_vector_data_operations_require_authentication(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "auth_dev_bypass", False)
     response = client.post("/api/v1/vector/collections/ensure")
     assert response.status_code == 401
     assert response.json()["detail"]["code"] == "auth_required"

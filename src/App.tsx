@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { TickerData, Trade, SubAgentState, GenerativePlan, MainTab, AgentStatusPacket } from "./types";
+import { TickerData, Trade, SubAgentState, GenerativePlan, MainTab, AgentStatusPacket, TelegramSignal } from "./types";
 import SignalRoutesPage from "./features/signalRoutes/SignalRoutesPage";
 import AcademyPage from "./features/academy/AcademyPage";
 import OnnxPage from "./features/onnx/OnnxPage";
@@ -37,6 +37,7 @@ import CircularGauge from "./components/CircularGauge";
 import AgentTimeline from "./components/AgentTimeline";
 import NavigationMenu from "./components/NavigationMenu";
 import NeuralVectorAnalyzer from "./components/NeuralVectorAnalyzer";
+import OrchestratorAdvisoryPanel from "./components/OrchestratorAdvisoryPanel";
 import { announceTradeOutcome } from "./services/casinoAudio";
 import { AnimatePresence, motion } from "motion/react";
 
@@ -149,6 +150,7 @@ export default function App() {
   const [orderBookOnline, setOrderBookOnline] = useState(false);
   const [queueLatencyMs, setQueueLatencyMs] = useState<number | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [telegramSignals, setTelegramSignals] = useState<TelegramSignal[]>([]);
   const [subAgents, setSubAgents] = useState<SubAgentState[]>(INITIAL_SUB_AGENTS);
   const [activePlan, setActivePlan] = useState<GenerativePlan | null>(null);
   const [allocation, setAllocation] = useState<{ name: string; value: number }[]>([]);
@@ -638,6 +640,20 @@ export default function App() {
   // supplies fills and realized P&L. The client never invents a win/loss.
   const handleExecuteTrade = (newTradeData: Omit<Trade, "id" | "time" | "pnl" | "status">) => {
     void refreshPaperTrades();
+
+    // Wire position cost into prediction and sentiment analysis
+    if (rnaPattern && newTradeData.positionCost) {
+      void pushRnaContext({
+        bias: rnaPattern.bias,
+        confidence: rnaPattern.confidence,
+        symbol: newTradeData.asset,
+        positionCost: newTradeData.positionCost,
+        executionPrice: newTradeData.price,
+      }).catch(() => {
+        // Signal routes may be disabled; RNA context is best-effort.
+      });
+    }
+
     setSubAgents((prev) =>
       prev.map((agent) =>
         agent.id === "kraken_broker"
@@ -646,8 +662,8 @@ export default function App() {
               status: "OPTIMIZING",
               lastAction:
                 language === "de"
-                  ? `Kraken-Broker · Paper-Order ${newTradeData.type} ${newTradeData.asset} @ ${newTradeData.price} eingereiht.`
-                  : `Kraken broker · queued paper ${newTradeData.type} ${newTradeData.asset} @ ${newTradeData.price}.`,
+                  ? `Kraken-Broker · Paper-Order ${newTradeData.type} ${newTradeData.amount} ${newTradeData.asset} @ ${newTradeData.price} (Cost: $${newTradeData.positionCost?.toLocaleString(undefined, {maximumFractionDigits: 2})} eingereiht.`
+                  : `Kraken broker · queued paper ${newTradeData.type} ${newTradeData.amount} ${newTradeData.asset} @ ${newTradeData.price} (Cost: $${newTradeData.positionCost?.toLocaleString(undefined, {maximumFractionDigits: 2})}).`,
             }
           : agent,
       ),
@@ -1016,49 +1032,14 @@ export default function App() {
                 />
                 {/* Master Control and Signal Dial Row - Bento Styled */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 font-mono text-xs">
-                  {/* Master Orchestrator Agent Panel */}
-                  <div className="bg-slate-900/40 border border-white/5 rounded-xl p-5 glow-emerald flex flex-col justify-between h-56 relative overflow-hidden transition-all duration-300 hover:border-white/10 hover:bg-slate-900/60">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <span className="text-emerald-400 font-bold uppercase tracking-wider text-[11px]">
-                          {t("masterOrchestrator")}
-                        </span>
-                        <span className="text-[9px] text-emerald-500/70 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                          {language === "de" ? "OS REGLER" : "OS CONTROLLER"}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 leading-relaxed">
-                        {t("masterOrchestratorDesc")}
-                      </p>
-                    </div>
-
-                    {/* Circular Gauge Meter */}
-                    <div className="flex items-center justify-between mt-3">
-                      <CircularGauge
-                        score={orchestratorScore}
-                        label={t("score")}
-                        stroke="#10b981"
-                        textClass="text-emerald-400"
-                      />
-
-                      <div className="flex-1 space-y-1 pl-4 text-[10px]">
-                        <div className="flex justify-between border-b border-white/5 pb-0.5">
-                          <span className="text-slate-500">{t("activeDirectives")}:</span>
-                          <span className="text-emerald-400 font-semibold">{activePlan ? (language === "de" ? "Eigene" : "Custom") : (language === "de" ? "Standard" : "Standard")}</span>
-                        </div>
-                        <div className="flex justify-between border-b border-white/5 pb-0.5">
-                          <span className="text-slate-500">{t("queueLatency")}:</span>
-                          <span className="text-slate-300 font-semibold">{latencyLabel}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">{t("safetyCompliance")}:</span>
-                          <span className={`font-semibold ${isComplianceActive ? "text-emerald-400" : "text-rose-400"}`}>
-                            {isComplianceActive ? (language === "de" ? "Aktiv" : "Active") : t("hardOverride")}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <OrchestratorAdvisoryPanel
+                    tickers={tickers}
+                    signals={telegramSignals}
+                    rnaPattern={rnaPattern}
+                    activeSymbol={activeSymbol}
+                    trades={trades}
+                    language={language}
+                  />
 
                   {/* Fable 5 Master Console Panel */}
                   <div className="bg-slate-900/40 border border-white/5 rounded-xl p-5 glow-cyan flex flex-col justify-between h-56 relative overflow-hidden transition-all duration-300 hover:border-white/10 hover:bg-slate-900/60">
@@ -1169,7 +1150,8 @@ export default function App() {
                     <ExecutedTradesSection trades={trades} chartData={chartData} />
                   </div>
                   <div>
-                    <TelegramFeed 
+                    <TelegramFeed
+                      onSignalsChange={setTelegramSignals}
                       onSignalAction={(prompt) => {
                         setActiveTab("strategy");
                         setTimeout(() => {
@@ -1202,7 +1184,8 @@ export default function App() {
                         const ticker = tickers.find(t => t.symbol === asset);
                         const price = ticker ? ticker.price : 100;
                         const size = asset === "BTC" ? 0.25 : asset === "ETH" ? 2.5 : 25;
-                        handleExecuteTrade({ asset, type, price, amount: size });
+                        const positionCost = size * price;
+                        handleExecuteTrade({ asset, type, price, amount: size, positionCost });
                       }}
                     />
                   </div>
@@ -1250,7 +1233,8 @@ export default function App() {
                     <ExecutedTradesSection trades={trades} chartData={chartData} />
                   </div>
                   <div>
-                    <TelegramFeed 
+                    <TelegramFeed
+                      onSignalsChange={setTelegramSignals}
                       onSignalAction={(prompt) => {
                         setActiveTab("strategy");
                         setTimeout(() => {
@@ -1283,7 +1267,8 @@ export default function App() {
                         const ticker = tickers.find(t => t.symbol === asset);
                         const price = ticker ? ticker.price : 100;
                         const size = asset === "BTC" ? 0.25 : asset === "ETH" ? 2.5 : 25;
-                        handleExecuteTrade({ asset, type, price, amount: size });
+                        const positionCost = size * price;
+                        handleExecuteTrade({ asset, type, price, amount: size, positionCost });
                       }}
                     />
                   </div>

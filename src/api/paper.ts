@@ -235,7 +235,7 @@ export function mapPaperStatusToTrades(data: unknown): Trade[] {
           : "PENDING";
     const id = String(row.txid ?? row.id ?? row.order_id ?? `PAPER-${index}`);
     const time = String(row.time ?? row.opentm ?? row.closetm ?? new Date().toLocaleTimeString());
-    trades.push({id, time, asset, type, price, amount, pnl, status});
+    trades.push({id, time, asset, type, price, amount, positionCost: price * amount, pnl, status});
   });
   return trades;
 }

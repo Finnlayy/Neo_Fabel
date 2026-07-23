@@ -55,6 +55,7 @@ from .routers.orders import router as orders_router
 from .routers.integrations_settings import router as integrations_settings_router
 from .routers.tvremix import router as tvremix_router
 from .routers.mcp_paper import router as mcp_paper_router
+from .routers.orchestrator import router as orchestrator_router
 from .integrations.onnx.paths import ensure_onnx_data_dir
 from .integrations.onnx.runtime import ensure_seed_models, netron_static_dir, onnx_deps_available
 from .academy.training_loop import training_loop
@@ -270,6 +271,7 @@ app.include_router(signal_router)
 app.include_router(mcp_router)
 app.include_router(mcp_paper_router)
 app.include_router(ai_router)
+app.include_router(orchestrator_router)
 app.include_router(tvapi_router)
 app.include_router(telegram_router)
 app.include_router(vector_router)

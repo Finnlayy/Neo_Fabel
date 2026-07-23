@@ -117,6 +117,10 @@ class Settings(BaseSettings):
     )
     # When true, rotate the starting provider among the configured chain (still fail over in order).
     ai_provider_rotate: bool = Field(default=False, validation_alias="AI_PROVIDER_ROTATE")
+    orchestrator_advisory_enabled: bool = Field(
+        default=False,
+        validation_alias="ORCHESTRATOR_ADVISORY_ENABLED",
+    )
     gemini_timeout_seconds: float = Field(default=45.0, validation_alias="GEMINI_TIMEOUT_SECONDS")
     ai_llm_timeout_seconds: float = Field(default=45.0, validation_alias="AI_LLM_TIMEOUT_SECONDS")
     # gemini-2.0-* / 2.5-* are legacy; Interactions API current default is 3.5 Flash.

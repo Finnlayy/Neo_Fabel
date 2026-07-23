@@ -55,7 +55,7 @@ vi.mock("../../api/chronos", () => ({
     std: [1, 1, 1, 1, 1, 1],
     x_norm: [],
   })),
-  tokenizeChronos: (...args: unknown[]) => mockTokenize(...args),
+  tokenizeChronos: (..._args: unknown[]) => mockTokenize(),
   fetchChronosCharts: vi.fn(async () => ({
     charts: {
       ohlc: "data:image/png;base64,aaa",

@@ -128,6 +128,15 @@ export default function SimulatedTrading({
   const spread =
     bestBid != null && bestAsk != null && bestAsk > 0 ? ((bestAsk - bestBid) / bestAsk) * 100 : null;
 
+  const executionPrice = useMemo(() => {
+    if (tradeType === "BUY") return bestAsk ?? activePrice;
+    return bestBid ?? activePrice;
+  }, [tradeType, bestAsk, bestBid, activePrice]);
+
+  const positionCost = useMemo(() => {
+    return Number(amount) * executionPrice;
+  }, [amount, executionPrice]);
+
   const handleOrderSubmission = async (event: FormEvent) => {
     event.preventDefault();
     if (!canSubmit) return;
@@ -150,7 +159,7 @@ export default function SimulatedTrading({
         typeof body.result?.market_type === "string" ? String(body.result.market_type) : marketType;
       setStatus("accepted");
       setMessage(`Paper order accepted (${source}, ${book}).`);
-      onExecuteTrade({asset: selectedAsset, type: tradeType, price: activePrice, amount: Number(amount)});
+      onExecuteTrade({asset: selectedAsset, type: tradeType, price: executionPrice, amount: Number(amount), positionCost});
       await onPaperRefresh?.();
     } catch (error) {
       setStatus("error");
@@ -222,7 +231,7 @@ export default function SimulatedTrading({
           </label>
 
           <div className="text-slate-400 border border-white/5 bg-slate-950/60 rounded-sm p-3">
-            <div className="flex justify-between"><span>Source</span><span className="text-slate-200">Local ledger v2 ({marketType})</span></div>
+            <div className="flex justify-between"><span>Position cost</span><span className="text-slate-200">${positionCost.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div>
             <div className="flex justify-between mt-1"><span>Last known price</span><span className="text-slate-200">{activePrice ? `$${activePrice.toLocaleString()}` : "Unavailable"}</span></div>
           </div>
 

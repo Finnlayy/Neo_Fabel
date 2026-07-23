@@ -53,6 +53,41 @@ Paper-only coordinator brain under `backend/app/ai_prompts/`:
 
 `POST /api/gemini/orchestrate` and `POST /api/chat` with `mode: "orchestrator"` load doctrine + shots (+ index if budget). Optional `agentStatusPackets` carry compact `{id, status, lastAction≤200, directive≤280}` from the swarm UI. Usage is logged to `backend/data/academy/prompt_shot_log.jsonl`; `prompt_shot_optimizer` feeds `prompt_evolution` / A/B from careers, drills, and routing failures.
 
+### Trading Orchestrator advisory
+
+The dashboard's Master Orchestrator can run a manual, authenticated advisory
+analysis through `src/api/orchestrator.ts`. It classifies the market regime,
+scores resolved Telegram signals, explains the ranking, and recommends
+informational strategy weights. It has no imports or calls into paper/live order
+execution and always returns `mode: advisory` plus `executionAllowed: false`.
+
+Enable it deliberately in `.env.local`:
+
+```env
+ORCHESTRATOR_ADVISORY_ENABLED=true
+# Configure at least one provider from AI_PROVIDER_ORDER.
+OPENROUTER_API_KEY=replace-locally
+```
+
+Apply the audit-table migration before using decision history:
+
+```powershell
+docker compose run --rm api alembic -c backend/alembic.ini upgrade head
+```
+
+API surface:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/v1/orchestrator/market-regime` | Standalone regime analysis |
+| `POST /api/v1/orchestrator/signal-quality` | Standalone signal scoring |
+| `POST /api/v1/orchestrator/full-decision` | One consistent dashboard advisory |
+| `GET /api/v1/orchestrator/decisions` | User-scoped advisory history |
+
+The feature is manual-only: there is no polling or automatic LLM spend. Missing
+providers return an explicit error and never synthesize a neutral recommendation.
+Provider credentials belong only in ignored local environment files.
+
 ```powershell
 python -m pytest backend/tests/test_prompt_shots.py backend/tests/test_academy.py -q
 ```
