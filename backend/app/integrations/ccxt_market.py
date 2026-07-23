@@ -6,6 +6,7 @@ and never exposes order/trade methods.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import ccxt.async_support as ccxt
@@ -131,8 +132,10 @@ class CcxtMarketClient:
                 raw = await self._exchange.fetch_tickers(unified)
             else:
                 raw = {}
-                for symbol in unified:
-                    raw[symbol] = await self._exchange.fetch_ticker(symbol)
+                tasks = [self._exchange.fetch_ticker(symbol) for symbol in unified]
+                results = await asyncio.gather(*tasks)
+                for symbol, result in zip(unified, results):
+                    raw[symbol] = result
         except ccxt.BaseError as exc:
             raise KrakenCliError("api", f"ccxt ticker failed: {exc}", retryable=True) from exc
         if not isinstance(raw, dict):
