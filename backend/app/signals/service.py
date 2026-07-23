@@ -159,8 +159,7 @@ class SignalSubmissionService:
     ) -> CredentialReveal:
         repo = SignalRepository(session)
         route = await self._owned_route(repo, owner_uid, route_id)
-        for existing in await repo.active_credentials(route.id, kind):
-            existing.revoked_at = datetime.now(UTC)
+        await repo.revoke_active_credentials(route.id, kind)
         generated = make_credential(kind, self.settings)
         credential = SignalRouteCredential(
             id=str(uuid4()),
