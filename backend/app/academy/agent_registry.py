@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from collections import deque
-from typing import Optional
+
+import aiofiles
 
 from backend.app.academy.agent_defs import NEO_AGENT_DEFINITIONS
 from backend.app.academy.paths import ACADEMY_DATA_DIR, ensure_academy_data_dir
@@ -54,7 +54,7 @@ class AgentRegistryService:
         except Exception as exc:  # noqa: BLE001
             print(f"Error saving agent registry: {exc}")
 
-    def get_identity(self, name: str) -> Optional[ScoutIdentity]:
+    def get_identity(self, name: str) -> ScoutIdentity | None:
         return self._identities.get(name)
 
     def get_all_identities(self) -> list[ScoutIdentity]:
@@ -120,11 +120,8 @@ class AgentRegistryService:
         if not write_log:
             return
 
-        def _write_log() -> None:
-            with open(CAREER_LOG_FILE, "a", encoding="utf-8") as handle:
-                handle.write(entry.model_dump_json() + "\n")
-
-        await asyncio.to_thread(_write_log)
+        async with aiofiles.open(CAREER_LOG_FILE, "a", encoding="utf-8") as handle:
+            await handle.write(entry.model_dump_json() + "\n")
 
     async def _check_badges(
         self,
