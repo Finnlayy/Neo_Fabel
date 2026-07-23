@@ -46,5 +46,8 @@ def test_run_candle_optimize_ui_shape() -> None:
     )
     assert result["success"] is True
     assert result["winner"]["trades"] >= 0
+    assert result["results"]
+    assert "inputs" in result["results"][0]
+    assert "maxDrawdown" in result["results"][0]
     assert "candle-backtest" in result["source"]
     assert "vision" not in result["bericht"].lower() or "not vision" in result["bericht"].lower()

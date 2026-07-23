@@ -24,10 +24,12 @@ import {
 import { ApiError } from "../api/client";
 import {
   type ChartStrategy,
+  type TvapiOptimizeSuccess,
   fetchChartStrategies,
   postTvapiAnalyzeChart,
   postTvapiOptimize,
 } from "../api/ai";
+import OptimizationDashboard from "./OptimizationDashboard";
 
 interface TvapiOptimizerProps {
   activeSymbol: string;
@@ -117,7 +119,7 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
   const pasteZoneRef = useRef<HTMLDivElement>(null);
 
   // Output results from optimization
-  const [optimizationResult, setOptimizationResult] = useState<any>(null);
+  const [optimizationResult, setOptimizationResult] = useState<TvapiOptimizeSuccess | null>(null);
   
   // Simulated Pine Strategy Setup State (what's currently "programmed" in TV)
   const [currentTVInputs, setCurrentTVInputs] = useState<Record<string, any>>({
@@ -219,7 +221,7 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
       if (data.success) {
         setOptimizationResult(data);
       } else {
-        console.error("Optimization failed:", data.error);
+        console.error("Optimization failed:", "error" in data ? data.error : "Unknown optimization error");
       }
     } catch (err) {
       console.error("Error optimizing strategy:", err instanceof ApiError ? err.message : err);
@@ -1191,6 +1193,14 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
         </div>
 
       </div>
+
+      {optimizationResult && (
+        <OptimizationDashboard
+          activeSymbol={symbol}
+          strategyName={selectedStrategy?.name ?? selectedStrategy?.kind ?? "Selected strategy"}
+          result={optimizationResult}
+        />
+      )}
 
       {/* SECTION 3: ADVANCED AI CHART VISION & PATTERN RECOGNITION WORKSPACE */}
       <div className="border-t border-white/5 pt-6 mt-6 space-y-4">

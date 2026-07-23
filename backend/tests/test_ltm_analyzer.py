@@ -55,4 +55,7 @@ def test_run_candle_optimize_dispatches_ltm() -> None:
     assert result["success"] is True
     assert "ltm" in result["source"]
     assert result["winner"] is not None
+    assert result["results"]
+    assert "inputs" in result["results"][0]
+    assert "maxDrawdown" in result["results"][0]
     assert "LTM" in result["bericht"]

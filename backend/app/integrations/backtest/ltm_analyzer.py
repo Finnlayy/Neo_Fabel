@@ -548,6 +548,8 @@ def run_ltm_optimize(
                 "winRate": m["winRate"],
                 "netProfit": m["netProfit"],
                 "trades": m["trades"],
+                "maxDrawdown": m["maxDrawdown"],
+                "inputs": p,
                 "isWinner": lab == label or row is winner_row,
                 "isDisqualified": row["isDisqualified"],
             }

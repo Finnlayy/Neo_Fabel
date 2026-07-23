@@ -252,6 +252,8 @@ def run_candle_optimize(
                 "winRate": m["winRate"],
                 "netProfit": m["netProfit"],
                 "trades": m["trades"],
+                "maxDrawdown": m["maxDrawdown"],
+                "inputs": row["params"],
                 "isWinner": label == winner["label"],
                 "isDisqualified": row["isDisqualified"],
             }
