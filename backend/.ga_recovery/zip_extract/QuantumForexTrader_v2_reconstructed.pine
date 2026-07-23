@@ -1,0 +1,168 @@
+//@version=6
+strategy("QuantumForexTrader v2 (Reconstructed)", overlay=true, max_labels_count=500, calc_on_order_fills=true, pyramiding=0, initial_capital=4096, default_qty_type=strategy.cash, default_qty_value=100)
+
+// Reconstructed from TradingView snapshot metadata.
+// This is not the original source, but it follows the exposed structure:
+// - KAMA / TMA / UT Stop overlays
+// - multi-timeframe CISD-style bias counting
+// - long/short entries with TP ladder and stop plotting
+
+groupCore = "Core"
+src = input.source(close, "Source", group=groupCore)
+kamaLen = input.int(50, "KAMA Length", minval=1, group=groupCore)
+tmaLen = input.int(30, "TMA Length", minval=1, group=groupCore)
+utAtrLen = input.int(14, "UT ATR Length", minval=1, group=groupCore)
+utAtrMult = input.float(1.5, "UT ATR Mult", minval=0.1, step=0.1, group=groupCore)
+
+groupMTF = "MTF Bias"
+tf_h4 = input.timeframe("240", "H4 TF", group=groupMTF)
+tf_h1 = input.timeframe("60", "H1 TF", group=groupMTF)
+tf_m15 = input.timeframe("15", "M15 TF", group=groupMTF)
+tf_m5 = input.timeframe("5", "M5 TF", group=groupMTF)
+en_h4 = input.bool(true, "Enable H4", group=groupMTF)
+en_h1 = input.bool(true, "Enable H1", group=groupMTF)
+en_m15 = input.bool(true, "Enable M15", group=groupMTF)
+en_m5 = input.bool(true, "Enable M5", group=groupMTF)
+minBullVotes = input.int(3, "Min Bull Votes", minval=1, maxval=4, group=groupMTF)
+minBearVotes = input.int(3, "Min Bear Votes", minval=1, maxval=4, group=groupMTF)
+
+groupRisk = "Risk"
+stopAtrMult = input.float(1.5, "Stop ATR Mult", minval=0.1, step=0.1, group=groupRisk)
+tp1R = input.float(0.6, "TP1 R", minval=0.1, step=0.1, group=groupRisk)
+tp2R = input.float(0.3, "TP2 R", minval=0.1, step=0.1, group=groupRisk)
+tp3R = input.float(1.0, "TP3 R", minval=0.1, step=0.1, group=groupRisk)
+tp5R = input.float(2.0, "TP5 R", minval=0.1, step=0.1, group=groupRisk)
+
+groupFilters = "Filters"
+volLen = input.int(20, "Volume SMA Length", minval=1, group=groupFilters)
+requireVolume = input.bool(true, "Require Volume Filter", group=groupFilters)
+sessionMode = input.string("BACKTEST", "Mode", options=["BACKTEST", "LIVE"], group=groupFilters)
+
+f_tma(_src, _len) =>
+    ta.sma(ta.sma(_src, _len), _len)
+
+f_ut_stop(_src, _atrLen, _atrMult) =>
+    _atr = ta.atr(_atrLen)
+    _longStop = _src - _atr * _atrMult
+    _shortStop = _src + _atr * _atrMult
+    var float _trail = na
+    if na(_trail)
+        _trail := _longStop
+    else if _src > _trail
+        _trail := math.max(_trail, _longStop)
+    else
+        _trail := math.min(_trail, _shortStop)
+    _trail
+
+// CISD-style directional state inferred from snapshot naming.
+f_htf_cisd() =>
+    _emaFast = ta.ema(close, 25)
+    _emaSlow = ta.ema(close, 99)
+    _kama = ta.kama(close, kamaLen)
+    _bull = close > _emaFast and _emaFast > _emaSlow and close > _kama
+    _bear = close < _emaFast and _emaFast < _emaSlow and close < _kama
+    _state = _bull ? 1 : _bear ? -1 : 0
+    [_state, _emaFast > _emaSlow]
+
+// The original snapshot showed a CE10163 tuple/ternary error around this block.
+// This reconstructed version uses if-blocks so it compiles on Pine v6.
+int state_h4 = 0
+bool h4_ema_bull = false
+if en_h4
+    [state_h4, h4_ema_bull] := request.security(syminfo.tickerid, tf_h4, f_htf_cisd())
+
+int state_h1 = 0
+bool h1_ema_bull = false
+if en_h1
+    [state_h1, h1_ema_bull] := request.security(syminfo.tickerid, tf_h1, f_htf_cisd())
+
+int state_m15 = 0
+bool m15_ema_bull = false
+if en_m15
+    [state_m15, m15_ema_bull] := request.security(syminfo.tickerid, tf_m15, f_htf_cisd())
+
+int state_m5 = 0
+bool m5_ema_bull = false
+if en_m5
+    [state_m5, m5_ema_bull] := request.security(syminfo.tickerid, tf_m5, f_htf_cisd())
+
+int bull_count = 0
+bull_count += (en_h4 and state_h4 == 1) ? 1 : 0
+bull_count += (en_h1 and state_h1 == 1) ? 1 : 0
+bull_count += (en_m15 and state_m15 == 1) ? 1 : 0
+bull_count += (en_m5 and state_m5 == 1) ? 1 : 0
+
+int bear_count = 0
+bear_count += (en_h4 and state_h4 == -1) ? 1 : 0
+bear_count += (en_h1 and state_h1 == -1) ? 1 : 0
+bear_count += (en_m15 and state_m15 == -1) ? 1 : 0
+bear_count += (en_m5 and state_m5 == -1) ? 1 : 0
+
+int ema_bias_count = 0
+ema_bias_count += en_h4 ? (h4_ema_bull ? 1 : -1) : 0
+ema_bias_count += en_h1 ? (h1_ema_bull ? 1 : -1) : 0
+ema_bias_count += en_m15 ? (m15_ema_bull ? 1 : -1) : 0
+ema_bias_count += en_m5 ? (m5_ema_bull ? 1 : -1) : 0
+
+kamaLine = ta.kama(src, kamaLen)
+tmaLine = f_tma(src, tmaLen)
+utStop = f_ut_stop(src, utAtrLen, utAtrMult)
+atr = ta.atr(utAtrLen)
+volOk = not requireVolume or volume > ta.sma(volume, volLen)
+
+trendBull = close > kamaLine and close > tmaLine and close > utStop
+trendBear = close < kamaLine and close < tmaLine and close < utStop
+
+longSignal = bull_count >= minBullVotes and ema_bias_count > 0 and trendBull and volOk
+shortSignal = bear_count >= minBearVotes and ema_bias_count < 0 and trendBear and volOk
+
+longStop = close - atr * stopAtrMult
+shortStop = close + atr * stopAtrMult
+longRisk = math.max(close - longStop, syminfo.mintick)
+shortRisk = math.max(shortStop - close, syminfo.mintick)
+
+longTp1 = close + longRisk * tp1R
+longTp2 = close + longRisk * tp2R
+longTp3 = close + longRisk * tp3R
+longTp5 = close + longRisk * tp5R
+
+shortTp1 = close - shortRisk * tp1R
+shortTp2 = close - shortRisk * tp2R
+shortTp3 = close - shortRisk * tp3R
+shortTp5 = close - shortRisk * tp5R
+
+if longSignal and strategy.position_size <= 0
+    strategy.entry("Long", strategy.long, comment=sessionMode)
+    strategy.exit("L-TP1", "Long", limit=longTp1, stop=longStop, qty_percent=25)
+    strategy.exit("L-TP2", "Long", limit=longTp2, stop=longStop, qty_percent=25)
+    strategy.exit("L-TP3", "Long", limit=longTp3, stop=longStop, qty_percent=25)
+    strategy.exit("L-TP5", "Long", limit=longTp5, stop=longStop, qty_percent=25)
+
+if shortSignal and strategy.position_size >= 0
+    strategy.entry("Short", strategy.short, comment=sessionMode)
+    strategy.exit("S-TP1", "Short", limit=shortTp1, stop=shortStop, qty_percent=25)
+    strategy.exit("S-TP2", "Short", limit=shortTp2, stop=shortStop, qty_percent=25)
+    strategy.exit("S-TP3", "Short", limit=shortTp3, stop=shortStop, qty_percent=25)
+    strategy.exit("S-TP5", "Short", limit=shortTp5, stop=shortStop, qty_percent=25)
+
+plot(kamaLine, "KAMA", color=color.orange)
+plot(tmaLine, "TMA", color=color.blue)
+plot(utStop, "UT Stop", color=color.new(color.blue, 0), style=plot.style_linebr)
+
+plotshape(longSignal, "Long Entry", style=shape.triangleup, location=location.belowbar, color=color.green, size=size.small, text="L")
+plotshape(shortSignal, "Short Entry", style=shape.triangledown, location=location.abovebar, color=color.red, size=size.small, text="S")
+
+plot(strategy.position_size > 0 ? longTp1 : na, "L-TP1", color=color.new(color.green, 60), style=plot.style_linebr)
+plot(strategy.position_size > 0 ? longTp2 : na, "L-TP2", color=color.new(color.green, 40), style=plot.style_linebr)
+plot(strategy.position_size > 0 ? longTp3 : na, "L-TP3", color=color.new(color.green, 20), style=plot.style_linebr)
+plot(strategy.position_size > 0 ? longTp5 : na, "L-TP5", color=color.new(color.green, 0), style=plot.style_linebr)
+plot(strategy.position_size > 0 ? longStop : na, "L-Stop", color=color.red, style=plot.style_linebr)
+
+plot(strategy.position_size < 0 ? shortTp1 : na, "S-TP1", color=color.new(color.aqua, 60), style=plot.style_linebr)
+plot(strategy.position_size < 0 ? shortTp2 : na, "S-TP2", color=color.new(color.aqua, 40), style=plot.style_linebr)
+plot(strategy.position_size < 0 ? shortTp3 : na, "S-TP3", color=color.new(color.aqua, 20), style=plot.style_linebr)
+plot(strategy.position_size < 0 ? shortTp5 : na, "S-TP5", color=color.new(color.aqua, 0), style=plot.style_linebr)
+plot(strategy.position_size < 0 ? shortStop : na, "S-Stop", color=color.red, style=plot.style_linebr)
+
+plotchar(bull_count, "Bull Votes", "", location.top, size=size.tiny, color=color.green, display=display.status_line)
+plotchar(bear_count, "Bear Votes", "", location.top, size=size.tiny, color=color.red, display=display.status_line)

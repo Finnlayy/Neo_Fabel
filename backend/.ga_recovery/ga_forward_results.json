@@ -1,0 +1,83 @@
+{
+  "settings": {
+    "population": 30,
+    "generations": 50,
+    "elite": 3,
+    "mutation_rate": 0.05,
+    "mutation_strength": 0.4,
+    "crossover_threshold": 0.2,
+    "train_ratio": 0.7,
+    "max_symbols": 40,
+    "lookback_bars": 600,
+    "fee_r": 0.03,
+    "universe": 40
+  },
+  "top3": [
+    {
+      "genome": {
+        "min_conf": 35,
+        "risk_pct": 0.0015,
+        "sl_atr_mul": 0.8053824581277769,
+        "tp_atr_mul": 1.8996557308293331,
+        "vol_mult": 0.8,
+        "max_daily_move_pct": 15.70204503707815,
+        "ob_body_mult": 1.1,
+        "cisd_len": 4,
+        "w_trend": 26,
+        "w_cisd": 35,
+        "w_ob": 22,
+        "w_fvg": 23,
+        "w_vol": 16,
+        "allow_shorts": true
+      },
+      "fitness": -14.015438444906126,
+      "train": -1.4425057910042338,
+      "forward": -29.78577654427244,
+      "gap": 28.52415353435533
+    },
+    {
+      "genome": {
+        "min_conf": 35,
+        "risk_pct": 0.0015,
+        "sl_atr_mul": 0.8053824581277769,
+        "tp_atr_mul": 1.8996557308293331,
+        "vol_mult": 0.8,
+        "max_daily_move_pct": 15.70204503707815,
+        "ob_body_mult": 1.1,
+        "cisd_len": 4,
+        "w_trend": 26,
+        "w_cisd": 35,
+        "w_ob": 22,
+        "w_fvg": 23,
+        "w_vol": 16,
+        "allow_shorts": true
+      },
+      "fitness": -14.015438444906126,
+      "train": -1.4425057910042338,
+      "forward": -29.78577654427244,
+      "gap": 28.52415353435533
+    },
+    {
+      "genome": {
+        "min_conf": 35,
+        "risk_pct": 0.0015,
+        "sl_atr_mul": 0.8053824581277769,
+        "tp_atr_mul": 1.8996557308293331,
+        "vol_mult": 0.8,
+        "max_daily_move_pct": 15.70204503707815,
+        "ob_body_mult": 1.1,
+        "cisd_len": 4,
+        "w_trend": 26,
+        "w_cisd": 35,
+        "w_ob": 22,
+        "w_fvg": 23,
+        "w_vol": 16,
+        "allow_shorts": true
+      },
+      "fitness": -14.015438444906126,
+      "train": -1.4425057910042338,
+      "forward": -29.78577654427244,
+      "gap": 28.52415353435533
+    }
+  ]
+}

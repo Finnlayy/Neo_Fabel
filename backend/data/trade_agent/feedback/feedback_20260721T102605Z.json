@@ -1,0 +1,92 @@
+{
+  "ok": true,
+  "at": "2026-07-21T10:26:05.244005+00:00",
+  "reason": "engine_tick_2190",
+  "gate": {
+    "allow": true,
+    "paper_only": true,
+    "paper_on": true,
+    "live_on": false,
+    "engine_idle": false,
+    "acute": false,
+    "ticks": 2190,
+    "dry_run_count": 11,
+    "last_error": null
+  },
+  "notes": [
+    "intake_failures=11 last=rejected:ingress_disabled",
+    "intent: DCA BUY ADAUSD @ 0.1729 step=8.0% \u2014 dca_step_2_8.0pct",
+    "intent: DCA SELL ADAUSD @ 0.1756 \u2014 dca_take_profit",
+    "intent: DCA BUY ADAUSD @ 0.1756 step=2.0% \u2014 dca_step_0_2.0pct",
+    "intent: DCA BUY ADAUSD @ 0.1756 step=4.0% \u2014 dca_step_1_4.0pct",
+    "intent: DCA BUY ADAUSD @ 0.1756 step=8.0% \u2014 dca_step_2_8.0pct"
+  ],
+  "packets": [
+    {
+      "id": "orchestrator",
+      "status": "FEEDBACK",
+      "lastAction": "intake_failures=11 last=rejected:ingress_disabled; intent: DCA BUY ADAUSD @ 0.1729 step=8.0% \u2014 dca_step_2_8.0pct",
+      "directive": "Incorporate trade rationales; refuse live_gated; paper-only adapts."
+    },
+    {
+      "id": "risk_gov",
+      "status": "OK",
+      "lastAction": "error_streak=0 loss_streak=0",
+      "directive": "Tighten size if loss_streak>=3; clear after quiet wins."
+    },
+    {
+      "id": "adaptive",
+      "status": "IDLE",
+      "lastAction": "intake_failures=11 last=rejected:ingress_disabled; intent: DCA BUY ADAUSD @ 0.1729 step=8.0% \u2014 dca_step_2_8.0pct",
+      "directive": "Apply poll/risk nudges only on acute streaks; log rationale."
+    }
+  ],
+  "dry_runs_reviewed": 11,
+  "labels_reviewed": 0,
+  "error_streak": 0,
+  "loss_streak": 0,
+  "prompt_evolution": {
+    "evolved": true,
+    "reason": "routing_or_drill_failures",
+    "version_id": "orchestrator_v2603_shot_opt",
+    "signals": {
+      "should_evolve": true,
+      "reason": "routing_or_drill_failures",
+      "notes": [
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork",
+        "skill_routing_ok=false",
+        "missed orchestration_teamwork"
+      ],
+      "live_accepted": 0,
+      "routing_fails": 14,
+      "drill_misses": 14,
+      "peer_weak": 0
+    }
+  },
+  "param_adapts": []
+}

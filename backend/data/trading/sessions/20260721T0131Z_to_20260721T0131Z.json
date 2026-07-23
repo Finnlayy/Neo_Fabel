@@ -1,0 +1,26 @@
+{
+  "session_name": "20260721T0131Z_to_20260721T0131Z",
+  "started_at": "2026-07-21T01:31:17.509405Z",
+  "ended_at": "2026-07-21T01:31:17.549906Z",
+  "max_margin_eur": 10.0,
+  "starting_capital_eur": 10.0,
+  "max_concurrent_trades": 2,
+  "symbol_allowlist": [
+    "XRPUSD"
+  ],
+  "position_sizing": {
+    "mode": "half_kelly"
+  },
+  "risk_policy": null,
+  "realized_loss_eur_today": 0.0,
+  "autonomy": 4,
+  "deadman_seconds": 60,
+  "uptime_seconds": 0.039001,
+  "time_in_trades_seconds": 0.0,
+  "peak_open_trades": 0,
+  "samples": 1,
+  "status": "reset",
+  "last_heartbeat_kind": "started",
+  "last_heartbeat_at": "2026-07-21T01:31:17.536405Z",
+  "last_open_trades": 0
+}
