@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import (
@@ -68,6 +68,18 @@ class SignalRepository:
             )
         )
         return list(result)
+
+    async def revoke_active_credentials(self, route_id: str, kind: str) -> None:
+        await self.session.execute(
+            update(SignalRouteCredential)
+            .where(
+                SignalRouteCredential.route_id == route_id,
+                SignalRouteCredential.kind == kind,
+                SignalRouteCredential.revoked_at.is_(None),
+            )
+            .values(revoked_at=datetime.now(UTC))
+        )
+        await self.session.flush()
 
     async def add_credential(self, credential: SignalRouteCredential) -> SignalRouteCredential:
         self.session.add(credential)
