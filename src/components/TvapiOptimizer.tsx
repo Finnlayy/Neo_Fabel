@@ -65,6 +65,21 @@ const TF_TO_TV_INTERVAL: Record<string, string> = Object.fromEntries(
   TIMEFRAMES.map((tf) => [tf.value, tf.tvInterval]),
 );
 
+const SMC_PARAMS = {
+  __indicatorName: "Neo-Quantum SMC [Cluster Optimized]",
+  "Market Structure Length": 5,
+  "Show Breaker Blocks": "true",
+  "Min. ATR Spacing between Trades": 1,
+  "Volume-Weighted TP Merging": "true",
+  "Enable Time-Decay Exit": "true",
+  "Max. Cluster Duration (Bars)": 30,
+  "Risk:Reward Ratio": 2,
+  "ATR Multiplier for Stop Loss": 1.5,
+  "Use Full Kelly Sizing": "true",
+  "Max Risk Cap (%)": 5,
+  "Base Risk (%)": 1,
+};
+
 export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
   const [symbol, setSymbol] = useState(activeSymbol || "BTCUSD");
   const [chartStrategies, setChartStrategies] = useState<ChartStrategy[]>([]);
@@ -138,22 +153,6 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
   const [setPipelineLog, setSetPipelineLog] = useState<string[]>([]);
   const [isProgramming, setIsProgramming] = useState(false);
 
-  // CSV Trading Knowledge Parameters
-  const smcParams = {
-    __indicatorName: "Neo-Quantum SMC [Cluster Optimized]",
-    "Market Structure Length": 5,
-    "Show Breaker Blocks": "true",
-    "Min. ATR Spacing between Trades": 1,
-    "Volume-Weighted TP Merging": "true",
-    "Enable Time-Decay Exit": "true",
-    "Max. Cluster Duration (Bars)": 30,
-    "Risk:Reward Ratio": 2,
-    "ATR Multiplier for Stop Loss": 1.5,
-    "Use Full Kelly Sizing": "true",
-    "Max Risk Cap (%)": 5,
-    "Base Risk (%)": 1
-  };
-
   const handleReadChartStrategies = async () => {
     if (strategyPickerOpen) {
       setStrategyPickerOpen(false);
@@ -212,7 +211,7 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
         secondaryObjective,
         parameters:
           strategyKind === "smc"
-            ? { ...smcParams, ...(selectedStrategy.inputs ?? {}) }
+            ? { ...SMC_PARAMS, ...(selectedStrategy.inputs ?? {}) }
             : { ...(selectedStrategy.inputs ?? {}) },
         // tvremix Pine: list → select → optimize reads source by scriptId
         scriptId: selectedStrategy.origin && selectedStrategy.origin !== "probe" ? selectedStrategy.id : undefined,
