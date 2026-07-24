@@ -14,10 +14,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 
 from .http_static_cache import StaticCacheMiddleware
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import require_trading_admin, require_trading_admin_recent, require_user
-from .database import SessionFactory, get_session
+from .database import SessionFactory
 from .integrations.alpha_vantage import AlphaVantageClient, AlphaVantageError
 from .integrations.ccxt_market import CcxtMarketClient, compact_pair, to_ccxt_symbol
 from .integrations.kraken_cli import KrakenCli, KrakenCliError
