@@ -35,23 +35,25 @@ describe("loops api client", () => {
       max_session_size: {value: 10, unit: "eur"},
       max_concurrent_trades: 2,
       starting_capital_eur: 10,
+      max_drawdown_usd: 2,
       daily_loss_limit: {value: 5, unit: "pct"},
       min_confidence_pct: 60,
       allow_pre_post_market: false,
       human_verification: true,
       symbols: ["XRPUSD", "METAUSD", "ADAUSD"],
-      position_sizing_mode: "half_kelly",
+      position_sizing_mode: "dynamic_kelly",
     });
     expect(apiRequest).toHaveBeenCalledWith("/api/v1/loops/live/start", {
       method: "POST",
       body: JSON.stringify({
         max_concurrent_trades: 2,
-        position_sizing_mode: "half_kelly",
+        position_sizing_mode: "dynamic_kelly",
+        starting_capital_eur: 10,
+        max_drawdown_usd: 2,
         min_confidence_pct: 60,
         allow_pre_post_market: false,
         human_verification: true,
         max_session_size: {value: 10, unit: "eur"},
-        starting_capital_eur: 10,
         daily_loss_limit: {value: 5, unit: "pct"},
         symbols: ["XRPUSD", "METAUSD", "ADAUSD"],
       }),
@@ -63,20 +65,24 @@ describe("loops api client", () => {
     await startLiveLoop({
       max_margin_eur: 10,
       max_concurrent_trades: 2,
-      position_sizing_mode: "manual",
-      manual_notional_eur: 5,
+      starting_capital_eur: 10,
+      max_drawdown_usd: 2,
+      position_sizing_mode: "fixed_usd",
+      fixed_notional_usd: 5,
     });
     expect(apiRequest).toHaveBeenCalledWith("/api/v1/loops/live/start", {
       method: "POST",
       body: JSON.stringify({
         max_concurrent_trades: 2,
-        position_sizing_mode: "manual",
+        position_sizing_mode: "fixed_usd",
+        starting_capital_eur: 10,
+        max_drawdown_usd: 2,
         min_confidence_pct: 0,
         allow_pre_post_market: true,
         human_verification: false,
         max_margin_eur: 10,
         max_session_size: {value: 10, unit: "eur"},
-        manual_notional_eur: 5,
+        fixed_notional_usd: 5,
       }),
     });
   });

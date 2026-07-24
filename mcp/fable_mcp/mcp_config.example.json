@@ -15,7 +15,7 @@
       "args": ["run", "--quiet", "--manifest-path", "mcp/fable_mcp/Cargo.toml"],
       "cwd": "D:/Neo_Fabel",
       "env": {
-        "FABLE_MCP_BRIDGE_URL": "http://127.0.0.1:8000",
+        "FABLE_MCP_BRIDGE_URL": "http://127.0.0.1:7000",
         "FABLE_MCP_BRIDGE_ENABLED": "true",
         "FABLE_MCP_DEFAULT_PAIR": "ADAUSD",
         "RUST_LOG": "fable_mcp=info"

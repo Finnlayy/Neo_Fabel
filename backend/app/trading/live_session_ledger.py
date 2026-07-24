@@ -103,6 +103,12 @@ class LiveSessionLedger:
             "position_sizing": sizing,
             "risk_policy": risk_policy,
             "realized_loss_eur_today": 0.0,
+            "initial_equity_usd": None,
+            "current_equity_usd": None,
+            "peak_equity_usd": None,
+            "session_drawdown_usd": 0.0,
+            "max_drawdown_usd": float((risk_policy or {}).get("max_drawdown_usd") or 0.0),
+            "max_drawdown_hit": False,
             "autonomy": int(autonomy),
             "deadman_seconds": int(deadman_seconds),
             "uptime_seconds": 0.0,
@@ -113,6 +119,30 @@ class LiveSessionLedger:
         }
         self._last_sample_at = now
         self._in_trade_at_last_sample = False
+        self._persist_active()
+        return dict(self._active)
+
+    def record_equity(self, *, equity_usd: float) -> dict[str, Any] | None:
+        """Record marked account equity and latch the configured drawdown stop."""
+        if self._active is None:
+            return None
+        equity = float(equity_usd)
+        if equity < 0:
+            raise ValueError("equity_usd must be >= 0")
+        initial = self._active.get("initial_equity_usd")
+        if initial is None:
+            self._active["initial_equity_usd"] = equity
+        peak = self._active.get("peak_equity_usd")
+        peak_value = equity if peak is None else max(float(peak), equity)
+        drawdown = max(0.0, peak_value - equity)
+        limit = float(self._active.get("max_drawdown_usd") or 0.0)
+        hit = limit > 0 and drawdown >= limit
+        self._active["current_equity_usd"] = equity
+        self._active["peak_equity_usd"] = peak_value
+        self._active["session_drawdown_usd"] = drawdown
+        if hit:
+            self._active["max_drawdown_hit"] = True
+            self._active["status"] = "max_drawdown"
         self._persist_active()
         return dict(self._active)
 

@@ -91,6 +91,7 @@ class SessionRiskPolicy:
     max_session_size: CapAmount
     max_concurrent_trades: int
     daily_loss_limit: CapAmount
+    max_drawdown: CapAmount
     min_confidence_pct: float
     allow_pre_post_market: bool
     human_verification: bool
@@ -101,12 +102,14 @@ class SessionRiskPolicy:
             "max_session_size": self.max_session_size.to_dict(),
             "max_concurrent_trades": self.max_concurrent_trades,
             "daily_loss_limit": self.daily_loss_limit.to_dict(),
+            "max_drawdown": self.max_drawdown.to_dict(),
             "min_confidence_pct": self.min_confidence_pct,
             "allow_pre_post_market": self.allow_pre_post_market,
             "human_verification": self.human_verification,
             "starting_capital_eur": self.starting_capital_eur,
             "max_session_size_eur": self.max_session_size_eur(),
             "daily_loss_limit_eur": self.daily_loss_limit_eur(),
+            "max_drawdown_usd": self.max_drawdown_usd(),
         }
 
     def max_session_size_eur(self) -> float:
@@ -115,12 +118,16 @@ class SessionRiskPolicy:
     def daily_loss_limit_eur(self) -> float:
         return self.daily_loss_limit.resolve_eur(capital_eur=self.starting_capital_eur)
 
+    def max_drawdown_usd(self) -> float:
+        return float(self.max_drawdown.value)
+
 
 def validate_session_risk_policy(
     *,
     max_session_size: Any,
     max_concurrent_trades: int,
     daily_loss_limit: Any,
+    max_drawdown_usd: Any,
     min_confidence_pct: float = 0.0,
     allow_pre_post_market: bool = True,
     human_verification: bool = False,
@@ -137,14 +144,20 @@ def validate_session_risk_policy(
         raise ValueError("min_confidence_pct must be 0..100")
     size = parse_cap_amount(max_session_size, field="max_session_size")
     loss = parse_cap_amount(daily_loss_limit, field="daily_loss_limit")
+    drawdown = parse_cap_amount(max_drawdown_usd, field="max_drawdown_usd")
     if size.resolve_eur(capital_eur=capital) <= 0:
         raise ValueError("max_session_size must resolve to > 0")
     if loss.resolve_eur(capital_eur=capital) < 0:
         raise ValueError("daily_loss_limit must resolve to >= 0")
+    if drawdown.unit != "usd":
+        raise ValueError("max_drawdown_usd must use USD")
+    if drawdown.value <= 0:
+        raise ValueError("max_drawdown_usd must be > 0")
     return SessionRiskPolicy(
         max_session_size=size,
         max_concurrent_trades=concurrent,
         daily_loss_limit=loss,
+        max_drawdown=drawdown,
         min_confidence_pct=conf,
         allow_pre_post_market=bool(allow_pre_post_market),
         human_verification=bool(human_verification),
@@ -191,6 +204,16 @@ def assert_confidence_ok(confidence_pct: float | None, *, min_confidence_pct: fl
     if float(confidence_pct) < float(min_confidence_pct):
         raise ValueError(
             f"confidence {confidence_pct}% below session min {min_confidence_pct}%"
+        )
+
+
+def assert_max_drawdown_ok(*, drawdown_usd: float, max_drawdown_usd: float) -> None:
+    limit = float(max_drawdown_usd)
+    if limit <= 0:
+        raise ValueError("max drawdown must be > 0 USD")
+    if float(drawdown_usd) >= limit:
+        raise ValueError(
+            f"session max drawdown hit (${drawdown_usd:.2f} >= ${limit:.2f})"
         )
 
 

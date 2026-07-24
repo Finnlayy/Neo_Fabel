@@ -9,11 +9,11 @@ services:
       - "127.0.0.1:8000:8000"
     environment:
       APP_ENV: development
-      AUTH_DEV_BYPASS: "true"
+      AUTH_DEV_BYPASS: "false"
       ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080
       KRAKEN_BINARY: /usr/local/bin/kraken
-      KRAKEN_AUTONOMY_LEVEL: "2"
-      KRAKEN_LIVE_TRADING_ENABLED: "false"
+      KRAKEN_AUTONOMY_LEVEL: "4"
+      KRAKEN_LIVE_TRADING_ENABLED: "true"
       MARKET_STREAM_ENABLED: "true"
       MARKET_CCXT_ENABLED: "true"
       TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-true}

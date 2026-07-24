@@ -36,7 +36,11 @@ def isolated_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> LocalPap
         prices = {"BTCUSD": Decimal("50000"), "ETHUSD": Decimal("3000")}
         return prices.get(pair.upper(), Decimal("100"))
 
-    isolated = LocalPaperLedger(starting_balance_usd=Decimal("10000"), _path=tmp_path / "ledger.json")
+    isolated = LocalPaperLedger(
+        starting_balance_usd=Decimal("10000"),
+        kelly_sizing_enabled=False,
+        _path=tmp_path / "ledger.json",
+    )
     isolated.set_price_resolver(_price)
     return isolated
 
@@ -69,6 +73,7 @@ async def test_persistence_roundtrip(isolated_ledger: LocalPaperLedger) -> None:
 
 @pytest.mark.asyncio
 async def test_insufficient_balance_rejected(isolated_ledger: LocalPaperLedger) -> None:
+    isolated_ledger.kelly_sizing_enabled = False
     with pytest.raises(ValueError, match="insufficient USD"):
         await isolated_ledger.paper_order("buy", "BTCUSD", Decimal("1"), "market", None)
 

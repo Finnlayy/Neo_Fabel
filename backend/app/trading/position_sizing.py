@@ -13,9 +13,18 @@ from dataclasses import asdict, dataclass
 from decimal import Decimal
 from typing import Any, Literal
 
-PositionSizingMode = Literal["half_kelly", "full_kelly", "ai_chronos", "manual"]
+PositionSizingMode = Literal[
+    "dynamic_kelly",
+    "fixed_usd",
+    "half_kelly",
+    "full_kelly",
+    "ai_chronos",
+    "manual",
+]
 
 SIZING_MODES: tuple[PositionSizingMode, ...] = (
+    "dynamic_kelly",
+    "fixed_usd",
     "half_kelly",
     "full_kelly",
     "ai_chronos",
@@ -23,6 +32,13 @@ SIZING_MODES: tuple[PositionSizingMode, ...] = (
 )
 
 _MODE_ALIASES: dict[str, PositionSizingMode] = {
+    "dynamic_kelly": "dynamic_kelly",
+    "dynamic-kelly": "dynamic_kelly",
+    "confidence_kelly": "dynamic_kelly",
+    "confidence-kelly": "dynamic_kelly",
+    "fixed_usd": "fixed_usd",
+    "fixed-usd": "fixed_usd",
+    "fixed": "fixed_usd",
     "half_kelly": "half_kelly",
     "half-kelly": "half_kelly",
     "halfkelly": "half_kelly",
@@ -39,7 +55,6 @@ _MODE_ALIASES: dict[str, PositionSizingMode] = {
     "from_ai": "ai_chronos",
     "from_ai_layer": "ai_chronos",
     "manual": "manual",
-    "fixed": "manual",
 }
 
 
@@ -57,12 +72,15 @@ def parse_sizing_mode(raw: str | None) -> PositionSizingMode:
 class PositionSizingPolicy:
     mode: PositionSizingMode
     manual_notional_eur: float | None = None
+    fixed_notional_usd: float | None = None
     # Kelly priors (overridable later via feedback / stats)
     win_rate: float = 0.55
     avg_win: float = 0.08
     avg_loss: float = 0.03
     max_fraction: float = 0.25
     min_notional_eur: float = 1.0
+    min_risk_fraction: float = 0.015
+    max_risk_fraction: float = 0.05
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -72,6 +90,7 @@ def validate_sizing_policy(
     *,
     mode: str | PositionSizingMode,
     manual_notional_eur: float | None = None,
+    fixed_notional_usd: float | None = None,
     win_rate: float = 0.55,
     avg_win: float = 0.08,
     avg_loss: float = 0.03,
@@ -85,7 +104,13 @@ def validate_sizing_policy(
     if not (0.0 < float(max_fraction) <= 1.0):
         raise ValueError("max_fraction must be in (0, 1]")
     manual: float | None = None
-    if resolved == "manual":
+    fixed_usd: float | None = None
+    if resolved == "fixed_usd":
+        raw_fixed = fixed_notional_usd if fixed_notional_usd is not None else manual_notional_eur
+        if raw_fixed is None or float(raw_fixed) <= 0:
+            raise ValueError("fixed_usd mode requires fixed_notional_usd > 0")
+        fixed_usd = float(raw_fixed)
+    elif resolved == "manual":
         if manual_notional_eur is None or float(manual_notional_eur) <= 0:
             raise ValueError("manual mode requires manual_notional_eur > 0")
         manual = float(manual_notional_eur)
@@ -95,6 +120,7 @@ def validate_sizing_policy(
     return PositionSizingPolicy(
         mode=resolved,
         manual_notional_eur=manual,
+        fixed_notional_usd=fixed_usd,
         win_rate=float(win_rate),
         avg_win=float(avg_win),
         avg_loss=float(avg_loss),
@@ -172,9 +198,32 @@ def compute_notional_eur(
     fraction = 0.0
     detail: dict[str, Any] = {"mode": mode}
 
-    if mode == "manual":
+    if mode == "fixed_usd":
+        notional = float(policy.fixed_notional_usd or 0.0)
+        detail["source"] = "fixed_notional_usd"
+    elif mode == "manual":
         notional = float(policy.manual_notional_eur or 0.0)
         detail["source"] = "manual_notional_eur"
+    elif mode == "dynamic_kelly":
+        conf = float(confidence) if confidence is not None else policy.win_rate
+        conf = max(0.0, min(1.0, conf))
+        # Risk starts at 1.5% at/below neutral confidence and scales linearly
+        # to 5% only at full confidence.
+        confidence_strength = max(0.0, min(1.0, (conf - 0.5) / 0.5))
+        fraction = policy.min_risk_fraction + confidence_strength * (
+            policy.max_risk_fraction - policy.min_risk_fraction
+        )
+        notional = capital * fraction
+        detail.update(
+            {
+                "source": "confidence_kelly",
+                "system_confidence": conf,
+                "confidence_strength": confidence_strength,
+                "fraction": fraction,
+                "min_risk_fraction": policy.min_risk_fraction,
+                "max_risk_fraction": policy.max_risk_fraction,
+            }
+        )
     elif mode in {"half_kelly", "full_kelly"}:
         scale = 0.5 if mode == "half_kelly" else 1.0
         p = float(confidence) if confidence is not None else policy.win_rate

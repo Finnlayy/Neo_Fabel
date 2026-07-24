@@ -9,6 +9,7 @@ import pytest
 from backend.app.trading.session_policy import (
     assert_confidence_ok,
     assert_daily_loss_ok,
+    assert_max_drawdown_ok,
     assert_market_hours_allowed,
     parse_cap_amount,
     validate_session_risk_policy,
@@ -28,6 +29,7 @@ def test_validate_policy_and_bounds():
         max_session_size={"value": 10, "unit": "eur"},
         max_concurrent_trades=2,
         daily_loss_limit={"value": 5, "unit": "pct"},
+        max_drawdown_usd={"value": 7, "unit": "usd"},
         min_confidence_pct=60,
         allow_pre_post_market=False,
         human_verification=True,
@@ -35,6 +37,7 @@ def test_validate_policy_and_bounds():
     )
     assert policy.max_session_size_eur() == 10
     assert policy.daily_loss_limit_eur() == 5
+    assert policy.max_drawdown_usd() == 7
     assert policy.human_verification is True
 
     with pytest.raises(ValueError, match="1..10"):
@@ -42,6 +45,7 @@ def test_validate_policy_and_bounds():
             max_session_size=10,
             max_concurrent_trades=11,
             daily_loss_limit=1,
+            max_drawdown_usd={"value": 5, "unit": "usd"},
             starting_capital_eur=100,
         )
 
@@ -53,6 +57,9 @@ def test_confidence_and_daily_loss_gates():
     assert_daily_loss_ok(realized_loss_eur=2, daily_loss_limit_eur=5)
     with pytest.raises(ValueError):
         assert_daily_loss_ok(realized_loss_eur=5, daily_loss_limit_eur=5)
+    assert_max_drawdown_ok(drawdown_usd=4.99, max_drawdown_usd=5)
+    with pytest.raises(ValueError, match="max drawdown"):
+        assert_max_drawdown_ok(drawdown_usd=5, max_drawdown_usd=5)
 
 
 def test_pre_post_market_blocks_equity_outside_hours():

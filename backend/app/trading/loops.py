@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from decimal import Decimal
 from typing import Any
 
 from backend.app.settings import Settings, get_settings
@@ -19,6 +20,68 @@ from backend.app.trading.session import Level4Session
 from backend.app.trading.session_policy import validate_session_risk_policy
 
 logger = logging.getLogger("neo_fabel.trading.loops")
+
+_USD_STABLES = frozenset({"USD", "ZUSD", "USDT", "USDC"})
+_ASSET_ALIASES = {
+    "XXBT": "BTC",
+    "XBT": "BTC",
+    "XETH": "ETH",
+    "ZEUR": "EUR",
+    "ZUSD": "USD",
+}
+
+
+def _last_price(payload: dict[str, Any]) -> Decimal:
+    raw: Any = payload
+    nested = payload.get("result")
+    if isinstance(nested, dict) and nested:
+        first = next(iter(nested.values()))
+        if isinstance(first, dict):
+            raw = first
+    if not isinstance(raw, dict):
+        return Decimal("0")
+    value = raw.get("last") or raw.get("price") or raw.get("close") or raw.get("c")
+    if isinstance(value, list) and value:
+        value = value[0]
+    try:
+        return Decimal(str(value or "0"))
+    except Exception:  # noqa: BLE001
+        return Decimal("0")
+
+
+async def _estimate_live_equity_usd(cli: Any) -> float:
+    """Mark the authenticated Kraken balance in USD for drawdown monitoring."""
+    payload = await cli.balance()
+    if not isinstance(payload, dict):
+        raise ValueError("Kraken balance returned no object")
+    nested = payload.get("result") or payload.get("balances")
+    balances = (
+        nested
+        if isinstance(nested, dict)
+        else {
+            key: value
+            for key, value in payload.items()
+            if key not in {"error", "raw", "result", "balances"}
+        }
+    )
+    equity = Decimal("0")
+    for raw_asset, raw_volume in balances.items():
+        try:
+            volume = Decimal(str(raw_volume or "0"))
+        except Exception:  # noqa: BLE001
+            continue
+        if volume <= 0:
+            continue
+        asset = _ASSET_ALIASES.get(str(raw_asset).upper(), str(raw_asset).upper())
+        if asset in _USD_STABLES:
+            equity += volume
+            continue
+        pair = f"{asset}USD"
+        mark = _last_price(await cli.ticker(pair))
+        if mark <= 0:
+            raise ValueError(f"could not mark live balance asset {asset}")
+        equity += volume * mark
+    return float(equity)
 
 
 class TradingLoopsService:
@@ -165,10 +228,12 @@ class TradingLoopsService:
         *,
         max_margin_eur: float,
         max_concurrent_trades: int,
+        max_drawdown_usd: float,
         symbols: list[str] | None = None,
         starting_capital_eur: float | None = None,
-        position_sizing_mode: str = "half_kelly",
+        position_sizing_mode: str = "dynamic_kelly",
         manual_notional_eur: float | None = None,
+        fixed_notional_usd: float | None = None,
         max_session_size: Any = None,
         daily_loss_limit: Any = None,
         min_confidence_pct: float = 0.0,
@@ -194,7 +259,9 @@ class TradingLoopsService:
             return {"started": False, "reason": "ALREADY_RUNNING"}
 
         try:
-            capital = float(starting_capital_eur) if starting_capital_eur is not None else float(max_margin_eur)
+            if starting_capital_eur is None:
+                raise ValueError("starting_capital_eur is required for every live session")
+            capital = float(starting_capital_eur)
             if capital <= 0:
                 raise ValueError("starting_capital_eur must be > 0")
             size_raw = max_session_size if max_session_size is not None else max_margin_eur
@@ -203,6 +270,7 @@ class TradingLoopsService:
                 max_session_size=size_raw,
                 max_concurrent_trades=max_concurrent_trades,
                 daily_loss_limit=loss_raw,
+                max_drawdown_usd={"value": max_drawdown_usd, "unit": "usd"},
                 min_confidence_pct=min_confidence_pct,
                 allow_pre_post_market=allow_pre_post_market,
                 human_verification=human_verification,
@@ -214,11 +282,17 @@ class TradingLoopsService:
             sizing = validate_sizing_policy(
                 mode=position_sizing_mode,
                 manual_notional_eur=manual_notional_eur,
+                fixed_notional_usd=fixed_notional_usd,
             )
-            if sizing.mode == "manual" and sizing.manual_notional_eur is not None:
-                if sizing.manual_notional_eur > margin:
+            fixed_notional = (
+                sizing.fixed_notional_usd
+                if sizing.mode == "fixed_usd"
+                else sizing.manual_notional_eur
+            )
+            if fixed_notional is not None:
+                if fixed_notional > margin:
                     raise ValueError(
-                        f"manual_notional_eur {sizing.manual_notional_eur} exceeds max_session_size {margin}"
+                        f"fixed trade notional {fixed_notional} exceeds max_session_size {margin}"
                     )
             if risk.human_verification and not (
                 settings.telegram_enabled and settings.telegram_bot_token and settings.telegram_chat_id
@@ -294,6 +368,36 @@ class TradingLoopsService:
                     except Exception:  # noqa: BLE001
                         open_count = int((live_session_ledger.active or {}).get("last_open_trades") or 0)
                     live_session_ledger.sample(open_trades=open_count)
+                    try:
+                        equity_usd = await _estimate_live_equity_usd(session.cli)
+                        equity_snap = live_session_ledger.record_equity(equity_usd=equity_usd)
+                        if equity_snap and equity_snap.get("max_drawdown_hit"):
+                            cancel_error: str | None = None
+                            try:
+                                await session.cli.cancel_all()
+                            except Exception as exc:  # noqa: BLE001
+                                cancel_error = str(exc)
+                            from backend.app.trading.live_audit import log_live_event
+
+                            log_live_event(
+                                "max_drawdown_stop",
+                                equity_usd=equity_usd,
+                                drawdown_usd=equity_snap.get("session_drawdown_usd"),
+                                max_drawdown_usd=equity_snap.get("max_drawdown_usd"),
+                                cancel_error=cancel_error,
+                            )
+                            self._live_last_error = (
+                                "max drawdown reached: "
+                                f"${float(equity_snap.get('session_drawdown_usd') or 0):.2f}"
+                            )
+                            live_session_ledger.stop(
+                                open_trades=open_count,
+                                status="max_drawdown",
+                            )
+                            self._live_running = False
+                            break
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("live equity monitor failed: %s", exc)
                     now_m = time.monotonic()
                     if now_m - last_heartbeat >= heartbeat_every:
                         await send_live_heartbeat(

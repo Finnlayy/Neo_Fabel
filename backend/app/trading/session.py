@@ -16,6 +16,7 @@ from .session_policy import (
     assert_confidence_ok,
     assert_daily_loss_ok,
     assert_market_hours_allowed,
+    assert_max_drawdown_ok,
 )
 
 if TYPE_CHECKING:
@@ -259,7 +260,7 @@ class Level4Session:
         self,
         side: Literal["buy", "sell"],
         pair: str,
-        volume: Decimal,
+        volume: Decimal | None,
         order_type: Literal["market", "limit"] = "limit",
         price: Decimal | None = None,
         *,
@@ -278,16 +279,26 @@ class Level4Session:
             raise PermissionError("dead man's switch must be armed before autonomous orders")
 
         risk = self.risk_policy
+        sizing_detail: dict[str, Any] = {
+            "mode": "explicit_volume",
+            "volume": str(volume) if volume is not None else None,
+        }
+        execution_price_estimate = price
         if risk is not None:
             try:
                 assert_market_hours_allowed(pair, allow_pre_post_market=risk.allow_pre_post_market)
                 assert_confidence_ok(confidence_pct, min_confidence_pct=risk.min_confidence_pct)
                 from backend.app.trading.live_session_ledger import live_session_ledger
 
-                day_loss = float((live_session_ledger.active or {}).get("realized_loss_eur_today") or 0)
+                active_session = live_session_ledger.active or {}
+                day_loss = float(active_session.get("realized_loss_eur_today") or 0)
                 assert_daily_loss_ok(
                     realized_loss_eur=day_loss,
                     daily_loss_limit_eur=risk.daily_loss_limit_eur(),
+                )
+                assert_max_drawdown_ok(
+                    drawdown_usd=float(active_session.get("session_drawdown_usd") or 0),
+                    max_drawdown_usd=risk.max_drawdown_usd(),
                 )
             except ValueError as exc:
                 from backend.app.trading.live_audit import log_live_event
@@ -302,36 +313,60 @@ class Level4Session:
                 )
                 raise KrakenCliError("validation", f"session_policy: {exc}") from exc
 
-            if risk.human_verification and not skip_human_verification:
-                from backend.app.trading.trade_approvals import (
-                    send_trade_proposal_telegram,
-                    trade_approvals,
+        if side == "buy" and self.sizing_policy is not None:
+            if self.sizing_policy.mode == "dynamic_kelly" and confidence_pct is None:
+                raise KrakenCliError(
+                    "validation",
+                    "dynamic_kelly requires system confidence for every live entry",
                 )
+            sizing_price = price
+            if sizing_price is None:
+                tick = await self.cli.ticker(pair)
+                last = tick.get("last") or tick.get("price") or tick.get("close")
+                if isinstance(last, list) and last:
+                    last = last[0]
+                sizing_price = Decimal(str(last or "0"))
+            execution_price_estimate = sizing_price
+            volume, sizing_detail = self.resolve_order_volume(
+                price=sizing_price,
+                confidence=(float(confidence_pct) / 100.0) if confidence_pct is not None else None,
+                volume=None,
+            )
+        elif volume is None or volume <= 0:
+            raise KrakenCliError("validation", "explicit positive volume required for live exits")
 
-                proposal = trade_approvals.create(
-                    side=side,
-                    pair=pair,
-                    volume=volume,
-                    order_type=order_type,
-                    price=price,
-                    confidence_pct=confidence_pct,
-                    rationale=rationale,
-                )
-                await send_trade_proposal_telegram(self.settings, proposal)
-                from backend.app.trading.live_audit import log_live_event
+        if risk is not None and risk.human_verification and not skip_human_verification:
+            from backend.app.trading.trade_approvals import (
+                send_trade_proposal_telegram,
+                trade_approvals,
+            )
 
-                log_live_event(
-                    "live_awaiting_approval",
-                    proposal_id=proposal.proposal_id,
-                    side=side,
-                    pair=pair,
-                    volume=str(volume),
-                )
-                return {
-                    "status": "awaiting_approval",
-                    "proposal_id": proposal.proposal_id,
-                    "proposal": proposal.to_dict(),
-                }
+            proposal = trade_approvals.create(
+                side=side,
+                pair=pair,
+                volume=volume,
+                order_type=order_type,
+                price=price,
+                confidence_pct=confidence_pct,
+                rationale=rationale,
+            )
+            await send_trade_proposal_telegram(self.settings, proposal)
+            from backend.app.trading.live_audit import log_live_event
+
+            log_live_event(
+                "live_awaiting_approval",
+                proposal_id=proposal.proposal_id,
+                side=side,
+                pair=pair,
+                volume=str(volume),
+                position_sizing=sizing_detail,
+            )
+            return {
+                "status": "awaiting_approval",
+                "proposal_id": proposal.proposal_id,
+                "proposal": proposal.to_dict(),
+                "position_sizing": sizing_detail,
+            }
 
         if open_positions is None:
             try:
@@ -357,7 +392,7 @@ class Level4Session:
                 side=side,
                 pair=normalized,
                 volume=volume,
-                price=price,
+                price=execution_price_estimate,
                 balance_payload=balance if isinstance(balance, dict) else None,
                 market_type="spot",
                 leverage=1,
@@ -402,7 +437,10 @@ class Level4Session:
             order_type=order_type,
             price=str(price) if price is not None else None,
             source="level4_session",
+            position_sizing=sizing_detail,
         )
+        if isinstance(result, dict):
+            result = {**result, "position_sizing": sizing_detail}
         return result
 
 

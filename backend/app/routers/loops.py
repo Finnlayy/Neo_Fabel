@@ -46,7 +46,12 @@ class LiveStartRequest(BaseModel):
         description="Max session size as {value, unit: eur|usd|pct} or EUR number",
     )
     max_concurrent_trades: int = Field(..., ge=1, le=10)
-    starting_capital_eur: float | None = Field(default=None, gt=0)
+    starting_capital_eur: float = Field(..., gt=0)
+    max_drawdown_usd: float = Field(
+        ...,
+        gt=0,
+        description="Stop live automation when marked session drawdown reaches this USD amount",
+    )
     daily_loss_limit: CapAmountIn | float | None = Field(
         default=None,
         description="Daily loss limit {value, unit} — default 5% of capital",
@@ -58,8 +63,9 @@ class LiveStartRequest(BaseModel):
         description="If true, live trades require Telegram approve/reject",
     )
     symbols: list[str] | None = None
-    position_sizing_mode: str = Field(default="half_kelly")
+    position_sizing_mode: str = Field(...)
     manual_notional_eur: float | None = Field(default=None, gt=0)
+    fixed_notional_usd: float | None = Field(default=None, gt=0)
 
     @field_validator("symbols", mode="before")
     @classmethod
@@ -72,7 +78,7 @@ class LiveStartRequest(BaseModel):
     @field_validator("position_sizing_mode", mode="before")
     @classmethod
     def _normalize_mode(cls, value: Any) -> str:
-        return str(value or "half_kelly").strip().lower()
+        return str(value or "").strip().lower()
 
 
 @router.get("/status")
@@ -155,10 +161,12 @@ async def live_loop_start(
         _level4(),
         max_margin_eur=margin_seed,
         max_concurrent_trades=body.max_concurrent_trades,
+        max_drawdown_usd=body.max_drawdown_usd,
         symbols=body.symbols,
         starting_capital_eur=body.starting_capital_eur,
         position_sizing_mode=body.position_sizing_mode,
         manual_notional_eur=body.manual_notional_eur,
+        fixed_notional_usd=body.fixed_notional_usd,
         max_session_size=size_payload,
         daily_loss_limit=loss_payload,
         min_confidence_pct=body.min_confidence_pct,

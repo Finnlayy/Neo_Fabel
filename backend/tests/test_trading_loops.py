@@ -27,8 +27,10 @@ def _session_limits(**kwargs):
     return {
         "max_margin_eur": 10.0,
         "max_concurrent_trades": 2,
+        "max_drawdown_usd": 2.0,
+        "starting_capital_eur": 10.0,
         "symbols": ["XRPUSD", "ADAUSD"],
-        "position_sizing_mode": "half_kelly",
+        "position_sizing_mode": "dynamic_kelly",
         **kwargs,
     }
 
@@ -79,6 +81,8 @@ async def test_live_start_rejects_missing_margin_via_session_limits():
         session,
         max_margin_eur=0,
         max_concurrent_trades=2,
+        max_drawdown_usd=2,
+        starting_capital_eur=10,
     )
     assert result["started"] is False
     assert result["reason"] == "SESSION_LIMITS"
@@ -108,16 +112,18 @@ async def test_live_start_runs_when_gates_ok():
         session,
         max_margin_eur=10,
         max_concurrent_trades=2,
+        max_drawdown_usd=2,
         symbols=["XRPUSD", "ADAUSD"],
         starting_capital_eur=10,
-        position_sizing_mode="half_kelly",
+        position_sizing_mode="dynamic_kelly",
     )
     assert result["started"] is True
     assert result["session"]["max_margin_eur"] == 10
     assert result["session"]["max_concurrent_trades"] == 2
     assert result["session"]["symbol_allowlist"] == ["XRPUSD", "ADAUSD"]
-    assert result["session"]["position_sizing"]["mode"] == "half_kelly"
-    assert result["position_sizing"]["mode"] == "half_kelly"
+    assert result["session"]["position_sizing"]["mode"] == "dynamic_kelly"
+    assert result["position_sizing"]["mode"] == "dynamic_kelly"
+    assert result["risk_policy"]["max_drawdown_usd"] == 2
     assert set(result["guardrails"]["pair_allowlist"]) == {"XRPUSD", "ADAUSD"}
     assert result["guardrails"]["max_open_positions"] == 2
     status = service.status(settings)
@@ -145,6 +151,8 @@ async def test_live_start_manual_sizing_requires_notional():
         session,
         max_margin_eur=10,
         max_concurrent_trades=2,
+        max_drawdown_usd=2,
+        starting_capital_eur=10,
         position_sizing_mode="manual",
     )
     assert result["started"] is False
@@ -175,6 +183,8 @@ async def test_live_start_manual_sizing_ok():
         session,
         max_margin_eur=10,
         max_concurrent_trades=2,
+        max_drawdown_usd=2,
+        starting_capital_eur=10,
         position_sizing_mode="manual",
         manual_notional_eur=5,
     )
@@ -199,6 +209,8 @@ async def test_live_start_rejects_symbol_outside_env_allowlist():
         session,
         max_margin_eur=10,
         max_concurrent_trades=2,
+        max_drawdown_usd=2,
+        starting_capital_eur=10,
         symbols=["XRPUSD", "METAUSD", "ADAUSD"],
     )
     assert result["started"] is False
@@ -222,6 +234,28 @@ def test_apply_session_limits_tightens_guardrails():
     assert rails.max_notional == Decimal("10")
     assert rails.max_open_positions == 2
     assert rails.pair_allowlist == frozenset({"XRPUSD", "ADAUSD"})
+
+
+def test_live_session_latches_max_drawdown_from_marked_equity():
+    live_session_ledger.start(
+        max_margin_eur=100,
+        max_concurrent_trades=2,
+        starting_capital_eur=100,
+        position_sizing={"mode": "dynamic_kelly"},
+        risk_policy={"max_drawdown_usd": 5},
+        autonomy=4,
+        deadman_seconds=60,
+    )
+    first = live_session_ledger.record_equity(equity_usd=100)
+    assert first is not None
+    assert first["max_drawdown_hit"] is False
+    second = live_session_ledger.record_equity(equity_usd=96)
+    assert second is not None
+    assert second["session_drawdown_usd"] == 4
+    hit = live_session_ledger.record_equity(equity_usd=95)
+    assert hit is not None
+    assert hit["max_drawdown_hit"] is True
+    assert hit["status"] == "max_drawdown"
 
 
 @pytest.mark.asyncio

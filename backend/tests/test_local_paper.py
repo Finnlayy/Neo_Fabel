@@ -36,6 +36,41 @@ async def test_local_ledger_accepts_market_order(isolated_ledger: LocalPaperLedg
     status = await isolated_ledger.paper_status()
     assert len(status["orders"]) == 1
     assert status["orders"][0]["pair"] == "BTCUSD"
+    assert status["position_sizing"] == {"enabled": True, "mode": "half_kelly"}
+    order = result["order"]
+    assert order["requested_volume"] == "0.001"
+    assert order["position_sizing"]["mode"] == "half_kelly"
+    assert Decimal(order["volume"]) == Decimal("0.03812500")
+    assert Decimal(order["volume"]) * Decimal(order["price"]) == Decimal("1906.2500000000")
+
+
+@pytest.mark.asyncio
+async def test_kelly_sizing_uses_price_to_normalize_notional(tmp_path: Path) -> None:
+    async def _price(_market_type: str, pair: str) -> Decimal:
+        return {"BTCUSD": Decimal("50000"), "ADAUSD": Decimal("0.50")}[pair]
+
+    btc = LocalPaperLedger(_path=tmp_path / "btc.json")
+    btc.set_price_resolver(_price)
+    btc_fill = await btc.paper_order("buy", "BTCUSD", Decimal("0.001"), "market", None)
+
+    ada = LocalPaperLedger(_path=tmp_path / "ada.json")
+    ada.set_price_resolver(_price)
+    ada_fill = await ada.paper_order("buy", "ADAUSD", Decimal("0.001"), "market", None)
+
+    btc_order = btc_fill["order"]
+    ada_order = ada_fill["order"]
+    btc_notional = Decimal(btc_order["volume"]) * Decimal(btc_order["price"])
+    ada_notional = Decimal(ada_order["volume"]) * Decimal(ada_order["price"])
+    assert btc_notional == ada_notional == Decimal("1906.2500000000")
+
+
+@pytest.mark.asyncio
+async def test_spot_sell_keeps_explicit_close_volume(isolated_ledger: LocalPaperLedger) -> None:
+    await isolated_ledger.paper_order("buy", "BTCUSD", Decimal("0.001"), "market", None)
+    before = isolated_ledger.open_volume("BTCUSD")
+    result = await isolated_ledger.paper_order("sell", "BTCUSD", Decimal("0.01"), "market", None)
+    assert result["order"]["volume"] == "0.01"
+    assert isolated_ledger.open_volume("BTCUSD") == before - Decimal("0.01")
 
 
 @pytest.mark.asyncio
@@ -65,6 +100,11 @@ async def test_paper_max_open_positions_allows_twenty_default(isolated_ledger: L
     assert isolated_ledger.max_open_positions == 20
     status = await isolated_ledger.paper_status()
     assert status["max_open_positions"] == 20
+
+
+def test_kelly_sizing_can_be_explicitly_disabled(tmp_path: Path) -> None:
+    ledger = LocalPaperLedger(kelly_sizing_enabled=False, _path=tmp_path / "ledger.json")
+    assert ledger.kelly_sizing_enabled is False
 
 
 @pytest.mark.asyncio

@@ -7,7 +7,13 @@ export type PaperLoopStatus = {
   engine?: Record<string, unknown> | null;
 };
 
-export type PositionSizingMode = "half_kelly" | "full_kelly" | "ai_chronos" | "manual";
+export type PositionSizingMode =
+  | "dynamic_kelly"
+  | "fixed_usd"
+  | "half_kelly"
+  | "full_kelly"
+  | "ai_chronos"
+  | "manual";
 export type AmountUnit = "eur" | "usd" | "pct";
 
 export type CapAmount = {
@@ -26,6 +32,7 @@ export type LiveSessionStatus = {
   position_sizing?: {
     mode?: PositionSizingMode | string;
     manual_notional_eur?: number | null;
+    fixed_notional_usd?: number | null;
   };
   risk_policy?: Record<string, unknown>;
   uptime_seconds?: number;
@@ -58,14 +65,16 @@ export type LiveStartConfig = {
   max_margin_eur?: number;
   max_session_size?: CapAmount | number;
   max_concurrent_trades: number;
-  starting_capital_eur?: number;
+  starting_capital_eur: number;
+  max_drawdown_usd: number;
   daily_loss_limit?: CapAmount | number;
   min_confidence_pct?: number;
   allow_pre_post_market?: boolean;
   human_verification?: boolean;
   symbols?: string[];
-  position_sizing_mode?: PositionSizingMode;
+  position_sizing_mode: PositionSizingMode;
   manual_notional_eur?: number;
+  fixed_notional_usd?: number;
 };
 
 export async function fetchLoopsStatus(): Promise<LoopsStatus> {
@@ -83,7 +92,9 @@ export async function stopPaperLoop(): Promise<Record<string, unknown>> {
 export async function startLiveLoop(config: LiveStartConfig): Promise<Record<string, unknown>> {
   const body: Record<string, unknown> = {
     max_concurrent_trades: config.max_concurrent_trades,
-    position_sizing_mode: config.position_sizing_mode ?? "half_kelly",
+    position_sizing_mode: config.position_sizing_mode,
+    starting_capital_eur: config.starting_capital_eur,
+    max_drawdown_usd: config.max_drawdown_usd,
     min_confidence_pct: config.min_confidence_pct ?? 0,
     allow_pre_post_market: config.allow_pre_post_market ?? true,
     human_verification: config.human_verification ?? false,
@@ -94,9 +105,6 @@ export async function startLiveLoop(config: LiveStartConfig): Promise<Record<str
     body.max_margin_eur = config.max_margin_eur;
     body.max_session_size = {value: config.max_margin_eur, unit: "eur"};
   }
-  if (config.starting_capital_eur != null) {
-    body.starting_capital_eur = config.starting_capital_eur;
-  }
   if (config.daily_loss_limit != null) {
     body.daily_loss_limit = config.daily_loss_limit;
   }
@@ -105,6 +113,9 @@ export async function startLiveLoop(config: LiveStartConfig): Promise<Record<str
   }
   if (config.manual_notional_eur != null) {
     body.manual_notional_eur = config.manual_notional_eur;
+  }
+  if (config.fixed_notional_usd != null) {
+    body.fixed_notional_usd = config.fixed_notional_usd;
   }
   return apiRequest("/api/v1/loops/live/start", {
     method: "POST",

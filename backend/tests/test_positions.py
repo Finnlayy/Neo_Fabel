@@ -122,7 +122,11 @@ async def test_open_volume_helper(tmp_path: Path) -> None:
     async def _price(_market_type: str, _pair: str) -> Decimal:
         return Decimal("100")
 
-    ledger = LocalPaperLedger(starting_balance_usd=Decimal("10000"), _path=tmp_path / "ledger.json")
+    ledger = LocalPaperLedger(
+        starting_balance_usd=Decimal("10000"),
+        kelly_sizing_enabled=False,
+        _path=tmp_path / "ledger.json",
+    )
     ledger.set_price_resolver(_price)
     await ledger.paper_order("buy", "ETHUSD", Decimal("2"), "market", None)
     assert ledger.open_volume("ETHUSD") == Decimal("2")

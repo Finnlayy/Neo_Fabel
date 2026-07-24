@@ -13,19 +13,22 @@ type Props = {
   onConfirm: (config: LiveStartConfig) => void;
 };
 
-const DEFAULT_CAPITAL = "10";
+const DEFAULT_CAPITAL = "";
 const DEFAULT_SIZE = "10";
 const DEFAULT_TRADES = "2";
 const DEFAULT_LOSS = "5";
 const DEFAULT_CONF = "60";
 const DEFAULT_SYMBOLS = "XRPUSD, ADAUSD";
-const DEFAULT_MANUAL = "5";
+const DEFAULT_FIXED_USD = "5";
+const DEFAULT_DRAWDOWN_USD = "";
 
 const SIZING_OPTIONS: {value: PositionSizingMode; de: string; en: string}[] = [
-  {value: "half_kelly", de: "Half Kelly", en: "Half Kelly"},
-  {value: "full_kelly", de: "Full Kelly", en: "Full Kelly"},
-  {value: "ai_chronos", de: "AI / Chronos", en: "AI / Chronos"},
-  {value: "manual", de: "Manuell", en: "Manual"},
+  {
+    value: "dynamic_kelly",
+    de: "Dynamisches Kelly (1,5–5 %)",
+    en: "Dynamic Kelly (1.5–5%)",
+  },
+  {value: "fixed_usd", de: "Fixer USD-Betrag", en: "Fixed USD amount"},
 ];
 
 const UNIT_OPTIONS: {value: AmountUnit; label: string}[] = [
@@ -78,7 +81,7 @@ function CapRow({
 export function LiveStartConfirmModal({de = false, onCancel, onConfirm}: Props) {
   const [capital, setCapital] = useState(DEFAULT_CAPITAL);
   const [sizeVal, setSizeVal] = useState(DEFAULT_SIZE);
-  const [sizeUnit, setSizeUnit] = useState<AmountUnit>("eur");
+  const [sizeUnit, setSizeUnit] = useState<AmountUnit>("usd");
   const [trades, setTrades] = useState(DEFAULT_TRADES);
   const [lossVal, setLossVal] = useState(DEFAULT_LOSS);
   const [lossUnit, setLossUnit] = useState<AmountUnit>("pct");
@@ -86,8 +89,9 @@ export function LiveStartConfirmModal({de = false, onCancel, onConfirm}: Props) 
   const [prePost, setPrePost] = useState(true);
   const [humanVerify, setHumanVerify] = useState(true);
   const [symbolsRaw, setSymbolsRaw] = useState(DEFAULT_SYMBOLS);
-  const [sizingMode, setSizingMode] = useState<PositionSizingMode>("half_kelly");
-  const [manualNotional, setManualNotional] = useState(DEFAULT_MANUAL);
+  const [sizingMode, setSizingMode] = useState<PositionSizingMode | null>(null);
+  const [fixedNotionalUsd, setFixedNotionalUsd] = useState(DEFAULT_FIXED_USD);
+  const [maxDrawdownUsd, setMaxDrawdownUsd] = useState(DEFAULT_DRAWDOWN_USD);
   const [formError, setFormError] = useState("");
 
   const symbols = useMemo(() => parseLiveSymbols(symbolsRaw), [symbolsRaw]);
@@ -98,7 +102,8 @@ export function LiveStartConfirmModal({de = false, onCancel, onConfirm}: Props) 
     const sizeNum = Number(sizeVal);
     const lossNum = Number(lossVal);
     const confNum = Number(minConf);
-    const manual = Number(manualNotional);
+    const fixedUsd = Number(fixedNotionalUsd);
+    const drawdownUsd = Number(maxDrawdownUsd);
 
     if (!Number.isFinite(startCapital) || startCapital <= 0) {
       setFormError(de ? "Startkapital muss > 0 sein" : "Starting capital must be > 0");
@@ -120,8 +125,18 @@ export function LiveStartConfirmModal({de = false, onCancel, onConfirm}: Props) 
       setFormError(de ? "Min confidence 0–100%" : "Min confidence 0–100%");
       return;
     }
-    if (sizingMode === "manual" && (!Number.isFinite(manual) || manual <= 0)) {
-      setFormError(de ? "Manuelles Notional (€) muss > 0 sein" : "Manual notional (€) must be > 0");
+    if (!sizingMode) {
+      setFormError(de ? "Position Sizing auswählen" : "Select a position sizing mode");
+      return;
+    }
+    if (!Number.isFinite(drawdownUsd) || drawdownUsd <= 0) {
+      setFormError(
+        de ? "Maximaler Drawdown ($) muss > 0 sein" : "Maximum drawdown ($) must be > 0",
+      );
+      return;
+    }
+    if (sizingMode === "fixed_usd" && (!Number.isFinite(fixedUsd) || fixedUsd <= 0)) {
+      setFormError(de ? "Fixer USD-Betrag muss > 0 sein" : "Fixed USD amount must be > 0");
       return;
     }
 
@@ -131,6 +146,7 @@ export function LiveStartConfirmModal({de = false, onCancel, onConfirm}: Props) 
     setFormError("");
     onConfirm({
       starting_capital_eur: startCapital,
+      max_drawdown_usd: drawdownUsd,
       max_session_size,
       max_margin_eur: sizeUnit === "eur" ? sizeNum : startCapital,
       max_concurrent_trades: maxTrades,
@@ -140,7 +156,7 @@ export function LiveStartConfirmModal({de = false, onCancel, onConfirm}: Props) 
       human_verification: humanVerify,
       symbols: symbols.length ? symbols : undefined,
       position_sizing_mode: sizingMode,
-      manual_notional_eur: sizingMode === "manual" ? manual : undefined,
+      fixed_notional_usd: sizingMode === "fixed_usd" ? fixedUsd : undefined,
     });
   };
 
@@ -158,7 +174,7 @@ export function LiveStartConfirmModal({de = false, onCancel, onConfirm}: Props) 
 
         <label className="block space-y-1">
           <span className="text-[10px] uppercase tracking-wider text-slate-500">
-            {de ? "Startkapital / Max Capital (€)" : "Starting / max capital (€)"}
+            {de ? "Session-Kapital ($)" : "Session capital ($)"}
           </span>
           <input
             type="number"
@@ -177,6 +193,20 @@ export function LiveStartConfirmModal({de = false, onCancel, onConfirm}: Props) 
           onValue={setSizeVal}
           onUnit={setSizeUnit}
         />
+
+        <label className="block space-y-1">
+          <span className="text-[10px] uppercase tracking-wider text-slate-500">
+            {de ? "Max Drawdown vor Auto-Stop ($)" : "Max drawdown before auto-stop ($)"}
+          </span>
+          <input
+            type="number"
+            min={0.01}
+            step={0.01}
+            value={maxDrawdownUsd}
+            onChange={(e) => setMaxDrawdownUsd(e.target.value)}
+            className="w-full bg-black/40 border border-white/15 rounded px-2 py-1.5 text-[12px] text-slate-100"
+          />
+        </label>
 
         <label className="block space-y-1">
           <span className="text-[10px] uppercase tracking-wider text-slate-500">
@@ -266,17 +296,17 @@ export function LiveStartConfirmModal({de = false, onCancel, onConfirm}: Props) 
           </div>
         </fieldset>
 
-        {sizingMode === "manual" ? (
+        {sizingMode === "fixed_usd" ? (
           <label className="block space-y-1">
             <span className="text-[10px] uppercase tracking-wider text-slate-500">
-              {de ? "Manuelles Notional (€ / Trade)" : "Manual notional (€ / trade)"}
+              {de ? "Fixer Gegenwert ($ / Trade)" : "Fixed notional ($ / trade)"}
             </span>
             <input
               type="number"
               min={0.01}
               step={0.01}
-              value={manualNotional}
-              onChange={(e) => setManualNotional(e.target.value)}
+              value={fixedNotionalUsd}
+              onChange={(e) => setFixedNotionalUsd(e.target.value)}
               className="w-full bg-black/40 border border-white/15 rounded px-2 py-1.5 text-[12px] text-slate-100"
             />
           </label>

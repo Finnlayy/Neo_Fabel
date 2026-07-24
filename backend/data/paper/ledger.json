@@ -2,7 +2,7 @@
   "version": 2,
   "spot": {
     "starting_balance_usd": "10000",
-    "usd_balance": "10040.563256357400000000000",
+    "usd_balance": "8123.817974505288683850000",
     "lots": {
       "SOLUSD": [
         {
@@ -14,6 +14,16 @@
         {
           "volume": "1",
           "unit_cost": "0.1696147650"
+        },
+        {
+          "volume": "11550.76200862",
+          "unit_cost": "0.1657478325"
+        }
+      ],
+      "XRPUSD": [
+        {
+          "volume": "2",
+          "unit_cost": "1.115757600000"
         }
       ]
     },
@@ -542,6 +552,66 @@
         "closetm": "2026-07-23T16:20:30.115917+00:00",
         "source": "local-paper-ledger",
         "pnl": "0"
+      },
+      {
+        "txid": "LOCAL-4EDF9ED3CDAD",
+        "id": "LOCAL-4EDF9ED3CDAD",
+        "market_type": "spot",
+        "pair": "XRPUSD",
+        "side": "buy",
+        "type": "buy",
+        "ordertype": "market",
+        "vol": "2",
+        "volume": "2",
+        "price": "1.11520000",
+        "fee": "0.001115200000",
+        "fee_rate": "0.0005",
+        "leverage": 1,
+        "realized_pnl": "0",
+        "status": "closed",
+        "state": "CLOSED",
+        "time": "2026-07-24T07:33:22.958367+00:00",
+        "opentm": "2026-07-24T07:33:22.958367+00:00",
+        "closetm": "2026-07-24T07:33:22.958367+00:00",
+        "source": "local-paper-ledger",
+        "pnl": "0"
+      },
+      {
+        "txid": "LOCAL-3744B53575ED",
+        "id": "LOCAL-3744B53575ED",
+        "market_type": "spot",
+        "pair": "ADAUSD",
+        "side": "buy",
+        "type": "buy",
+        "ordertype": "market",
+        "vol": "11550.76200862",
+        "volume": "11550.76200862",
+        "price": "0.165665",
+        "fee": "0.956778494079016150",
+        "fee_rate": "0.0005",
+        "leverage": 1,
+        "realized_pnl": "0",
+        "status": "closed",
+        "state": "CLOSED",
+        "time": "2026-07-24T12:53:32.885676+00:00",
+        "opentm": "2026-07-24T12:53:32.885676+00:00",
+        "closetm": "2026-07-24T12:53:32.885676+00:00",
+        "source": "local-paper-ledger",
+        "pnl": "0",
+        "requested_volume": "1",
+        "position_sizing": {
+          "mode": "half_kelly",
+          "source": "half_kelly",
+          "win_prob": 0.55,
+          "payoff_ratio": 2.666666666666667,
+          "kelly_scale": 0.5,
+          "fraction": 0.19062500000000004,
+          "notional_eur": 1913.55698815813,
+          "capital_eur": 10038.3317411574,
+          "max_margin_eur": 10038.3317411574,
+          "volume": "11550.76200862",
+          "bankroll_usd": "10038.331741157400000000000"
+        }
       }
     ]
   },

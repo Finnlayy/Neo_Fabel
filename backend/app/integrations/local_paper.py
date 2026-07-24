@@ -13,6 +13,12 @@ from uuid import uuid4
 from backend.app.integrations.paper_paths import ledger_path
 from backend.app.integrations.paper_performance import build_combined_performance
 from backend.app.market.instruments import MarketType, resolve_instrument
+from backend.app.trading.position_sizing import (
+    PositionSizingPolicy,
+    compute_notional_eur,
+    parse_sizing_mode,
+    volume_from_notional,
+)
 
 PriceResolver = Callable[[MarketType, str], Awaitable[Decimal]]
 
@@ -76,6 +82,8 @@ class LocalPaperLedger:
     taker_fee_rate: Decimal = Decimal("0.0005")
     fee_model: str = "kraken_pro_tier5"
     max_open_positions: int = 20
+    kelly_sizing_enabled: bool = True
+    kelly_mode: str = "half_kelly"
     _path: Any = field(default_factory=ledger_path, repr=False)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
     _price_resolver: PriceResolver | None = field(default=None, repr=False)
@@ -165,6 +173,32 @@ class LocalPaperLedger:
     def _fee_rate(self, order_type: Literal["market", "limit"]) -> Decimal:
         return self.maker_fee_rate if order_type == "limit" else self.taker_fee_rate
 
+    def _kelly_volume(
+        self,
+        *,
+        bankroll: Decimal,
+        price: Decimal,
+    ) -> tuple[Decimal, dict[str, Any]]:
+        """Size a new paper exposure from the active paper bankroll."""
+        mode = parse_sizing_mode(self.kelly_mode)
+        if mode not in {"half_kelly", "full_kelly"}:
+            raise ValueError("paper Kelly mode must be half_kelly or full_kelly")
+        policy = PositionSizingPolicy(mode=mode)
+        detail = compute_notional_eur(
+            policy,
+            capital_eur=float(bankroll),
+            max_margin_eur=float(bankroll),
+        )
+        notional = float(detail.get("notional_eur") or 0)
+        if notional <= 0:
+            raise ValueError("paper Kelly sizing resolved to zero notional")
+        sized = volume_from_notional(notional_eur=notional, price=price)
+        if sized <= 0:
+            raise ValueError("paper Kelly sizing resolved to zero volume")
+        detail["volume"] = _fmt(sized)
+        detail["bankroll_usd"] = _fmt(bankroll)
+        return sized, detail
+
     def _consume_lots_fifo(
         self,
         book: dict[str, Any],
@@ -219,9 +253,13 @@ class LocalPaperLedger:
         book = self._spot
         fill_price = await self._resolve_price("spot", pair, order_type, price)
         fee_rate = self._fee_rate(order_type)
+        requested_volume = volume
+        sizing_detail: dict[str, Any] | None = None
+        cash = _d(book.get("usd_balance"))
+        if side == "buy" and self.kelly_sizing_enabled:
+            volume, sizing_detail = self._kelly_volume(bankroll=cash, price=fill_price)
         notional = volume * fill_price
         fee = notional * fee_rate
-        cash = _d(book.get("usd_balance"))
         realized_pnl = Decimal("0")
 
         if side == "buy":
@@ -254,6 +292,8 @@ class LocalPaperLedger:
             realized_pnl=realized_pnl,
             leverage=1,
             rationale=rationale,
+            requested_volume=requested_volume,
+            sizing_detail=sizing_detail,
         )
 
     async def _futures_order(
@@ -271,10 +311,14 @@ class LocalPaperLedger:
         lev = max(1, min(int(leverage), 50))
         fill_price = await self._resolve_price("futures", pair, order_type, price)
         fee_rate = self._fee_rate(order_type)
+        requested_volume = volume
+        sizing_detail: dict[str, Any] | None = None
+        positions: dict[str, Any] = dict(book.get("positions") or {})
+        margin = _d(book.get("margin_balance_usd"))
+        if pair not in positions and self.kelly_sizing_enabled:
+            volume, sizing_detail = self._kelly_volume(bankroll=margin, price=fill_price)
         notional = volume * fill_price
         fee = notional * fee_rate
-        margin = _d(book.get("margin_balance_usd"))
-        positions: dict[str, Any] = dict(book.get("positions") or {})
         pos = positions.get(pair) or {
             "side": "flat",
             "contracts": "0",
@@ -369,6 +413,8 @@ class LocalPaperLedger:
             realized_pnl=realized_pnl,
             leverage=lev,
             rationale=rationale,
+            requested_volume=requested_volume,
+            sizing_detail=sizing_detail,
         )
 
     def _append_fill(
@@ -386,6 +432,8 @@ class LocalPaperLedger:
         realized_pnl: Decimal,
         leverage: int,
         rationale: str | None = None,
+        requested_volume: Decimal | None = None,
+        sizing_detail: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         order_id = f"LOCAL-{uuid4().hex[:12].upper()}"
         now = datetime.now(UTC).isoformat()
@@ -414,6 +462,9 @@ class LocalPaperLedger:
         }
         if rationale:
             fill["rationale"] = str(rationale).strip()[:180]
+        if sizing_detail is not None:
+            fill["requested_volume"] = _fmt(requested_volume or volume)
+            fill["position_sizing"] = sizing_detail
         fills = list(book.get("fills") or [])
         fills.append(fill)
         book["fills"] = fills[-2000:]
@@ -482,6 +533,10 @@ class LocalPaperLedger:
             },
             "open_positions_total": self.open_position_count(),
             "max_open_positions": int(self.max_open_positions),
+            "position_sizing": {
+                "enabled": bool(self.kelly_sizing_enabled),
+                "mode": self.kelly_mode if self.kelly_sizing_enabled else "explicit_volume",
+            },
             "usd_balance": self._spot.get("usd_balance"),
             "starting_balance_usd": self._spot.get("starting_balance_usd"),
             "orders": orders,
@@ -549,6 +604,8 @@ def get_local_paper_ledger(
     maker_fee_rate: Decimal | None = None,
     taker_fee_rate: Decimal | None = None,
     max_open_positions: int | None = None,
+    kelly_sizing_enabled: bool | None = None,
+    kelly_mode: str | None = None,
 ) -> LocalPaperLedger:
     global _LEDGER
     if _LEDGER is None:
@@ -558,9 +615,16 @@ def get_local_paper_ledger(
             maker_fee_rate=maker_fee_rate if maker_fee_rate is not None else Decimal("0"),
             taker_fee_rate=taker_fee_rate if taker_fee_rate is not None else Decimal("0.0005"),
             max_open_positions=int(max_open_positions) if max_open_positions is not None else 20,
+            kelly_sizing_enabled=True if kelly_sizing_enabled is None else bool(kelly_sizing_enabled),
+            kelly_mode=kelly_mode or "half_kelly",
         )
-    elif max_open_positions is not None:
-        _LEDGER.max_open_positions = int(max_open_positions)
+    else:
+        if max_open_positions is not None:
+            _LEDGER.max_open_positions = int(max_open_positions)
+        if kelly_sizing_enabled is not None:
+            _LEDGER.kelly_sizing_enabled = bool(kelly_sizing_enabled)
+        if kelly_mode is not None:
+            _LEDGER.kelly_mode = kelly_mode
     return _LEDGER
 
 

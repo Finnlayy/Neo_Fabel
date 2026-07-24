@@ -69,6 +69,8 @@ class Settings(BaseSettings):
     paper_default_market: str = Field(default="spot", validation_alias="PAPER_DEFAULT_MARKET")
     paper_maker_fee_rate: Decimal = Field(default=Decimal("0"), validation_alias="PAPER_MAKER_FEE_RATE")
     paper_taker_fee_rate: Decimal = Field(default=Decimal("0.0005"), validation_alias="PAPER_TAKER_FEE_RATE")
+    paper_kelly_sizing_enabled: bool = Field(default=True, validation_alias="PAPER_KELLY_SIZING_ENABLED")
+    paper_kelly_mode: str = Field(default="half_kelly", validation_alias="PAPER_KELLY_MODE")
     alphavantage_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("ALPHAVANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY"),

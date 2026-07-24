@@ -46,6 +46,8 @@ def build_paper_router(settings: Settings) -> PaperExecutionRouter:
         maker_fee_rate=settings.paper_maker_fee_rate,
         taker_fee_rate=settings.paper_taker_fee_rate,
         max_open_positions=settings.paper_max_open_positions,
+        kelly_sizing_enabled=settings.paper_kelly_sizing_enabled,
+        kelly_mode=settings.paper_kelly_mode,
     )
 
     spot_public = KrakenPublicClient(timeout_seconds=settings.kraken_timeout_seconds)

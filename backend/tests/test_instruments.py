@@ -34,7 +34,7 @@ async def test_futures_paper_order_margin_gate() -> None:
 
     from backend.app.integrations.local_paper import LocalPaperLedger
 
-    ledger = LocalPaperLedger(starting_margin_usd=Decimal("100"))
+    ledger = LocalPaperLedger(starting_margin_usd=Decimal("100"), kelly_sizing_enabled=False)
     ledger.set_price_resolver(AsyncMock(return_value=Decimal("50000")))
     with pytest.raises(ValueError, match="insufficient futures margin"):
         await ledger.paper_order(
