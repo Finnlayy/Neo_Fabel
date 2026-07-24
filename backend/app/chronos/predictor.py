@@ -80,14 +80,14 @@ def _seed_from_bars(bars: Sequence[Sequence[float]], salt: int = 0) -> int:
     return int.from_bytes(h.digest()[:8], "big")
 
 
-def _enforce_ohlc(o: float, h: float, l: float, c: float) -> tuple[float, float, float, float]:
+def _enforce_ohlc(o: float, h: float, low: float, c: float) -> tuple[float, float, float, float]:
     body_hi = max(o, c)
     body_lo = min(o, c)
     h = max(h, body_hi)
-    l = min(l, body_lo)
-    if h < l:
-        h, l = l, h
-    return o, h, l, c
+    low = min(low, body_lo)
+    if h < low:
+        h, low = low, h
+    return o, h, low, c
 
 
 class ChronosPredictor:
@@ -184,7 +184,6 @@ class ChronosPredictor:
     ) -> list[list[float]]:
         rng = random.Random(_seed_from_bars(history, salt=path_i + 1))
         closes = [r[3] for r in history]
-        vols = [max(r[4], 0.0) for r in history]
         # Recent log-return mean / vol (clipped window).
         rets: list[float] = []
         for i in range(1, len(closes)):
@@ -213,13 +212,13 @@ class ChronosPredictor:
             c = nxt
             wick = abs(c - o) * (0.15 + 0.85 * rng.random())
             h = max(o, c) + wick * rng.random()
-            l = min(o, c) - wick * rng.random()
-            o, h, l, c = _enforce_ohlc(o, h, l, c)
+            low = min(o, c) - wick * rng.random()
+            o, h, low, c = _enforce_ohlc(o, h, low, c)
             vol_shock = math.exp(rng.gauss(0.0, 0.08 * temperature))
             vol = max(vol * vol_shock, 0.0)
-            typical = (o + h + l + c) / 4.0
+            typical = (o + h + low + c) / 4.0
             amt = vol * typical
-            path.append([o, h, l, c, vol, amt])
+            path.append([o, h, low, c, vol, amt])
             price = c
         return path
 
@@ -233,6 +232,6 @@ class ChronosPredictor:
                 for j in range(OHLCVA_DIM):
                     cols[j] += path[t][j]
             cols = [v / len(paths) for v in cols]
-            o, h, l, c = _enforce_ohlc(cols[0], cols[1], cols[2], cols[3])
-            out.append([o, h, l, c, cols[4], cols[5]])
+            o, h, low, c = _enforce_ohlc(cols[0], cols[1], cols[2], cols[3])
+            out.append([o, h, low, c, cols[4], cols[5]])
         return out

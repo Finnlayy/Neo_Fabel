@@ -63,10 +63,10 @@ from .signals.router import router as signal_router
 from .signals.safety import assert_signals_module_imports
 from .trading.autonomy import AutonomyLevel
 from .trading.loops import trading_loops
+from .trading.session import Level4Session
 from .trading.trade_agent import trade_agent
 
 logger = logging.getLogger("neo_fabel.api")
-from .trading.session import Level4Session
 
 
 def _kraken_status_snapshot() -> dict[str, Any]:
@@ -781,7 +781,6 @@ async def paper_status(request: Request, _user: dict = Depends(require_user)) ->
 @app.get("/api/v1/paper/performance")
 async def paper_performance(request: Request, _user: dict = Depends(require_user)) -> dict:
     """Paper-only performance snapshot: equity, FIFO PnL, positions, fills."""
-    from decimal import Decimal
 
     rid = request_id(request)
     router = paper_router()
@@ -802,7 +801,6 @@ async def paper_performance(request: Request, _user: dict = Depends(require_user
 @app.get("/api/v1/positions")
 async def list_positions(request: Request, _user: dict = Depends(require_user)) -> dict:
     """Open positions: paper ledger lots + Kraken live balances (read-only when live disabled)."""
-    from decimal import Decimal
 
     from backend.app.integrations.positions import build_positions_snapshot
 
@@ -929,7 +927,7 @@ async def _place_paper_order(payload: PaperOrderRequest, user: dict, rid: str) -
                 request_id=rid,
             )
     except HTTPException as exc:
-        detail = exc.detail if isinstance(exc.detail, dict) else {}
+        detail: dict[str, Any] = exc.detail if isinstance(exc.detail, dict) else {}
         if exc.status_code != 503 or detail.get("code") != "database_unavailable":
             raise
     except Exception:

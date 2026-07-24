@@ -7,7 +7,7 @@ from decimal import Decimal
 from backend.app.integrations.kraken_cli import KrakenCli
 from backend.app.integrations.kraken_futures_public import KrakenFuturesPublicClient
 from backend.app.integrations.kraken_public import KrakenPublicClient
-from backend.app.integrations.local_paper import LocalPaperLedger, get_local_paper_ledger
+from backend.app.integrations.local_paper import get_local_paper_ledger
 from backend.app.integrations.paper_router import PaperExecutionRouter
 from backend.app.market.instruments import MarketType, resolve_instrument
 from backend.app.settings import Settings

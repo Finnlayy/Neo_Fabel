@@ -87,7 +87,7 @@ async def _place_paper(payload: PlaceOrderRequest, user: dict[str, Any], rid: st
                 request_id=rid,
             )
     except HTTPException as exc:
-        detail = exc.detail if isinstance(exc.detail, dict) else {}
+        detail: dict[str, Any] = exc.detail if isinstance(exc.detail, dict) else {}
         if exc.status_code != 503 or detail.get("code") != "database_unavailable":
             raise
     except Exception:

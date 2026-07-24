@@ -11,7 +11,6 @@ from fastapi.testclient import TestClient
 from backend.app.auth import require_user
 from backend.app.integrations.ga_optimizer.engine import (
     Candle,
-    Genome,
     build_symbol_pack,
     fitness,
     run_ga_optimize,
@@ -135,7 +134,7 @@ def test_tiny_ga_on_eth_fixture() -> None:
     while len(candles) < 300:
         base_ts = candles[-1].ts + 15 * 60_000
         for i, c in enumerate(candles[:50]):
-            candles.append(Candle(base_ts + i * 15 * 60_000, c.o, c.h, c.l, c.c, c.v))
+            candles.append(Candle(base_ts + i * 15 * 60_000, c.o, c.h, c.low, c.c, c.v))
     pack = build_symbol_pack("ETHUSDT", candles[:400], 1_000_000.0)
     result = run_ga_optimize(
         {"ETHUSDT": pack},

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Sequence
 
 from backend.app.chronos.charts import _fig_to_png_b64, _require_mpl, _style_axes, matplotlib_available
 
@@ -41,10 +41,10 @@ def plot_prediction(
 
     if include_volume:
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex=True, facecolor="#090d16")
-        axes = (ax1, ax2)
+        axes = [ax1, ax2]
     else:
         fig, ax1 = plt.subplots(1, 1, figsize=(8, 4), facecolor="#090d16")
-        axes = (ax1,)
+        axes = [ax1]
 
     for ax in axes:
         _style_axes(ax)

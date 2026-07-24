@@ -113,7 +113,8 @@ def parse_open_orders(payload: dict[str, Any] | None) -> list[dict[str, Any]]:
     for item in items:
         if not isinstance(item, dict):
             continue
-        descr = item.get("descr") if isinstance(item.get("descr"), dict) else {}
+        raw_descr = item.get("descr")
+        descr: dict[str, Any] = raw_descr if isinstance(raw_descr, dict) else {}
         pair = str(item.get("pair") or descr.get("pair") or "UNKNOWN")
         side = str(descr.get("type") or item.get("side") or item.get("type") or "").lower()
         out.append(

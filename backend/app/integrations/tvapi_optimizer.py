@@ -360,29 +360,33 @@ async def fetch_optimize_candles(symbol: str, timeframe: str, *, limit: int = 30
 
     if settings.tvremix_enabled and settings.tvremix_api_key:
         try:
-            client = TvremixClient(settings)
-            await client.initialize()
-            bars = await client.fetch_ohlcv_bars(symbol, interval=tf if tf != "60m" else "1h", count=limit)
+            tv_client = TvremixClient(settings)
+            await tv_client.initialize()
+            bars = await tv_client.fetch_ohlcv_bars(
+                symbol,
+                interval=tf if tf != "60m" else "1h",
+                count=limit,
+            )
             if len(bars) >= 30:
                 return bars, "tvremix-ohlcv"
         except Exception:  # noqa: BLE001
             pass
 
-    client = None
+    ccxt_client = None
     try:
         from backend.app.integrations.ccxt_market import CcxtMarketClient
 
-        client = CcxtMarketClient()
-        raw = await client.fetch_ohlcv(symbol, timeframe=tf, limit=limit)
+        ccxt_client = CcxtMarketClient()
+        raw = await ccxt_client.fetch_ohlcv(symbol, timeframe=tf, limit=limit)
         candles = _bars_from_ccxt(raw)
         if len(candles) >= 30:
             return candles, "ccxt-ohlcv"
     except Exception:  # noqa: BLE001
         pass
     finally:
-        if client is not None:
+        if ccxt_client is not None:
             try:
-                await client._exchange.close()  # noqa: SLF001
+                await ccxt_client.close()
             except Exception:  # noqa: BLE001
                 pass
 
@@ -437,11 +441,18 @@ async def run_optimize(payload: dict[str, Any]) -> dict[str, Any]:
 
     injected = payload.get("candles")
     if isinstance(injected, list) and len(injected) >= 30:
-        candles = [
-            {"close": float(c["close"]), "open": float(c.get("open", c["close"]))}
-            for c in injected
-            if isinstance(c, dict) and "close" in c
-        ]
+        candles = []
+        for candle in injected:
+            if not isinstance(candle, dict) or candle.get("close") is None:
+                continue
+            close_value = float(candle["close"])
+            open_raw = candle.get("open")
+            candles.append(
+                {
+                    "close": close_value,
+                    "open": close_value if open_raw is None else float(open_raw),
+                }
+            )
         source = "injected-ohlcv"
     else:
         candles, source = await fetch_optimize_candles(symbol, timeframe)

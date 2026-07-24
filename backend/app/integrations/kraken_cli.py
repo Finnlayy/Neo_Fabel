@@ -385,9 +385,14 @@ class KrakenCli:
         side: Literal["buy", "sell"],
         pair: str,
         volume: Decimal,
-        order_type: str,
+        order_type: Literal["market", "limit"],
         price: Decimal | None,
+        *,
+        market_type: Literal["spot", "futures"] = "spot",
+        leverage: int = 1,
     ) -> dict[str, Any]:
+        if market_type != "spot" or leverage != 1:
+            raise KrakenCliError("validation", "Kraken CLI paper sink supports spot orders only")
         ot = order_type.strip().lower()
         if side not in {"buy", "sell"} or ot not in {"market", "limit"}:
             raise KrakenCliError("validation", "unsupported paper order")

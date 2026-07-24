@@ -7,11 +7,13 @@ import {
   fetchAcademyStatus,
   fetchAvailableDrills,
   fetchCurriculum,
+  fetchRecentCareers,
   runTrainingCycle,
   startTraining,
   stopTraining,
   type AcademyAgent,
   type AcademyStatus,
+  type CareerEntry,
   type DrillResult,
   type LeaderboardEntry,
   type SyntheticDrill,
@@ -34,6 +36,7 @@ export default function AcademyPage() {
   const [drills, setDrills] = useState<SyntheticDrill[]>([]);
   const [lastResult, setLastResult] = useState<DrillResult | null>(null);
   const [curriculum, setCurriculum] = useState<string>("");
+  const [careers, setCareers] = useState<CareerEntry[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,14 +44,16 @@ export default function AcademyPage() {
   const reload = useCallback(async () => {
     setError("");
     try {
-      const [st, ag, lb] = await Promise.all([
+      const [st, ag, lb, cr] = await Promise.all([
         fetchAcademyStatus(),
         fetchAcademyAgents(),
         fetchAcademyLeaderboard(),
+        fetchRecentCareers(16),
       ]);
       setStatus(st);
       setAgents(ag.agents);
       setLeaderboard(lb.leaderboard);
+      setCareers(cr.career);
       if (st.agents?.length && !st.agents.includes(scout)) {
         setScout(st.agents[0]);
       }

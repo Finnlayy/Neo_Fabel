@@ -56,6 +56,8 @@ def _leverage_from_event(metadata_json: dict | None) -> int:
     if not metadata_json:
         return 1
     raw = metadata_json.get("leverage")
+    if raw is None:
+        return 1
     try:
         lev = int(raw)
         return max(1, min(lev, 50))

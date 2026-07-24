@@ -227,7 +227,12 @@ async def execute_approved_proposal(proposal_id: str, *, by: str = "telegram") -
             skip_human_verification=True,
         )
         trade_approvals.mark_executed(proposal_id, result if isinstance(result, dict) else {"ok": True})
-        return {"ok": True, "proposal": trade_approvals.get(proposal_id).to_dict() if trade_approvals.get(proposal_id) else None, "result": result}
+        executed = trade_approvals.get(proposal_id)
+        return {
+            "ok": True,
+            "proposal": executed.to_dict() if executed is not None else None,
+            "result": result,
+        }
     except Exception as exc:  # noqa: BLE001
         trade_approvals.mark_failed(proposal_id, str(exc))
         return {"ok": False, "reason": "execution_failed", "error": str(exc), "proposal": proposal.to_dict()}

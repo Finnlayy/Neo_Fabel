@@ -175,7 +175,8 @@ async def check_positions_snapshot() -> dict[str, Any]:
     data = paper.get("data") if isinstance(paper, dict) and "data" in paper else paper
     if not isinstance(data, dict):
         data = {}
-    spot = data.get("spot") if isinstance(data.get("spot"), dict) else {}
+    raw_spot = data.get("spot")
+    spot: dict[str, Any] = raw_spot if isinstance(raw_spot, dict) else {}
     return {
         "ok": True,
         "job": "check_positions",

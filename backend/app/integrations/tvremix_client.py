@@ -113,7 +113,7 @@ class TvremixClient:
     async def list_tools(self) -> list[str]:
         await self.initialize()
         result = await self._post_rpc("tools/list", {})
-        tools = []
+        tools: list[dict[str, Any]] = []
         if isinstance(result, dict):
             tools = result.get("tools") or []
         names = [str(t.get("name")) for t in tools if isinstance(t, dict) and t.get("name")]

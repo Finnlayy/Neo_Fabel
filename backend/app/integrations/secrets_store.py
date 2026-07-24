@@ -67,8 +67,10 @@ def _read_unlocked() -> dict[str, Any]:
         return _empty_store()
     if not isinstance(data, dict):
         return _empty_store()
-    env = data.get("env") if isinstance(data.get("env"), dict) else {}
-    passwords = data.get("passwords") if isinstance(data.get("passwords"), list) else []
+    raw_env = data.get("env")
+    env: dict[Any, Any] = raw_env if isinstance(raw_env, dict) else {}
+    raw_passwords = data.get("passwords")
+    passwords: list[Any] = raw_passwords if isinstance(raw_passwords, list) else []
     return {
         "version": int(data.get("version") or 1),
         "updated_at": data.get("updated_at"),

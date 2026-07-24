@@ -2,12 +2,18 @@
   "version": 2,
   "spot": {
     "starting_balance_usd": "10000",
-    "usd_balance": "10040.732871122400000000000",
+    "usd_balance": "10040.563256357400000000000",
     "lots": {
       "SOLUSD": [
         {
           "volume": "0.01",
           "unit_cost": "77.868915000"
+        }
+      ],
+      "ADAUSD": [
+        {
+          "volume": "1",
+          "unit_cost": "0.1696147650"
         }
       ]
     },
@@ -511,6 +517,29 @@
         "time": "2026-07-21T18:11:37.129060+00:00",
         "opentm": "2026-07-21T18:11:37.129060+00:00",
         "closetm": "2026-07-21T18:11:37.129060+00:00",
+        "source": "local-paper-ledger",
+        "pnl": "0"
+      },
+      {
+        "txid": "LOCAL-E46837B9E19D",
+        "id": "LOCAL-E46837B9E19D",
+        "market_type": "spot",
+        "pair": "ADAUSD",
+        "side": "buy",
+        "type": "buy",
+        "ordertype": "market",
+        "vol": "1",
+        "volume": "1",
+        "price": "0.169530",
+        "fee": "0.0000847650",
+        "fee_rate": "0.0005",
+        "leverage": 1,
+        "realized_pnl": "0",
+        "status": "closed",
+        "state": "CLOSED",
+        "time": "2026-07-23T16:20:30.115917+00:00",
+        "opentm": "2026-07-23T16:20:30.115917+00:00",
+        "closetm": "2026-07-23T16:20:30.115917+00:00",
         "source": "local-paper-ledger",
         "pnl": "0"
       }

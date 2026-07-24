@@ -142,6 +142,7 @@ class TrainingDrillsService:
     def generate_random_drill(self, scout_name: str, difficulty: int = 1) -> SyntheticDrill:
         definition = get_agent_definition(scout_name)
         drill_type = definition.drill_type if definition else "pattern_recognition"
+        scenario_data: dict[str, Any]
 
         if drill_type == "pattern_recognition":
             bias = random.choice(["bullish", "bearish", "neutral"])
@@ -241,7 +242,7 @@ class TrainingDrillsService:
         else:
             is_correct = decision == expected
 
-        rubric = {
+        rubric: dict[str, Any] = {
             "matched": is_correct,
             "reason_code": "match" if is_correct else "mismatch",
             "hints": [],

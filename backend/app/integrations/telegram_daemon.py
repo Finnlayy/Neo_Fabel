@@ -10,16 +10,13 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-import httpx
 
 from ..settings import Settings
 from .gemini_client import GeminiClient
 from .kraken_public import KrakenPublicClient
 from .paper_factory import build_paper_router
 from .telegram_bot import (
-    ACTIONABLE_ASSETS,
     TelegramBot,
-    TelegramNotConfigured,
     check_actionable,
     get_telegram_state,
     parse_sentiment,
@@ -111,8 +108,12 @@ async def _fetch_market_lines(settings: Settings) -> str:
         try:
             data = await public.ticker(symbol)
             last = data.get("last") or data.get("price") or data.get("close")
-            if isinstance(last, list) and last:
+            if isinstance(last, list):
+                if not last:
+                    continue
                 last = last[0]
+            if last is None:
+                continue
             price = float(last)
             label = symbol.replace("USD", "/USD")
             lines.append(f"• <b>{label}:</b> ${price:,.2f}")
@@ -126,8 +127,10 @@ async def _fetch_market_lines(settings: Settings) -> str:
 async def _paper_balance_lines(settings: Settings) -> str:
     router = build_paper_router(settings)
     status = await router.paper_status()
-    spot = status.get("spot") if isinstance(status.get("spot"), dict) else {}
-    futures = status.get("futures") if isinstance(status.get("futures"), dict) else {}
+    raw_spot = status.get("spot")
+    spot: dict[str, Any] = raw_spot if isinstance(raw_spot, dict) else {}
+    raw_futures = status.get("futures")
+    futures: dict[str, Any] = raw_futures if isinstance(raw_futures, dict) else {}
     spot_cash = float(spot.get("usd_balance") or status.get("usd_balance") or 0)
     fut_margin = float(futures.get("margin_balance_usd") or 0)
     open_fut = int(futures.get("open_positions") or 0)
@@ -349,11 +352,13 @@ async def run_daemon_poll(settings: Settings) -> None:
         if not text:
             continue
 
-        from_user = message.get("from") if isinstance(message.get("from"), dict) else {}
+        raw_from_user = message.get("from")
+        from_user: dict[str, Any] = raw_from_user if isinstance(raw_from_user, dict) else {}
         if from_user.get("is_bot"):
             continue
 
-        chat = message.get("chat") if isinstance(message.get("chat"), dict) else {}
+        raw_chat = message.get("chat")
+        chat: dict[str, Any] = raw_chat if isinstance(raw_chat, dict) else {}
         chat_id = chat.get("id")
         from_name = str(from_user.get("username") or from_user.get("first_name") or "User")
         channel = str(chat.get("title") or chat.get("username") or chat_id or "telegram")
@@ -392,10 +397,13 @@ async def run_daemon_poll(settings: Settings) -> None:
 async def _handle_callback_query(bot: TelegramBot, settings: Settings, callback: dict[str, Any]) -> None:
     data = str(callback.get("data") or "")
     cq_id = str(callback.get("id") or "")
-    from_user = callback.get("from") if isinstance(callback.get("from"), dict) else {}
+    raw_from_user = callback.get("from")
+    from_user: dict[str, Any] = raw_from_user if isinstance(raw_from_user, dict) else {}
     from_name = str(from_user.get("username") or from_user.get("first_name") or "User")
-    message = callback.get("message") if isinstance(callback.get("message"), dict) else {}
-    chat = message.get("chat") if isinstance(message.get("chat"), dict) else {}
+    raw_message = callback.get("message")
+    message: dict[str, Any] = raw_message if isinstance(raw_message, dict) else {}
+    raw_chat = message.get("chat")
+    chat: dict[str, Any] = raw_chat if isinstance(raw_chat, dict) else {}
     chat_id = chat.get("id")
 
     state = get_telegram_state()

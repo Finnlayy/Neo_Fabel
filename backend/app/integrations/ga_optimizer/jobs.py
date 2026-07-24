@@ -131,7 +131,7 @@ class GaJobRegistry:
             raise RuntimeError("GA optimizer is disabled (GA_OPTIMIZER_ENABLED=false)")
 
         run_id = uuid4().hex[:12]
-        job = {
+        job: dict[str, Any] = {
             "runId": run_id,
             "status": "queued",
             "createdAt": _utcnow(),

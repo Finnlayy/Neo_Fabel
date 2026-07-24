@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -254,10 +254,13 @@ async def decisions(
             DecisionHistoryItem(
                 id=row.id,
                 request_id=row.request_id,
-                decision_type=row.decision_type,
+                decision_type=cast(
+                    Literal["market_regime", "signal_quality", "full_decision"],
+                    row.decision_type,
+                ),
                 provider=row.provider,
                 model=row.model,
-                status=row.status,
+                status=cast(Literal["success", "error"], row.status),
                 output_data=row.output_data,
                 reasoning=row.reasoning,
                 timestamp=row.created_at,

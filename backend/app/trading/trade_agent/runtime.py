@@ -9,7 +9,7 @@ from typing import Any
 
 from backend.app.settings import Settings, get_settings
 from backend.app.trading.trade_agent import jobs
-from backend.app.trading.trade_agent.schedules import DEFAULT_SLOTS, POSITIONS_WATCHDOG_SECONDS, ScheduleSlot
+from backend.app.trading.trade_agent.schedules import DEFAULT_SLOTS, POSITIONS_WATCHDOG_SECONDS
 
 logger = logging.getLogger("neo_fabel.trade_agent.runtime")
 

@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Literal, cast
 
 from ..models import SignalRoute
 from ..settings import Settings
@@ -98,6 +99,12 @@ def build_candidate(
     pattern_bias: str | None = None,
     pattern_confidence: Decimal | None = None,
 ) -> CanonicalSignalCandidate:
+    if pattern_bias not in {None, "bullish", "bearish", "neutral"}:
+        raise ValueError("pattern_bias must be bullish, bearish, neutral, or null")
+    canonical_pattern_bias = cast(
+        Literal["bullish", "bearish", "neutral"] | None,
+        pattern_bias,
+    )
     digest = canonical_hash_for(
         schema_version=schema_version,
         signal_id=signal_id,
@@ -112,7 +119,7 @@ def build_candidate(
         raw_symbol=raw_symbol,
         observed_price=observed_price,
         source=source,
-        pattern_bias=pattern_bias,
+        pattern_bias=canonical_pattern_bias,
         pattern_confidence=pattern_confidence,
     )
     return CanonicalSignalCandidate(
@@ -130,7 +137,7 @@ def build_candidate(
         observed_price=observed_price,
         source=source,
         canonical_hash=digest,
-        pattern_bias=pattern_bias,
+        pattern_bias=canonical_pattern_bias,
         pattern_confidence=pattern_confidence,
     )
 

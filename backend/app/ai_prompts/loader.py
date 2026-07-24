@@ -68,7 +68,8 @@ def _format_shot(shot: dict[str, Any]) -> str:
     expected = str(shot.get("expected") or "HANDOFF")
     scenario = _clip(str(shot.get("scenario") or ""), 120)
     kraken = _clip(str(shot.get("kraken") or ""), 80)
-    directives = shot.get("directives") if isinstance(shot.get("directives"), dict) else {}
+    raw_directives = shot.get("directives")
+    directives: dict[str, Any] = raw_directives if isinstance(raw_directives, dict) else {}
     bits = [f"{k}:{_clip(str(v), 40)}" for k, v in list(directives.items())[:4]]
     line = f"[{expected}] {scenario} | {'; '.join(bits)} | {kraken}"
     return _clip(line, MAX_SHOT_CHARS)

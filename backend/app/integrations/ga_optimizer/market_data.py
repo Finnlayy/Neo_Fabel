@@ -9,7 +9,7 @@ from typing import Any, List, Sequence, Tuple
 
 import httpx
 
-from .engine import Candle, build_symbol_pack
+from .engine import Candle, MarketPacks, build_symbol_pack
 
 logger = logging.getLogger("neo_fabel.ga.market_data")
 
@@ -24,10 +24,10 @@ def candles_from_rows(rows: Sequence[dict[str, Any] | list[Any]]) -> List[Candle
             ts = int(row.get("timestamp") or row.get("ts") or row.get("t") or 0)
             o = float(row["open"] if "open" in row else row["o"])
             h = float(row["high"] if "high" in row else row["h"])
-            l = float(row["low"] if "low" in row else row["l"])
+            low = float(row["low"] if "low" in row else row["l"])
             c = float(row["close"] if "close" in row else row["c"])
             v = float(row.get("volume") or row.get("v") or 0.0)
-            out.append(Candle(ts, o, h, l, c, v))
+            out.append(Candle(ts, o, h, low, c, v))
         else:
             # Binance kline array shape
             out.append(
@@ -86,7 +86,11 @@ def list_cache_symbols(cache_dir: Path) -> List[str]:
 def fetch_klines_binance(
     symbol: str, interval: str, limit: int, *, timeout: float = 30.0
 ) -> List[Candle]:
-    params = {"symbol": symbol.upper(), "interval": interval, "limit": min(limit, 1500)}
+    params: dict[str, str | int] = {
+        "symbol": symbol.upper(),
+        "interval": interval,
+        "limit": min(limit, 1500),
+    }
     with httpx.Client(timeout=timeout) as client:
         r = client.get(f"{BINANCE_FAPI}/fapi/v1/klines", params=params)
         r.raise_for_status()
@@ -163,7 +167,7 @@ def load_universe_packs(
     lookback_bars: int,
     symbols: Sequence[str] | None = None,
     quote_vol_default: float = 1_000_000.0,
-) -> tuple[dict[str, dict[str, object]], list[tuple[str, float]]]:
+) -> tuple[MarketPacks, list[tuple[str, float]]]:
     """Build feature packs for GA. Returns (packs, symbol_vol_pairs)."""
     source = (market_source or "cache").strip().lower()
     selected: list[tuple[str, float]] = []
@@ -192,7 +196,7 @@ def load_universe_packs(
     else:
         raise ValueError(f"Unsupported GA_MARKET_SOURCE: {market_source}")
 
-    packs: dict[str, dict[str, object]] = {}
+    packs: MarketPacks = {}
     loaded: list[tuple[str, float]] = []
     for sym, qv in selected:
         candles: List[Candle] | None = None
@@ -226,7 +230,7 @@ def load_universe_packs(
                         "timestamp": c.ts,
                         "open": c.o,
                         "high": c.h,
-                        "low": c.l,
+                        "low": c.low,
                         "close": c.c,
                         "volume": c.v,
                     }

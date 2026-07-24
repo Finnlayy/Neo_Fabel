@@ -536,7 +536,7 @@ class LocalPaperLedger:
                 return Decimal("0")
             return _d(pos.get("contracts"))
         rows = (self._spot.get("lots") or {}).get(inst.symbol) or []
-        return sum(_d(r.get("volume")) for r in rows)
+        return sum((_d(r.get("volume")) for r in rows), start=Decimal("0"))
 
 
 _LEDGER: LocalPaperLedger | None = None

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -79,7 +79,10 @@ def parse_cap_amount(raw: Any, *, field: str = "cap") -> CapAmount:
             unit = "eur"
         else:
             raise ValueError(f"{field}.unit must be eur|usd|pct")
-        return CapAmount(value=float(raw.get("value")), unit=unit)
+        value = raw.get("value")
+        if value is None:
+            raise ValueError(f"{field}.value is required")
+        return CapAmount(value=float(value), unit=unit)
     raise ValueError(f"invalid {field}")
 
 

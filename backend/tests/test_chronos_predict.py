@@ -33,10 +33,10 @@ def _synthetic_ohlcva(n: int = 48) -> list[list[float]]:
         o = price
         c = price * (1.0 + 0.001 * math.sin(i / 3.0))
         h = max(o, c) * 1.002
-        l = min(o, c) * 0.998
+        low = min(o, c) * 0.998
         v = 1000.0 + 10.0 * i
         a = v * ((o + c) / 2.0)
-        bars.append([o, h, l, c, v, a])
+        bars.append([o, h, low, c, v, a])
         price = c
     return bars
 

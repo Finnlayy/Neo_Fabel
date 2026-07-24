@@ -95,11 +95,11 @@ def candles_to_ohlcva(candles: list[dict[str, Any]]) -> list[list[float]]:
     for bar in candles:
         o = float(bar["open"])
         h = float(bar["high"])
-        l = float(bar["low"])
+        low = float(bar["low"])
         c = float(bar["close"])
         v = float(bar.get("volume") or 0.0)
-        typical = (o + h + l + c) / 4.0
-        rows.append([o, h, l, c, v, v * typical])
+        typical = (o + h + low + c) / 4.0
+        rows.append([o, h, low, c, v, v * typical])
     return rows
 
 

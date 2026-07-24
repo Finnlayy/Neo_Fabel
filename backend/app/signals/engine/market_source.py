@@ -73,12 +73,15 @@ def bars_to_candles(raw: Any) -> list[dict[str, Any]]:
             timestamp = int(ts_raw) if ts_raw is not None else 0
         except (TypeError, ValueError):
             timestamp = 0
+        open_value = bar.get("o", bar.get("open"))
+        high_value = bar.get("h", bar.get("high"))
+        low_value = bar.get("l", bar.get("low"))
         candles.append(
             {
                 "timestamp": timestamp,
-                "open": float(bar.get("o", bar.get("open", close))),
-                "high": float(bar.get("h", bar.get("high", close))),
-                "low": float(bar.get("l", bar.get("low", close))),
+                "open": float(close if open_value is None else open_value),
+                "high": float(close if high_value is None else high_value),
+                "low": float(close if low_value is None else low_value),
                 "close": float(close),
                 "volume": float(bar.get("v", bar.get("volume", 0.0)) or 0.0),
             }

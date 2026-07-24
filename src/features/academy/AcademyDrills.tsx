@@ -26,7 +26,7 @@ function actionTone(action: string) {
   return "border-amber-500/30 text-amber-300 hover:bg-amber-500/10";
 }
 
-function Chip({ label }: { label: string }) {
+function Chip({ label }: { label: string; key?: React.Key }) {
   return (
     <span className="rounded-full px-2 py-0.5 text-[9px] font-medium bg-slate-800 text-slate-300 border border-white/10">
       {label}

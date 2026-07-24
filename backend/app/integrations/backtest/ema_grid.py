@@ -41,10 +41,14 @@ def evaluate_ema_cross(candles: list[dict[str, Any]], params: dict[str, Any]) ->
     trades: list[dict[str, Any]] = []
 
     for i in range(1, len(candles)):
-        if fast[i - 1] is None or slow[i - 1] is None or fast[i] is None or slow[i] is None:
+        fast_prev = fast[i - 1]
+        slow_prev = slow[i - 1]
+        fast_now = fast[i]
+        slow_now = slow[i]
+        if fast_prev is None or slow_prev is None or fast_now is None or slow_now is None:
             continue
-        crossed_up = fast[i - 1] <= slow[i - 1] and fast[i] > slow[i]
-        crossed_down = fast[i - 1] >= slow[i - 1] and fast[i] < slow[i]
+        crossed_up = fast_prev <= slow_prev and fast_now > slow_now
+        crossed_down = fast_prev >= slow_prev and fast_now < slow_now
         price = float(candles[i]["close"])
 
         if position is None and crossed_up:

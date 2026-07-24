@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 
-from backend.app.chronos.deps import require_numpy, require_pandas
+from backend.app.chronos.deps import require_pandas
 from backend.app.chronos.frame import bars_to_dataframe
 
 

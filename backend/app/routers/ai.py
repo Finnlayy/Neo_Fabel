@@ -185,7 +185,8 @@ async def orchestrate(payload: OrchestrateRequest, _user: dict = Depends(require
 
 
 def _log_orchestrate(plan: dict[str, Any], shot_ids: list[str], payload: OrchestrateRequest) -> None:
-    directives = plan.get("subAgentDirectives") if isinstance(plan.get("subAgentDirectives"), dict) else {}
+    raw_directives = plan.get("subAgentDirectives")
+    directives: dict[str, Any] = raw_directives if isinstance(raw_directives, dict) else {}
     joined = " ".join(str(v) for v in directives.values())
     append_prompt_shot_event(
         {

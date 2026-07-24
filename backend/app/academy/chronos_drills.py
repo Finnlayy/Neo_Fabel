@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from backend.app.academy.drill_market import provenance
 from backend.app.chronos.pipeline import tokenize_ohlcva
@@ -30,12 +30,12 @@ def _synthetic_trend_bars(n: int, bias: Bias, difficulty: int) -> list[list[floa
         c = max(price * math.exp(shock), 1e-6)
         wick = abs(c - o) * (0.2 + 0.6 * random.random())
         h = max(o, c) + wick * random.random()
-        l = min(o, c) - wick * random.random()
-        if h < l:
-            h, l = l, h
+        low = min(o, c) - wick * random.random()
+        if h < low:
+            h, low = low, h
         v = max(vol * math.exp(random.gauss(0.0, 0.05)), 1.0)
-        typical = (o + h + l + c) / 4.0
-        bars.append([o, h, l, c, v, v * typical])
+        typical = (o + h + low + c) / 4.0
+        bars.append([o, h, low, c, v, v * typical])
         price = c
         vol = v
     return bars
@@ -70,7 +70,7 @@ def make_chronos_scenario(difficulty: int = 1) -> tuple[dict[str, Any], str]:
     difficulty = max(1, min(3, int(difficulty)))
     lookback = {1: 32, 2: 48, 3: 64}[difficulty]
     pred_len = {1: 8, 2: 12, 3: 16}[difficulty]
-    bias = random.choice(["bullish", "bearish", "chop"])  # type: ignore[assignment]
+    bias = cast(Bias, random.choice(["bullish", "bearish", "chop"]))
     # Prefer synthetic bars (≥30% always); occasionally reuse fixture OHLCVA shape via market helper.
     if random.random() < 0.3:
         from backend.app.academy.drill_scenarios import fixture_ohlcva_for_chronos

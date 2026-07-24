@@ -94,7 +94,7 @@ def resolve_instrument(
     symbol = normalize_symbol(raw_symbol, market_type="futures")
     if not is_futures_symbol(symbol):
         symbol = futures_symbol_for_spot(symbol)
-    lev = max(1, min(int(leverage), 50))
+    int(leverage)
     return Instrument(
         market_type="futures",
         symbol=symbol,
