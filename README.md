@@ -470,7 +470,7 @@ Bridges the Fable5 TradeAgent schedule model into Neo (paper-first):
 | Windows Task Scheduler bats | `scripts/schedule_*.bat` (morning / preopen / market / label / optimizer) |
 | Register tasks | `powershell -ExecutionPolicy Bypass -File .\scripts\setup_scheduled_tasks.ps1` (−`IncludeOptimizer` optional) |
 
-Slots include Berlin market scans + ET entry windows from `EVENT_DRIVEN_TRADING.md`, nightly GA optimizer, and 5‑minute positions watchdog. Enable in-API scheduler with `TRADE_AGENT_ENABLED=true` (optional `TRADE_AGENT_AUTO_START=true`). Scans drive **FableEngine dry-run** — they do not place live orders.
+Slots include Berlin market scans + ET entry windows from `EVENT_DRIVEN_TRADING.md`, nightly GA optimizer, and 5‑minute positions watchdog. Enable in-API scheduler with `TRADE_AGENT_ENABLED=true` (optional `TRADE_AGENT_AUTO_START=true`). Scheduled scans use tvremix by default (`TRADE_AGENT_SCHEDULED_MARKET_SOURCE=tvremix`), while the continuous FableEngine loop should use `FABLE_ENGINE_CANDLE_SOURCE=ccxt`. TradingView alerts arrive through the webhook/ngrok path and are not polled. Scans drive **FableEngine dry-run** — they do not place live orders.
 
 Windows Task Scheduler (Berlin wall clock, same as Fable5 TradeAgent):
 

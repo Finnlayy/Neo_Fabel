@@ -225,6 +225,9 @@ class Settings(BaseSettings):
     # Trade Agent — scheduled scans / labeling / optimizer (paper-first; from Fable5 TradeAgent).
     trade_agent_enabled: bool = Field(default=False, validation_alias="TRADE_AGENT_ENABLED")
     trade_agent_auto_start: bool = Field(default=False, validation_alias="TRADE_AGENT_AUTO_START")
+    trade_agent_scheduled_market_source: str = Field(
+        default="tvremix", validation_alias="TRADE_AGENT_SCHEDULED_MARKET_SOURCE"
+    )
     trade_agent_watchdog_enabled: bool = Field(default=True, validation_alias="TRADE_AGENT_WATCHDOG_ENABLED")
     trade_agent_watchdog_seconds: int = Field(
         default=300, validation_alias="TRADE_AGENT_WATCHDOG_SECONDS", ge=60, le=3600

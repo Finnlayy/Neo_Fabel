@@ -30,9 +30,9 @@ _CCXT_INTERVALS: dict[str, str] = {
 _DEFAULT_INTERVAL = "5m"
 
 
-def resolve_source(settings: Settings) -> str:
-    """Pick candle source: explicit setting wins; auto prefers tvremix when keyed."""
-    configured = (settings.fable_engine_candle_source or "auto").strip().lower()
+def resolve_source(settings: Settings, *, source_override: str | None = None) -> str:
+    """Pick candle source; a job-level override wins over the engine default."""
+    configured = (source_override or settings.fable_engine_candle_source or "auto").strip().lower()
     if configured == "tvremix":
         return "tvremix"
     if configured == "ccxt":
@@ -111,9 +111,15 @@ def ccxt_rows_to_candles(rows: Any) -> list[dict[str, Any]]:
     return candles
 
 
-async def fetch_candles(pair: str, *, settings: Settings, count: int = 120) -> list[dict[str, Any]]:
+async def fetch_candles(
+    pair: str,
+    *,
+    settings: Settings,
+    count: int = 120,
+    source_override: str | None = None,
+) -> list[dict[str, Any]]:
     """Fetch candles for one pair; tvremix errors fall back to ccxt, never raise."""
-    source = resolve_source(settings)
+    source = resolve_source(settings, source_override=source_override)
     if source == "tvremix":
         try:
             return await _fetch_tvremix(pair, settings=settings, count=count)
@@ -127,10 +133,10 @@ async def fetch_candles(pair: str, *, settings: Settings, count: int = 120) -> l
 
 
 async def _fetch_tvremix(pair: str, *, settings: Settings, count: int) -> list[dict[str, Any]]:
-    from backend.app.integrations.tvremix_client import TvremixClient, _to_tv_symbol
+    from backend.app.integrations.tvremix_client import get_tvremix_client, _to_tv_symbol
 
     interval = normalize_interval(settings.fable_engine_interval)
-    client = TvremixClient(settings)
+    client = get_tvremix_client(settings)
     raw = await client.call_tool(
         "get_ohlcv",
         {

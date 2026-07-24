@@ -54,7 +54,8 @@ async def run_market_scan(*, reason: str = "scheduled", settings: Settings | Non
                 "start_result": start,
             }
 
-    intents = await eng.poll_once()
+    scheduled_source = (cfg.trade_agent_scheduled_market_source or "tvremix").strip().lower()
+    intents = await eng.poll_once(candle_source=scheduled_source)
     return {
         "ok": True,
         "job": "market_scan",
@@ -62,6 +63,7 @@ async def run_market_scan(*, reason: str = "scheduled", settings: Settings | Non
         "started_at": started,
         "finished_at": datetime.now(UTC).isoformat(),
         "intent_count": len(intents),
+        "market_source": scheduled_source,
         "engine": eng.status(),
         "mode": "paper_dry_run",
     }

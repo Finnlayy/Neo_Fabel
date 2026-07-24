@@ -182,7 +182,7 @@ class FableEngine:
                 pass
         self._started = False
 
-    async def poll_once(self) -> list[SignalIntent]:
+    async def poll_once(self, *, candle_source: str | None = None) -> list[SignalIntent]:
         if not self._bucket.allow(1.0):
             logger.debug("FableEngine market rate-limit skip")
             return []
@@ -193,7 +193,7 @@ class FableEngine:
 
         all_intents: list[SignalIntent] = []
         for pair, strats in by_pair.items():
-            candles = await self._fetch_candles(pair)
+            candles = await self._fetch_candles(pair, source_override=candle_source)
             last_ts = int(candles[-1].get("timestamp") or 0) if candles else 0
             onnx_ctx = self._fetch_onnx_context(pair, candles)
             for strat in strats:
@@ -261,13 +261,20 @@ class FableEngine:
         except Exception:  # noqa: BLE001
             return True
 
-    async def _fetch_candles(self, pair: str) -> list[dict[str, Any]]:
+    async def _fetch_candles(
+        self, pair: str, *, source_override: str | None = None
+    ) -> list[dict[str, Any]]:
         if self._candle_fetcher is not None:
             return await self._candle_fetcher(pair)
         # tvremix get_ohlcv primary, CCXT fallback; never Alpha Vantage in the poll loop.
         from backend.app.signals.engine.market_source import fetch_candles
 
-        return await fetch_candles(pair, settings=self.app_settings, count=120)
+        return await fetch_candles(
+            pair,
+            settings=self.app_settings,
+            count=120,
+            source_override=source_override,
+        )
 
     def _fetch_onnx_context(self, pair: str, candles: list[dict[str, Any]]) -> dict[str, Any] | None:
         """Sidecar ONNX inference for FABLE_ENGINE_ONNX_BIAS (off skips call)."""

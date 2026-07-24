@@ -13,7 +13,9 @@ Market tools always (catalog): get_ohlcv, search_symbols, …
 from __future__ import annotations
 
 import json
+import math
 import re
+import time
 from typing import Any
 
 import httpx
@@ -49,6 +51,7 @@ class TvremixClient:
         self._session_id: str | None = None
         self._rpc_id = 0
         self._tool_names: set[str] | None = None
+        self._rate_limited_until = 0.0
 
     @property
     def configured(self) -> bool:
@@ -71,6 +74,11 @@ class TvremixClient:
     async def _post_rpc(self, method: str, params: dict[str, Any] | None = None) -> Any:
         if not self.configured:
             raise TvremixError("TVREMIX_API_KEY is not configured")
+        remaining = self._rate_limited_until - time.monotonic()
+        if remaining > 0:
+            raise TvremixError(
+                f"tvremix rate limited — retry in {math.ceil(remaining)}s"
+            )
         payload = {"jsonrpc": "2.0", "id": self._next_id(), "method": method, "params": params or {}}
         async with httpx.AsyncClient(timeout=self.settings.tvremix_timeout_seconds) as client:
             response = await client.post(self.base_url, headers=self._headers(), json=payload)
@@ -80,7 +88,15 @@ class TvremixClient:
             if response.status_code == 401:
                 raise TvremixError("tvremix unauthorized — check TVREMIX_API_KEY")
             if response.status_code == 429:
-                raise TvremixError("tvremix rate limited — retry later")
+                try:
+                    retry_after = float(response.headers.get("Retry-After") or 60)
+                except ValueError:
+                    retry_after = 60.0
+                retry_after = min(max(retry_after, 1.0), 3600.0)
+                self._rate_limited_until = time.monotonic() + retry_after
+                raise TvremixError(
+                    f"tvremix rate limited — retry in {math.ceil(retry_after)}s"
+                )
             body = response.text
             data = _parse_mcp_body(body)
             if response.status_code >= 400:
@@ -520,6 +536,26 @@ def scripts_to_strategies(scripts: list[dict[str, Any]]) -> list[dict[str, Any]]
             }
         )
     return out
+
+
+_shared_client: TvremixClient | None = None
+_shared_client_signature: tuple[str, str, float] | None = None
+
+
+def get_tvremix_client(settings: Settings | None = None) -> TvremixClient:
+    """Reuse MCP discovery/session state until connection settings change."""
+    global _shared_client, _shared_client_signature
+
+    cfg = settings or get_settings()
+    signature = (
+        (cfg.tvremix_mcp_url or DEFAULT_MCP_URL).rstrip("/"),
+        (cfg.tvremix_api_key or "").strip(),
+        float(cfg.tvremix_timeout_seconds),
+    )
+    if _shared_client is None or _shared_client_signature != signature:
+        _shared_client = TvremixClient(cfg)
+        _shared_client_signature = signature
+    return _shared_client
 
 
 def _parse_mcp_body(body: str) -> Any:

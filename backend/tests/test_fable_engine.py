@@ -209,6 +209,7 @@ def test_market_source_resolution_prefers_tvremix_only_with_key():
         fable_engine_candle_source="ccxt",
     )
     assert resolve_source(forced) == "ccxt"
+    assert resolve_source(forced, source_override="tvremix") == "tvremix"
 
 
 def test_market_source_interval_mapping_month_stays_capital():

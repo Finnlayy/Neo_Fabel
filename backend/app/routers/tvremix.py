@@ -9,14 +9,18 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.auth import require_user
 from backend.app.integrations.pine_ledger import diff_against_ledger, load_ledger, upsert_script_snapshot
-from backend.app.integrations.tvremix_client import TvremixClient, TvremixError
+from backend.app.integrations.tvremix_client import (
+    TvremixClient,
+    TvremixError,
+    get_tvremix_client,
+)
 from backend.app.settings import get_settings
 
 router = APIRouter(prefix="/api/v1/tvremix", tags=["tvremix"])
 
 
 def _client() -> TvremixClient:
-    return TvremixClient(get_settings())
+    return get_tvremix_client(get_settings())
 
 
 class SearchBody(BaseModel):
