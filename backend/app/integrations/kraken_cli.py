@@ -91,6 +91,8 @@ class KrakenCli:
         return "kraken command failed"
 
     async def _run(self, args: list[str]) -> dict[str, Any]:
+        if self.binary != "kraken":
+            raise KrakenCliError("validation", "binary must be 'kraken'")
         if not args:
             raise KrakenCliError("validation", "command is not allowlisted")
         from backend.app.trading.capital_policy import assert_args_forbid_external_capital

@@ -17,7 +17,6 @@ async def test_permission_error_is_wrapped_for_public_rest_fallback(monkeypatch:
     assert caught.value.category == "config"
     assert "fallback" in str(caught.value)
 
-
 def test_command_env_injects_kraken_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("KRAKEN_API_KEY", raising=False)
     monkeypatch.delenv("KRAKEN_API_SECRET", raising=False)
@@ -52,3 +51,14 @@ def test_failure_message_prefers_kraken_json_message() -> None:
         "message": "Authentication failed: No Spot API credentials found.",
     }
     assert "Authentication failed" in KrakenCli._failure_message(payload, b"")
+
+
+@pytest.mark.asyncio
+async def test_binary_must_be_kraken() -> None:
+    cli = KrakenCli(binary="malicious_binary")
+
+    with pytest.raises(KrakenCliError) as caught:
+        await cli.ticker("BTCUSD")
+
+    assert caught.value.category == "validation"
+    assert "binary must be 'kraken'" in str(caught.value)
