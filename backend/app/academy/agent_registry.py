@@ -107,7 +107,7 @@ class AgentRegistryService:
                     ident.current_streak = 0
                 ident.accuracy = ident.correct_calls / ident.total_calls if ident.total_calls > 0 else 0.0
                 await self._check_badges(
-                    ident, entry, save_registry=save_registry, write_log=write_log
+                    ident, save_registry=save_registry, write_log=write_log
                 )
             elif entry.event_type == "badge_earned":
                 badge_data = entry.details.get("badge", {})
@@ -126,12 +126,10 @@ class AgentRegistryService:
     async def _check_badges(
         self,
         ident: ScoutIdentity,
-        entry: CareerEntry,
         *,
         save_registry: bool = True,
         write_log: bool = True,
     ) -> None:
-        del entry  # unused; kept for Jules signature parity
         existing = {b.name for b in ident.badges}
         new_badges: list[Badge] = []
         if ident.total_calls >= 10 and "Apprentice" not in existing:
