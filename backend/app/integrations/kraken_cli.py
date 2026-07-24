@@ -33,6 +33,8 @@ class KrakenCli:
     allow_trade_commands: bool = False
 
     async def _run(self, args: list[str]) -> dict[str, Any]:
+        if self.binary != "kraken":
+            raise KrakenCliError("validation", "binary must be 'kraken'")
         if not args:
             raise KrakenCliError("validation", "command is not allowlisted")
         head = args[0]
