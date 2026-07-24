@@ -1,3 +1,4 @@
+import urllib.parse
 from decimal import Decimal
 from functools import lru_cache
 
@@ -328,7 +329,24 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+        origins = []
+        for origin in self.allowed_origins.split(","):
+            origin = origin.strip()
+            if not origin:
+                continue
+            if origin == "*":
+                origins.append(origin)
+                continue
+
+            parsed = urllib.parse.urlparse(origin)
+            if parsed.scheme not in ("http", "https") or not parsed.netloc:
+                raise ValueError(f"Invalid CORS origin: {origin}. Must have http/https scheme and a valid domain/IP.")
+            if parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+                raise ValueError(f"Invalid CORS origin: {origin}. Must not contain path, query, or fragment.")
+
+            origins.append(f"{parsed.scheme}://{parsed.netloc}")
+
+        return origins
 
     @property
     def autonomy(self) -> AutonomyLevel:
