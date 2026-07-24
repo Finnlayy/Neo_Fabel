@@ -46,3 +46,4 @@ backend/data/secrets/*
 backend/data/pine/*
 !backend/data/pine/.gitkeep
 
+backend/data/paper/ledger.json
