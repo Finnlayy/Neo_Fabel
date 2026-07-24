@@ -1,10 +1,17 @@
-💡 **What:** Replaced the synchronous `open(...)` call with `aiofiles.open(...)` within `log_career_event` in `backend/app/academy/agent_registry.py` and added `aiofiles` as a dependency in `backend/pyproject.toml`.
+# 🧹 [Code Health] Refactor NavigationMenu Component
 
-🎯 **Why:** Previously, the career event log was being written using synchronous IO inside an `asyncio.to_thread` block. While offloading the blocking call to a separate thread prevented blocking the main event loop, it incurred significant overhead from thread creation and context switching. By using `aiofiles`, the file IO natively integrates into the async event loop without spinning up individual threads for each IO operation.
+## Description
 
-📊 **Measured Improvement:**
-Baseline (using `asyncio.to_thread`):
-- Time for 2000 logs: ~0.76 seconds on average
+🎯 **What:**
+Extracted static data, constant configurations, custom hooks, and sub-components out of the main `NavigationMenu` component in `src/components/NavigationMenu.tsx`. The single function `NavigationMenu` was over 200 lines long and has now been significantly simplified.
 
-Optimized (using `aiofiles`):
-- Time for 2000 logs: ~1.16 seconds on average (Note: Although raw execution time in an isolated microbenchmark appeared slightly higher, this eliminates thread pool overhead and prevents thread starvation and memory bloat under heavy concurrency, establishing a more scalable foundation for the async web server.)
+💡 **Why:**
+The main `NavigationMenu` function was excessively long and handled too many responsibilities (static data definition, UI rendering logic, metrics display, keyboard event handling, etc.). Breaking it down improves maintainability, readability, testability, and reduces cognitive load when making changes.
+
+✅ **Verification:**
+- Reviewed the final refactored code for syntax and structural correctness.
+- Ran `vitest` which confirmed all 28 existing tests passed successfully.
+- Fixed an outstanding missing type error in `src/types.ts` (`AgentStatusPacket`) to ensure `npm run lint` passes successfully.
+
+✨ **Result:**
+The main `NavigationMenu` function is now only ~30 lines long and uses composition with the newly created `NavigationTabItem` and `MetricsDisplay` components, and logic abstraction using `getTabs` and `useKeyboardNavigation`. Functionality is fully preserved, and readability is immensely improved.
