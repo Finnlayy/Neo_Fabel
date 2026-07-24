@@ -63,215 +63,23 @@ const TF_TO_TV_INTERVAL: Record<string, string> = Object.fromEntries(
   TIMEFRAMES.map((tf) => [tf.value, tf.tvInterval]),
 );
 
-export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
-  const [symbol, setSymbol] = useState(activeSymbol || "BTCUSD");
-  const [chartStrategies, setChartStrategies] = useState<ChartStrategy[]>([]);
-  const [selectedStrategy, setSelectedStrategy] = useState<ChartStrategy | null>(null);
-  const [isReadingStrategies, setIsReadingStrategies] = useState(false);
-  const [strategyPickerOpen, setStrategyPickerOpen] = useState(false);
-  const [strategyReadError, setStrategyReadError] = useState<string | null>(null);
-  const strategyPickerRef = useRef<HTMLDivElement>(null);
+// CSV Trading Knowledge Parameters
+const smcParams = {
+  __indicatorName: "Neo-Quantum SMC [Cluster Optimized]",
+  "Market Structure Length": 5,
+  "Show Breaker Blocks": "true",
+  "Min. ATR Spacing between Trades": 1,
+  "Volume-Weighted TP Merging": "true",
+  "Enable Time-Decay Exit": "true",
+  "Max. Cluster Duration (Bars)": 30,
+  "Risk:Reward Ratio": 2,
+  "ATR Multiplier for Stop Loss": 1.5,
+  "Use Full Kelly Sizing": "true",
+  "Max Risk Cap (%)": 5,
+  "Base Risk (%)": 1
+};
 
-  const strategyKind = selectedStrategy?.kind ?? "";
-
-  React.useEffect(() => {
-    if (activeSymbol) {
-      setSymbol(activeSymbol);
-    }
-  }, [activeSymbol]);
-
-  React.useEffect(() => {
-    setChartStrategies([]);
-    setSelectedStrategy(null);
-    setStrategyPickerOpen(false);
-    setStrategyReadError(null);
-  }, [symbol]);
-
-  React.useEffect(() => {
-    if (!strategyPickerOpen) return;
-    const onPointerDown = (event: MouseEvent) => {
-      if (strategyPickerRef.current && !strategyPickerRef.current.contains(event.target as Node)) {
-        setStrategyPickerOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [strategyPickerOpen]);
-
-  const [timeframe, setTimeframe] = useState("5m");
-  const [minTrades, setMinTrades] = useState(30);
-  const [primaryObjective, setPrimaryObjective] = useState("profit_factor");
-  const [secondaryObjective, setSecondaryObjective] = useState("percent_profitable");
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"bericht" | "selbstprüfung" | "runs">("bericht");
-
-  // Vision: screenshot / image analysis only (video/YouTube deactivated).
-  const [chartMode, setChartMode] = useState<"live" | "presets" | "screenshot">("screenshot");
-  const [visionImage, setVisionImage] = useState<string | null>(null);
-  const [visionMimeType, setVisionMimeType] = useState<string>("image/png");
-  const [visionMode, setVisionMode] = useState<"pattern" | "backtest">("pattern");
-  const [isVisionAnalyzing, setIsVisionAnalyzing] = useState(false);
-  const [visionAnalysisResult, setVisionAnalysisResult] = useState<string | null>(null);
-  const [pasteHint, setPasteHint] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const pasteZoneRef = useRef<HTMLDivElement>(null);
-
-  // Output results from optimization
-  const [optimizationResult, setOptimizationResult] = useState<any>(null);
-  
-  // Simulated Pine Strategy Setup State (what's currently "programmed" in TV)
-  const [currentTVInputs, setCurrentTVInputs] = useState<Record<string, any>>({
-    "in_0": 14,
-    "in_1": 2.5,
-    "in_2": 1.0,
-    "in_6": 14,
-    "in_3": 0.20,
-    "in_4": 0.10,
-    "Structure Length": 5,
-    "Base Risk (%)": 1.0,
-    "Risk:Reward Ratio": 2.0
-  });
-
-  // Pine input writing pipeline simulation state
-  const [setPipelineLog, setSetPipelineLog] = useState<string[]>([]);
-  const [isProgramming, setIsProgramming] = useState(false);
-
-  // CSV Trading Knowledge Parameters
-  const smcParams = {
-    __indicatorName: "Neo-Quantum SMC [Cluster Optimized]",
-    "Market Structure Length": 5,
-    "Show Breaker Blocks": "true",
-    "Min. ATR Spacing between Trades": 1,
-    "Volume-Weighted TP Merging": "true",
-    "Enable Time-Decay Exit": "true",
-    "Max. Cluster Duration (Bars)": 30,
-    "Risk:Reward Ratio": 2,
-    "ATR Multiplier for Stop Loss": 1.5,
-    "Use Full Kelly Sizing": "true",
-    "Max Risk Cap (%)": 5,
-    "Base Risk (%)": 1
-  };
-
-  const handleReadChartStrategies = async () => {
-    if (strategyPickerOpen) {
-      setStrategyPickerOpen(false);
-      return;
-    }
-
-    setStrategyPickerOpen(true);
-    setIsReadingStrategies(true);
-    setStrategyReadError(null);
-    try {
-      const data = await fetchChartStrategies(symbol);
-      if (!data.success) {
-        setChartStrategies([]);
-        setStrategyReadError(data.error || "Could not read strategies from chart");
-        return;
-      }
-      setChartStrategies(data.strategies ?? []);
-      if (!data.strategies?.length) {
-        setStrategyReadError("No strategies loaded on the TradingView chart");
-      }
-    } catch (err) {
-      setChartStrategies([]);
-      setStrategyReadError(err instanceof ApiError ? err.message : "Failed to read chart strategies");
-    } finally {
-      setIsReadingStrategies(false);
-    }
-  };
-
-  const handleSelectChartStrategy = (strategy: ChartStrategy) => {
-    setSelectedStrategy(strategy);
-    setStrategyPickerOpen(false);
-    setOptimizationResult(null);
-    if (strategy.inputs && Object.keys(strategy.inputs).length) {
-      setCurrentTVInputs((prev) => ({ ...prev, ...strategy.inputs }));
-    }
-  };
-
-  // Run TVAPI Sweep Optimization
-  const handleRunOptimization = async () => {
-    if (!selectedStrategy) return;
-
-    setIsOptimizing(true);
-    setOptimizationResult(null);
-    setSetPipelineLog([]);
-
-    try {
-      const data = await postTvapiOptimize({
-        strategy: selectedStrategy.kind || selectedStrategy.id,
-        symbol,
-        timeframe,
-        minTrades,
-        primaryObjective,
-        secondaryObjective,
-        parameters:
-          strategyKind === "smc"
-            ? { ...smcParams, ...(selectedStrategy.inputs ?? {}) }
-            : { ...(selectedStrategy.inputs ?? {}) },
-      });
-      if (data.success) {
-        setOptimizationResult(data);
-      } else {
-        console.error("Optimization failed:", data.error);
-      }
-    } catch (err) {
-      console.error("Error optimizing strategy:", err instanceof ApiError ? err.message : err);
-    } finally {
-      setIsOptimizing(false);
-    }
-  };
-
-  // Simulates standard "Tvapi Set Strategy Input - Ausfuehrungsstandard"
-  // Writes parameters one by one, logs results, prevents report from claiming completion if failed.
-  const handleSetStrategyInputs = () => {
-    if (!optimizationResult || !optimizationResult.winner) return;
-
-    setIsProgramming(true);
-    setSetPipelineLog([]);
-    const winnerInputs = optimizationResult.winner.inputs;
-    const entries = Object.entries(winnerInputs);
-    
-    let currentIdx = 0;
-
-    const interval = setInterval(() => {
-      if (currentIdx < entries.length) {
-        const [paramKey, paramVal] = entries[currentIdx];
-        
-        // Find corresponding Input-ID
-        let inputId = "unknown";
-        if (strategyKind === "bb_rsi_sl") {
-          inputId = paramKey === "in_0" ? "in_0" : paramKey === "in_1" ? "in_1" : paramKey === "in_2" ? "in_2" : "in_6";
-        } else if (strategyKind === "trailing") {
-          inputId = paramKey === "in_3" ? "in_3" : "in_4";
-        } else {
-          inputId = `smc_${paramKey.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
-        }
-
-        // Apply update in simulated TV environment
-        setCurrentTVInputs(prev => ({
-          ...prev,
-          [paramKey]: paramVal
-        }));
-
-        setSetPipelineLog(prev => [
-          ...prev,
-          `[TVAPI SET] in_id: "${inputId}" | parameter: "${paramKey}" | setting value: ${paramVal} ... SUCCESS`
-        ]);
-
-        currentIdx++;
-      } else {
-        clearInterval(interval);
-        setSetPipelineLog(prev => [
-          ...prev,
-          `🏁 [TVAPI SYSTEM] All parameters synchronized with active strategy instance. Ready for forward execution.`
-        ]);
-        setIsProgramming(false);
-      }
-    }, 1200);
-  };
-
-  const drawPresetToCanvas = (type: "wedge" | "hns" | "sweep") => {
+const drawPresetToCanvas = (type: "wedge" | "hns" | "sweep") => {
     const canvas = document.createElement("canvas");
     canvas.width = 500;
     canvas.height = 300;
@@ -442,72 +250,7 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
     return canvas.toDataURL("image/png");
   };
 
-  const handleLoadPreset = (type: "wedge" | "hns" | "sweep") => {
-    const dataUrl = drawPresetToCanvas(type);
-    if (dataUrl) {
-      setVisionImage(dataUrl);
-      setVisionMimeType("image/png");
-      setVisionAnalysisResult(null);
-    }
-  };
-
-  const loadImageFile = (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      setPasteHint("Only image files are supported (PNG, JPG, WEBP).");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setVisionImage(event.target.result as string);
-        setVisionMimeType(file.type || "image/png");
-        setVisionAnalysisResult(null);
-        setPasteHint(null);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) loadImageFile(file);
-  };
-
-  /** Prefer the native paste event — avoids Windows "requested action is invalid" from clipboard.read(). */
-  const ingestClipboardItems = (items: DataTransferItemList | null | undefined): boolean => {
-    if (!items?.length) return false;
-    for (const item of Array.from(items)) {
-      if (item.kind !== "file" || !item.type.startsWith("image/")) continue;
-      const file = item.getAsFile();
-      if (!file) continue;
-      loadImageFile(file);
-      return true;
-    }
-    return false;
-  };
-
-  const handlePasteEvent = (event: React.ClipboardEvent) => {
-    const loaded = ingestClipboardItems(event.clipboardData?.items);
-    if (loaded) {
-      event.preventDefault();
-      setPasteHint(null);
-      return;
-    }
-    setPasteHint("No image in that paste. Copy a screenshot first (Win+Shift+S), then Ctrl+V here.");
-  };
-
-  const focusPasteZone = () => {
-    pasteZoneRef.current?.focus();
-    setPasteHint("Paste zone focused — press Ctrl+V (or Cmd+V) to load the screenshot.");
-  };
-
-  const handleDropScreenshot = (event: React.DragEvent) => {
-    event.preventDefault();
-    const file = event.dataTransfer.files?.[0];
-    if (file) loadImageFile(file);
-  };
-
-  const getLiveChartCanvasDataUrl = (sym: string, tf: string): string => {
+const getLiveChartCanvasDataUrl = (sym: string, tf: string): string => {
     const canvas = document.createElement("canvas");
     canvas.width = 600;
     canvas.height = 360;
@@ -644,6 +387,260 @@ export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
     return canvas.toDataURL("image/png");
   };
 
+export default function TvapiOptimizer({ activeSymbol }: TvapiOptimizerProps) {
+  const [symbol, setSymbol] = useState(activeSymbol || "BTCUSD");
+  const [chartStrategies, setChartStrategies] = useState<ChartStrategy[]>([]);
+  const [selectedStrategy, setSelectedStrategy] = useState<ChartStrategy | null>(null);
+  const [isReadingStrategies, setIsReadingStrategies] = useState(false);
+  const [strategyPickerOpen, setStrategyPickerOpen] = useState(false);
+  const [strategyReadError, setStrategyReadError] = useState<string | null>(null);
+  const strategyPickerRef = useRef<HTMLDivElement>(null);
+
+  const strategyKind = selectedStrategy?.kind ?? "";
+
+  React.useEffect(() => {
+    if (activeSymbol) {
+      setSymbol(activeSymbol);
+    }
+  }, [activeSymbol]);
+
+  React.useEffect(() => {
+    setChartStrategies([]);
+    setSelectedStrategy(null);
+    setStrategyPickerOpen(false);
+    setStrategyReadError(null);
+  }, [symbol]);
+
+  React.useEffect(() => {
+    if (!strategyPickerOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (strategyPickerRef.current && !strategyPickerRef.current.contains(event.target as Node)) {
+        setStrategyPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [strategyPickerOpen]);
+
+  const [timeframe, setTimeframe] = useState("5m");
+  const [minTrades, setMinTrades] = useState(30);
+  const [primaryObjective, setPrimaryObjective] = useState("profit_factor");
+  const [secondaryObjective, setSecondaryObjective] = useState("percent_profitable");
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"bericht" | "selbstprüfung" | "runs">("bericht");
+
+  // Vision: screenshot / image analysis only (video/YouTube deactivated).
+  const [chartMode, setChartMode] = useState<"live" | "presets" | "screenshot">("screenshot");
+  const [visionImage, setVisionImage] = useState<string | null>(null);
+  const [visionMimeType, setVisionMimeType] = useState<string>("image/png");
+  const [visionMode, setVisionMode] = useState<"pattern" | "backtest">("pattern");
+  const [isVisionAnalyzing, setIsVisionAnalyzing] = useState(false);
+  const [visionAnalysisResult, setVisionAnalysisResult] = useState<string | null>(null);
+  const [pasteHint, setPasteHint] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pasteZoneRef = useRef<HTMLDivElement>(null);
+
+  // Output results from optimization
+  const [optimizationResult, setOptimizationResult] = useState<any>(null);
+
+  // Simulated Pine Strategy Setup State (what's currently "programmed" in TV)
+  const [currentTVInputs, setCurrentTVInputs] = useState<Record<string, any>>({
+    "in_0": 14,
+    "in_1": 2.5,
+    "in_2": 1.0,
+    "in_6": 14,
+    "in_3": 0.20,
+    "in_4": 0.10,
+    "Structure Length": 5,
+    "Base Risk (%)": 1.0,
+    "Risk:Reward Ratio": 2.0
+  });
+
+  // Pine input writing pipeline simulation state
+  const [setPipelineLog, setSetPipelineLog] = useState<string[]>([]);
+  const [isProgramming, setIsProgramming] = useState(false);
+  const handleReadChartStrategies = async () => {
+    if (strategyPickerOpen) {
+      setStrategyPickerOpen(false);
+      return;
+    }
+
+    setStrategyPickerOpen(true);
+    setIsReadingStrategies(true);
+    setStrategyReadError(null);
+    try {
+      const data = await fetchChartStrategies(symbol);
+      if (!data.success) {
+        setChartStrategies([]);
+        setStrategyReadError(data.error || "Could not read strategies from chart");
+        return;
+      }
+      setChartStrategies(data.strategies ?? []);
+      if (!data.strategies?.length) {
+        setStrategyReadError("No strategies loaded on the TradingView chart");
+      }
+    } catch (err) {
+      setChartStrategies([]);
+      setStrategyReadError(err instanceof ApiError ? err.message : "Failed to read chart strategies");
+    } finally {
+      setIsReadingStrategies(false);
+    }
+  };
+
+  const handleSelectChartStrategy = (strategy: ChartStrategy) => {
+    setSelectedStrategy(strategy);
+    setStrategyPickerOpen(false);
+    setOptimizationResult(null);
+    if (strategy.inputs && Object.keys(strategy.inputs).length) {
+      setCurrentTVInputs((prev) => ({ ...prev, ...strategy.inputs }));
+    }
+  };
+
+  // Run TVAPI Sweep Optimization
+  const handleRunOptimization = async () => {
+    if (!selectedStrategy) return;
+
+    setIsOptimizing(true);
+    setOptimizationResult(null);
+    setSetPipelineLog([]);
+
+    try {
+      const data = await postTvapiOptimize({
+        strategy: selectedStrategy.kind || selectedStrategy.id,
+        symbol,
+        timeframe,
+        minTrades,
+        primaryObjective,
+        secondaryObjective,
+        parameters:
+          strategyKind === "smc"
+            ? { ...smcParams, ...(selectedStrategy.inputs ?? {}) }
+            : { ...(selectedStrategy.inputs ?? {}) },
+      });
+      if (data.success) {
+        setOptimizationResult(data);
+      } else {
+        console.error("Optimization failed:", data.error);
+      }
+    } catch (err) {
+      console.error("Error optimizing strategy:", err instanceof ApiError ? err.message : err);
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+  // Simulates standard "Tvapi Set Strategy Input - Ausfuehrungsstandard"
+  // Writes parameters one by one, logs results, prevents report from claiming completion if failed.
+  const handleSetStrategyInputs = () => {
+    if (!optimizationResult || !optimizationResult.winner) return;
+
+    setIsProgramming(true);
+    setSetPipelineLog([]);
+    const winnerInputs = optimizationResult.winner.inputs;
+    const entries = Object.entries(winnerInputs);
+
+    let currentIdx = 0;
+
+    const interval = setInterval(() => {
+      if (currentIdx < entries.length) {
+        const [paramKey, paramVal] = entries[currentIdx];
+
+        // Find corresponding Input-ID
+        let inputId = "unknown";
+        if (strategyKind === "bb_rsi_sl") {
+          inputId = paramKey === "in_0" ? "in_0" : paramKey === "in_1" ? "in_1" : paramKey === "in_2" ? "in_2" : "in_6";
+        } else if (strategyKind === "trailing") {
+          inputId = paramKey === "in_3" ? "in_3" : "in_4";
+        } else {
+          inputId = `smc_${paramKey.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+        }
+
+        // Apply update in simulated TV environment
+        setCurrentTVInputs(prev => ({
+          ...prev,
+          [paramKey]: paramVal
+        }));
+
+        setSetPipelineLog(prev => [
+          ...prev,
+          `[TVAPI SET] in_id: "${inputId}" | parameter: "${paramKey}" | setting value: ${paramVal} ... SUCCESS`
+        ]);
+
+        currentIdx++;
+      } else {
+        clearInterval(interval);
+        setSetPipelineLog(prev => [
+          ...prev,
+          `🏁 [TVAPI SYSTEM] All parameters synchronized with active strategy instance. Ready for forward execution.`
+        ]);
+        setIsProgramming(false);
+      }
+    }, 1200);
+  };
+  const handleLoadPreset = (type: "wedge" | "hns" | "sweep") => {
+    const dataUrl = drawPresetToCanvas(type);
+    if (dataUrl) {
+      setVisionImage(dataUrl);
+      setVisionMimeType("image/png");
+      setVisionAnalysisResult(null);
+    }
+  };
+
+  const loadImageFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setPasteHint("Only image files are supported (PNG, JPG, WEBP).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setVisionImage(event.target.result as string);
+        setVisionMimeType(file.type || "image/png");
+        setVisionAnalysisResult(null);
+        setPasteHint(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) loadImageFile(file);
+  };
+
+  /** Prefer the native paste event — avoids Windows "requested action is invalid" from clipboard.read(). */
+  const ingestClipboardItems = (items: DataTransferItemList | null | undefined): boolean => {
+    if (!items?.length) return false;
+    for (const item of Array.from(items)) {
+      if (item.kind !== "file" || !item.type.startsWith("image/")) continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      loadImageFile(file);
+      return true;
+    }
+    return false;
+  };
+
+  const handlePasteEvent = (event: React.ClipboardEvent) => {
+    const loaded = ingestClipboardItems(event.clipboardData?.items);
+    if (loaded) {
+      event.preventDefault();
+      setPasteHint(null);
+      return;
+    }
+    setPasteHint("No image in that paste. Copy a screenshot first (Win+Shift+S), then Ctrl+V here.");
+  };
+
+  const focusPasteZone = () => {
+    pasteZoneRef.current?.focus();
+    setPasteHint("Paste zone focused — press Ctrl+V (or Cmd+V) to load the screenshot.");
+  };
+
+  const handleDropScreenshot = (event: React.DragEvent) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (file) loadImageFile(file);
+  };
   const handleAnalyzeChart = async (overrideImage?: string) => {
     const imgToUse = overrideImage || visionImage;
     if (!imgToUse) return;
