@@ -188,7 +188,7 @@ def cisd_flags(candles: Sequence[Candle], lr: int) -> Tuple[List[bool], List[boo
 
 def build_frame(symbol: str, tf: str, candles: List[Candle], quote_vol: float, cisd_lens: List[int]) -> Dict[str, object]:
     bull, bear = trend_flags(candles)
-    closes = [c.c for c in candles]
+    [c.c for c in candles]
     vols = [c.v for c in candles]
     vol_ma = sma(vols, 20)
     atr14 = atr(candles)
@@ -263,8 +263,8 @@ def dataset_stats(rows: Dict[str, object], g: Genome, fee_r: float, max_hold: in
         fvg_bull = rows["fvg_bull"]  # type: ignore[assignment]
         fvg_bear = rows["fvg_bear"]  # type: ignore[assignment]
         daily_move = rows["daily_move"]  # type: ignore[assignment]
-        cisd_bull = rows["cisd_bull"]  # type: ignore[assignment]
-        cisd_bear = rows["cisd_bear"]  # type: ignore[assignment]
+        rows["cisd_bull"]  # type: ignore[assignment]
+        rows["cisd_bear"]  # type: ignore[assignment]
 
         pos = 0
         entry = sl = tp = 0.0
