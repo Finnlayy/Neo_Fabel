@@ -56,3 +56,10 @@ export interface GenerativePlan {
   resourceAllocation: { name: string; value: number }[];
   suggestedRules: string[];
 }
+
+export interface AgentStatusPacket {
+  id: string;
+  status: string;
+  message?: string;
+  data?: any;
+}
