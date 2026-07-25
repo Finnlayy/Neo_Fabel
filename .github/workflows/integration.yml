@@ -1,0 +1,25 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - run: docker compose -f docker-compose.yml build api web
+      - run: |
+          docker compose -f docker-compose.yml up -d postgres qdrant
+          sleep 10
+          docker compose -f docker-compose.yml run --rm api alembic -c backend/alembic.ini upgrade head
+          docker compose -f docker-compose.yml up -d api
+          sleep 5
+          curl -f http://localhost:8000/health || (docker compose logs api && exit 1)
+      - run: docker compose -f docker-compose.yml logs
+        if: failure()
+      - run: docker compose -f docker-compose.yml down -v
