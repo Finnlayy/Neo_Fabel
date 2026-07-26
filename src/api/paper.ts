@@ -216,9 +216,15 @@ export function mapPaperStatusToTrades(data: unknown): Trade[] {
   }
 
   const trades: Trade[] = [];
+  const seenIds = new Set<string>();
+
   candidates.forEach((item, index) => {
     if (!item || typeof item !== "object") return;
     const row = item as Record<string, unknown>;
+    const id = String(row.txid ?? row.id ?? row.order_id ?? `PAPER-${index}`);
+    if (seenIds.has(id)) return;
+    seenIds.add(id);
+
     const pair = String(row.pair ?? row.symbol ?? row.descr ?? "UNKNOWN");
     const asset = pair.replace(/USD$|\/USD$/i, "").replace(/^PF_/, "").replace(/XBT/, "BTC").replace(/[^A-Z0-9]/gi, "") || "UNK";
     const sideRaw = String(row.side ?? row.type ?? row.ordertype ?? "buy").toLowerCase();
@@ -233,7 +239,6 @@ export function mapPaperStatusToTrades(data: unknown): Trade[] {
         : statusRaw.includes("CANCEL") || statusRaw.includes("HALT")
           ? "HALTED"
           : "PENDING";
-    const id = String(row.txid ?? row.id ?? row.order_id ?? `PAPER-${index}`);
     const time = String(row.time ?? row.opentm ?? row.closetm ?? new Date().toLocaleTimeString());
     trades.push({id, time, asset, type, price, amount, positionCost: price * amount, pnl, status});
   });

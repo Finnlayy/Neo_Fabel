@@ -276,8 +276,8 @@ export default function PaperPerformancePage({ language = "en" }: Props) {
             </tr>
           </thead>
           <tbody>
-            {(activeBook?.fills ?? perf?.fills ?? []).slice(0, 50).map((f) => (
-              <tr key={f.txid} className="border-b border-white/5">
+            {(activeBook?.fills ?? perf?.fills ?? []).slice(0, 50).map((f, idx) => (
+              <tr key={`${f.txid || "fill"}-${idx}`} className="border-b border-white/5">
                 <td className="py-1 whitespace-nowrap">{f.time?.slice(11, 19) ?? "—"}</td>
                 <td className="py-1">
                   {f.pair}

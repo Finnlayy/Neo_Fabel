@@ -99,11 +99,11 @@ export default function ExecutedTradesSection({ trades, chartData }: ExecutedTra
                 <span className="text-right">P&L</span>
               </div>
               <div className="divide-y divide-white/5">
-                {trades.slice().reverse().map((trade) => {
+                {trades.slice().reverse().map((trade, idx) => {
                   const isBuy = trade.type === "BUY";
                   return (
                     <div
-                      key={trade.id}
+                      key={`${trade.id}-${idx}`}
                       className="grid grid-cols-5 items-center p-2.5 text-[10px] hover:bg-white/5 transition-colors"
                     >
                       <span className="text-slate-500">{trade.time}</span>

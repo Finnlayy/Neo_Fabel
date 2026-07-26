@@ -68,4 +68,14 @@ describe("mapPaperStatusToTrades", () => {
     expect(trades[0].status).toBe("COMPLETED");
     expect(trades[0].pnl).toBe(12);
   });
+
+  it("deduplicates records with the same order/txid across orders, closed_orders, and fills", () => {
+    const trades = mapPaperStatusToTrades({
+      orders: [{ txid: "LOCAL-B29350515DC2", pair: "ADAUSD", side: "buy", volume: 5, price: 0.6 }],
+      closed_orders: [{ txid: "LOCAL-B29350515DC2", pair: "ADAUSD", side: "buy", volume: 5, price: 0.6 }],
+      fills: [{ txid: "LOCAL-B29350515DC2", pair: "ADAUSD", side: "buy", volume: 5, price: 0.6 }],
+    });
+    expect(trades).toHaveLength(1);
+    expect(trades[0].id).toBe("LOCAL-B29350515DC2");
+  });
 });

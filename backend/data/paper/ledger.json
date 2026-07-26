@@ -2,7 +2,7 @@
   "version": 2,
   "spot": {
     "starting_balance_usd": "10000",
-    "usd_balance": "10003.666159886909635510000",
+    "usd_balance": "9995.308302398554054510000",
     "lots": {
       "SOLUSD": [
         {
@@ -625,6 +625,66 @@
         "closetm": "2026-07-24T17:10:28.897483+00:00",
         "source": "local-paper-ledger",
         "pnl": "-34.83519603549036449000000000"
+      },
+      {
+        "txid": "LOCAL-BCA5410D2F87",
+        "id": "LOCAL-BCA5410D2F87",
+        "market_type": "spot",
+        "pair": "MATICUSD",
+        "side": "buy",
+        "type": "buy",
+        "ordertype": "market",
+        "vol": "24823.59882490",
+        "volume": "24823.59882490",
+        "price": "0.076820000",
+        "fee": "0.953474430864409000000",
+        "fee_rate": "0.0005",
+        "leverage": 1,
+        "realized_pnl": "0",
+        "status": "closed",
+        "state": "CLOSED",
+        "time": "2026-07-25T23:22:27.799520+00:00",
+        "opentm": "2026-07-25T23:22:27.799520+00:00",
+        "closetm": "2026-07-25T23:22:27.799520+00:00",
+        "source": "local-paper-ledger",
+        "pnl": "0",
+        "requested_volume": "50",
+        "position_sizing": {
+          "mode": "half_kelly",
+          "source": "half_kelly",
+          "win_prob": 0.55,
+          "payoff_ratio": 2.666666666666667,
+          "kelly_scale": 0.5,
+          "fraction": 0.19062500000000004,
+          "notional_eur": 1906.9488617284428,
+          "capital_eur": 10003.66615988691,
+          "max_margin_eur": 10003.66615988691,
+          "volume": "24823.59882490",
+          "bankroll_usd": "10003.666159886909635510000"
+        }
+      },
+      {
+        "txid": "LOCAL-D8DD78229F6C",
+        "id": "LOCAL-D8DD78229F6C",
+        "market_type": "spot",
+        "pair": "MATICUSD",
+        "side": "sell",
+        "type": "sell",
+        "ordertype": "market",
+        "vol": "24823.59882490",
+        "volume": "24823.59882490",
+        "price": "0.076560000",
+        "fee": "0.950247363017172000000",
+        "fee_rate": "0.0005",
+        "leverage": 1,
+        "realized_pnl": "-8.357857488355581000000",
+        "status": "closed",
+        "state": "CLOSED",
+        "time": "2026-07-26T06:29:39.138492+00:00",
+        "opentm": "2026-07-26T06:29:39.138492+00:00",
+        "closetm": "2026-07-26T06:29:39.138492+00:00",
+        "source": "local-paper-ledger",
+        "pnl": "-8.357857488355581000000"
       }
     ]
   },
