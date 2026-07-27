@@ -1,6 +1,6 @@
 import {apiRequest} from "./client";
 import {tradesForAnalyzeWire} from "./chatWire";
-import type {AgentStatusPacket, GenerativePlan, Trade} from "../types";
+import type {GenerativePlan, Trade} from "../types";
 
 export type AiHealth = {
   configured: boolean;
@@ -43,14 +43,14 @@ export async function postChat(body: {
   modelSelection: "auto" | "pro-preview" | "flash" | "flash-lite";
   enableSearch: boolean;
   mode?: "assistant" | "orchestrator";
-  agentStatusPackets?: AgentStatusPacket[];
+  agentStatusPackets?: any[];
 }): Promise<ChatResponse> {
   return apiRequest<ChatResponse>("/api/chat", {method: "POST", body: JSON.stringify(body)});
 }
 
 export async function postOrchestrate(
   prompt: string,
-  agentStatusPackets: AgentStatusPacket[] = [],
+  agentStatusPackets: any[] = [],
 ): Promise<GenerativePlan> {
   return apiRequest<GenerativePlan>("/api/gemini/orchestrate", {
     method: "POST",
