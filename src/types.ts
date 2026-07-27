@@ -60,4 +60,6 @@ export interface GenerativePlan {
 export interface AgentStatusPacket {
   id: string;
   status: string;
+  message?: string;
+  data?: any;
 }
