@@ -174,3 +174,55 @@ def test_route_policy_rejects_pair():
     result = check_route_policy(candidate, route)
     assert result.ok is False
     assert result.reason_code == "pair_not_allowed"
+
+def test_build_candidate_success():
+    candidate = build_candidate(
+        schema_version=1,
+        signal_id="sig_test_1",
+        occurred_at="2026-07-18T12:00:00Z",
+        strategy_id="strat_1",
+        pair="BTCUSD",
+        side="buy",
+        volume=Decimal("1.5"),
+        order_type="market",
+        price=None,
+        order_id=None,
+        raw_symbol=None,
+        observed_price=Decimal("50000.0"),
+        source="mcp",
+    )
+    assert candidate.schema_version == 1
+    assert candidate.signal_id == "sig_test_1"
+    assert candidate.occurred_at == "2026-07-18T12:00:00Z"
+    assert candidate.strategy_id == "strat_1"
+    assert candidate.pair == "BTCUSD"
+    assert candidate.side == "buy"
+    assert candidate.volume == Decimal("1.5")
+    assert candidate.order_type == "market"
+    assert candidate.price is None
+    assert candidate.order_id is None
+    assert candidate.raw_symbol is None
+    assert candidate.observed_price == Decimal("50000.0")
+    assert candidate.source == "mcp"
+    assert isinstance(candidate.canonical_hash, str)
+    assert len(candidate.canonical_hash) == 64
+
+def test_build_candidate_hash_matches_standalone():
+    kwargs = dict(
+        schema_version=2,
+        signal_id="sig_test_2",
+        occurred_at="2027-01-01T00:00:00Z",
+        strategy_id="strat_2",
+        pair="ETHUSD",
+        side="sell",
+        volume=Decimal("10.0"),
+        order_type="limit",
+        price=Decimal("2000.0"),
+        order_id="ord_1",
+        raw_symbol="ETH/USD",
+        observed_price=Decimal("2005.0"),
+        source="tradingview",
+    )
+    candidate = build_candidate(**kwargs)
+    standalone_hash = canonical_hash_for(**kwargs)
+    assert candidate.canonical_hash == standalone_hash
