@@ -85,6 +85,59 @@ async def require_user(request: Request) -> dict[str, Any]:
     )
 
 
+async def _fetch_firebase_user(
+    firebase_auth: Any, token: str, check_revoked: bool, firebase_app: Any
+) -> dict[str, Any]:
+    return await run_in_threadpool(
+        firebase_auth.verify_id_token,
+        token,
+        check_revoked=check_revoked,
+        app=firebase_app,
+    )
+
+
+def _validate_firebase_user_claims(user: dict[str, Any]) -> None:
+    uid = str(user.get("uid", "")).strip()
+    if not uid:
+        raise ValueError("verified Firebase token is missing uid")
+    raw_claims: Any = user.get("firebase")
+    firebase_claims: dict[str, Any] = raw_claims if isinstance(raw_claims, dict) else {}
+    if firebase_claims.get("sign_in_provider") != "google.com" or user.get("email_verified") is not True:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "google_sign_in_required",
+                "message": "A verified Google Firebase account is required",
+            },
+        )
+
+
+def _map_firebase_verification_error(exc: Exception, firebase_auth: Any) -> Exception:
+    invalid_names = (
+        "InvalidIdTokenError",
+        "ExpiredIdTokenError",
+        "RevokedIdTokenError",
+        "UserDisabledError",
+        "UserNotFoundError",
+        "CertificateFetchError",
+    )
+    invalid_types = tuple(
+        error_type
+        for name in invalid_names
+        if isinstance((error_type := getattr(firebase_auth, name, None)), type)
+    )
+    if isinstance(exc, (ValueError, *invalid_types)):
+        return HTTPException(
+            status_code=401,
+            detail={"code": "auth_invalid", "message": "Invalid Firebase ID token"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return HTTPException(
+        status_code=503,
+        detail={"code": "auth_unavailable", "message": f"Firebase token verification is unavailable: {exc}"},
+    )
+
+
 async def _verify_firebase_token(token: str) -> dict[str, Any]:
     firebase_auth = None
     try:
@@ -97,51 +150,15 @@ async def _verify_firebase_token(token: str) -> dict[str, Any]:
         firebase_auth, firebase_app = firebase_context
         settings = get_settings()
         check_revoked = bool(settings.firebase_credentials_path)
-        user = await run_in_threadpool(
-            firebase_auth.verify_id_token,
-            token,
-            check_revoked=check_revoked,
-            app=firebase_app,
-        )
-        uid = str(user.get("uid", "")).strip()
-        if not uid:
-            raise ValueError("verified Firebase token is missing uid")
-        firebase_claims = user.get("firebase") if isinstance(user.get("firebase"), dict) else {}
-        if firebase_claims.get("sign_in_provider") != "google.com" or user.get("email_verified") is not True:
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "code": "google_sign_in_required",
-                    "message": "A verified Google Firebase account is required",
-                },
-            )
+
+        user = await _fetch_firebase_user(firebase_auth, token, check_revoked, firebase_app)
+        _validate_firebase_user_claims(user)
+
         return user
     except HTTPException:
         raise
     except Exception as exc:
-        invalid_names = (
-            "InvalidIdTokenError",
-            "ExpiredIdTokenError",
-            "RevokedIdTokenError",
-            "UserDisabledError",
-            "UserNotFoundError",
-            "CertificateFetchError",
-        )
-        invalid_types = tuple(
-            error_type
-            for name in invalid_names
-            if isinstance((error_type := getattr(firebase_auth, name, None)), type)
-        )
-        if isinstance(exc, (ValueError, *invalid_types)):
-            raise HTTPException(
-                status_code=401,
-                detail={"code": "auth_invalid", "message": "Invalid Firebase ID token"},
-                headers={"WWW-Authenticate": "Bearer"},
-            ) from exc
-        raise HTTPException(
-            status_code=503,
-            detail={"code": "auth_unavailable", "message": f"Firebase token verification is unavailable: {exc}"},
-        ) from exc
+        raise _map_firebase_verification_error(exc, firebase_auth) from exc
 
 
 def _has_signal_admin_claim(user: dict[str, Any]) -> bool:
