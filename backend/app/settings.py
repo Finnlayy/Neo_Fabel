@@ -49,8 +49,8 @@ class Settings(BaseSettings):
     # Local-only: allow loopback API calls without Firebase when credentials are missing.
     # Forced off outside development. Never enable in production.
     auth_dev_bypass: bool = Field(default=True, validation_alias="AUTH_DEV_BYPASS")
-    # Paper ledger without Kraken CLI (required on native Windows — CLI is Linux/macOS/WSL).
-    paper_local_ledger: bool = Field(default=True, validation_alias="PAPER_LOCAL_LEDGER")
+    # Paper ledger without Kraken CLI (False = direct to Kraken CLI).
+    paper_local_ledger: bool = Field(default=False, validation_alias="PAPER_LOCAL_LEDGER")
     paper_max_open_positions: int = Field(
         default=20,
         ge=1,
@@ -71,6 +71,15 @@ class Settings(BaseSettings):
     paper_taker_fee_rate: Decimal = Field(default=Decimal("0.0005"), validation_alias="PAPER_TAKER_FEE_RATE")
     paper_kelly_sizing_enabled: bool = Field(default=True, validation_alias="PAPER_KELLY_SIZING_ENABLED")
     paper_kelly_mode: str = Field(default="half_kelly", validation_alias="PAPER_KELLY_MODE")
+    # Dynamic paper-trade position sizing — risk-managed per-trade notional.
+    # PAPER_SIZING_MODE: dynamic_kelly | half_kelly | full_kelly | ai_chronos | fixed_usd | manual
+    paper_sizing_mode: str = Field(default="dynamic_kelly", validation_alias="PAPER_SIZING_MODE")
+    # Max notional as a fraction of paper capital (1.5 % default = 0.015).
+    # Replaces fixed PAPER_MAX_NOTIONAL_USD — cap now scales with account size.
+    paper_max_notional_pct: float = Field(default=0.015, ge=0.001, le=0.25, validation_alias="PAPER_MAX_NOTIONAL_PCT")
+    # Kelly risk fraction band per paper trade.
+    paper_max_risk_fraction: float = Field(default=0.05, ge=0.005, le=0.25, validation_alias="PAPER_MAX_RISK_FRACTION")
+    paper_min_risk_fraction: float = Field(default=0.015, ge=0.001, le=0.10, validation_alias="PAPER_MIN_RISK_FRACTION")
     alphavantage_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("ALPHAVANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY"),
@@ -374,6 +383,29 @@ class Settings(BaseSettings):
             max_trades_per_hour=self.kraken_max_trades_per_hour,
             min_trade_interval_seconds=self.kraken_min_trade_interval_seconds,
             pair_allowlist=pairs or frozenset({"ADAUSD"}),
+        )
+
+    def paper_sizing_context(self, capital_usd: float | None = None):
+        """Build a PaperSizingContext from env settings.
+
+        The max notional ceiling is computed as ``paper_max_notional_pct * capital``
+        (default 1.5 %), so the cap scales automatically with the simulated balance.
+
+        Args:
+            capital_usd: Override simulated balance. Defaults to PAPER_STARTING_BALANCE_USD.
+        """
+        from .trading.position_sizing import PaperSizingContext, parse_sizing_mode
+
+        mode = parse_sizing_mode(self.paper_sizing_mode)
+        balance = float(capital_usd if capital_usd is not None else self.paper_starting_balance_usd)
+        # Dynamic ceiling: 1.5 % of balance = $150 on $10k, $75 on $5k, etc.
+        max_notional_usd = balance * self.paper_max_notional_pct
+        return PaperSizingContext(
+            capital_usd=balance,
+            mode=mode,
+            max_notional_usd=max_notional_usd,
+            min_risk_fraction=self.paper_min_risk_fraction,
+            max_risk_fraction=self.paper_max_risk_fraction,
         )
 
 

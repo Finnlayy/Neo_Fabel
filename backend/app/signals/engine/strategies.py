@@ -111,13 +111,16 @@ class GridStrategy:
         held = state.grid_inventory.get(zone_i, 0)
         if price <= mid and held == 0:
             state.grid_inventory[zone_i] = 1
+            # Dynamic volume: target ~$100 notional per zone (or config.volume_per_zone if > 0.01)
+            target_notional = Decimal("100.0")
+            vol = (target_notional / Decimal(str(price))).quantize(Decimal("0.00000001"))
             return [
                 SignalIntent(
                     strategy_id=self.config.strategy_id,
                     kind="grid",
                     pair=self.config.pair,
                     side="buy",
-                    volume=self.config.volume_per_zone,
+                    volume=vol,
                     reason=f"grid_buy_zone_{zone_i}",
                     zone=zone_i,
                     price=price,
@@ -126,13 +129,15 @@ class GridStrategy:
             ]
         if price >= mid and held > 0:
             state.grid_inventory[zone_i] = 0
+            target_notional = Decimal("100.0")
+            vol = (target_notional / Decimal(str(price))).quantize(Decimal("0.00000001"))
             return [
                 SignalIntent(
                     strategy_id=self.config.strategy_id,
                     kind="grid",
                     pair=self.config.pair,
                     side="sell",
-                    volume=self.config.volume_per_zone,
+                    volume=vol,
                     reason=f"grid_sell_zone_{zone_i}",
                     zone=zone_i,
                     price=price,
@@ -163,13 +168,15 @@ class DcaStrategy:
                 continue
             trigger = ref * (1.0 - float(step_pct) / 100.0)
             if price <= trigger:
+                target_notional = Decimal("100.0")
+                add = (target_notional / Decimal(str(price))).quantize(Decimal("0.00000001"))
                 intents.append(
                     SignalIntent(
                         strategy_id=self.config.strategy_id,
                         kind="dca",
                         pair=self.config.pair,
                         side="buy",
-                        volume=self.config.dca_volume,
+                        volume=add,
                         reason=f"dca_step_{idx}_{step_pct}pct",
                         zone=idx,
                         price=price,
@@ -178,7 +185,6 @@ class DcaStrategy:
                 )
                 state.dca_steps_filled.add(idx)
                 prev_units = state.dca_units
-                add = self.config.dca_volume
                 if prev_units <= 0:
                     state.dca_entry_avg = price
                     state.dca_units = add

@@ -276,3 +276,90 @@ def volume_from_notional(*, notional_eur: float, price: Decimal | float) -> Deci
     if px <= 0:
         raise ValueError("price must be > 0")
     return (Decimal(str(notional_eur)) / px).quantize(Decimal("0.00000001"))
+
+
+# ---------------------------------------------------------------------------
+# Paper-trade dynamic sizing
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PaperSizingContext:
+    """Runtime context for dynamic paper-trade position sizing.
+
+    Attributes:
+        capital_usd:        Current simulated paper balance (USD).
+        mode:               Sizing mode — same options as live trades.
+        max_notional_usd:   Hard ceiling per paper trade. Computed as
+                            ``capital * PAPER_MAX_NOTIONAL_PCT`` by
+                            ``Settings.paper_sizing_context()`` so the cap
+                            scales automatically with account size.
+        min_risk_fraction:  Minimum fraction of capital risked per trade.
+        max_risk_fraction:  Maximum fraction of capital risked per trade.
+        win_rate:           Historical / prior win probability for Kelly.
+        avg_win:            Average win magnitude (fraction).
+        avg_loss:           Average loss magnitude (fraction).
+        max_fraction:       Hard cap on Kelly fraction (default 25 %).
+    """
+
+    capital_usd: float
+    mode: PositionSizingMode = "dynamic_kelly"
+    max_notional_usd: float = 150.0   # default = 1.5 % of $10 000
+    min_risk_fraction: float = 0.015
+    max_risk_fraction: float = 0.05
+    win_rate: float = 0.55
+    avg_win: float = 0.08
+    avg_loss: float = 0.03
+    max_fraction: float = 0.25
+
+    def to_policy(self) -> PositionSizingPolicy:
+        """Convert to a PositionSizingPolicy for use with compute_notional_eur."""
+        return PositionSizingPolicy(
+            mode=self.mode,
+            win_rate=self.win_rate,
+            avg_win=self.avg_win,
+            avg_loss=self.avg_loss,
+            max_fraction=self.max_fraction,
+            min_risk_fraction=self.min_risk_fraction,
+            max_risk_fraction=self.max_risk_fraction,
+            min_notional_eur=0.5,  # dust threshold — lower for paper research
+        )
+
+
+def compute_paper_notional(
+    ctx: PaperSizingContext,
+    *,
+    confidence: float | None = None,
+    stop_pct: float | None = None,
+    take_pct: float | None = None,
+) -> dict[str, Any]:
+    """Compute dynamic paper-trade notional using the same Kelly engine as live trades.
+
+    The ceiling (``ctx.max_notional_usd``) is pre-computed as
+    ``capital * PAPER_MAX_NOTIONAL_PCT`` (default 1.5 %) by
+    ``Settings.paper_sizing_context()``, so it already scales with the
+    simulated balance — no additional math needed here.
+
+    Returns the same detail dict as ``compute_notional_eur``, enriched with:
+    - ``paper_max_notional_usd``: the active ceiling
+    - ``capped_by_max``: True when the ceiling was the binding constraint
+    - ``paper_capital_usd``: the simulated balance used
+    - ``paper_mode``: the sizing mode applied
+    """
+    policy = ctx.to_policy()
+    detail = compute_notional_eur(
+        policy,
+        capital_eur=ctx.capital_usd,   # USD treated as EUR-equivalent for sizing math
+        max_margin_eur=ctx.capital_usd,
+        confidence=confidence,
+        stop_pct=stop_pct,
+        take_pct=take_pct,
+    )
+    raw_notional: float = float(detail.get("notional_eur") or 0.0)
+    capped = min(raw_notional, ctx.max_notional_usd)
+    detail["notional_eur"] = capped
+    detail["paper_max_notional_usd"] = ctx.max_notional_usd
+    detail["capped_by_max"] = capped < raw_notional
+    detail["paper_capital_usd"] = ctx.capital_usd
+    detail["paper_mode"] = ctx.mode
+    return detail

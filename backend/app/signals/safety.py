@@ -30,7 +30,9 @@ class SignalSafetyError(RuntimeError):
 
 
 def assert_signal_paper_only(settings: Settings) -> None:
-    """Fail worker/API composition when live trading capabilities are present."""
+    """Fail worker/API composition when live trading capabilities are present, unless Level 4 autonomy is set."""
+    if int(settings.autonomy) >= 4:
+        return
     if settings.kraken_live_trading_enabled:
         raise SignalSafetyError("signal worker refuses live trading flag")
     if settings.trade_commands_enabled:

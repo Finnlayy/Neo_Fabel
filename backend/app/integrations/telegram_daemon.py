@@ -316,14 +316,13 @@ async def run_daemon_poll(settings: Settings) -> None:
     except RuntimeError as exc:
         msg = str(exc)
         if "409" in msg:
-            logger.warning("telegram 409 conflict — backing off and clearing webhook")
-            state.is_throttled = True
-            state.status = "THROTTLED"
-            state.current_interval_ms = 300_000
+            logger.warning("telegram 409 conflict — clearing webhook and resetting poll offset")
             try:
                 await bot.delete_webhook(drop_pending=True)
             except Exception:  # noqa: BLE001
                 pass
+            state.status = "ACTIVE"
+            state.current_interval_ms = 5000
             return
         logger.warning("telegram poll failed: %s", exc)
         state.status = "THROTTLED"

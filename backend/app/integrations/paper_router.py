@@ -54,29 +54,12 @@ class PaperExecutionRouter:
             except ValueError as ledger_exc:
                 raise KrakenCliError("validation", str(ledger_exc)) from ledger_exc
 
-        try:
-            result = await self.cli.paper_order(side, pair, volume, order_type, price)
-            self.last_source = "kraken-cli"
-            if isinstance(result, dict):
-                result = {**result, "source": "kraken-cli", "market_type": "spot"}
-            return result
-        except KrakenCliError as exc:
-            if exc.category != "config":
-                raise
-            self.last_source = "local-paper-ledger"
-            try:
-                return await self.ledger.paper_order(
-                    side,
-                    pair,
-                    volume,
-                    order_type,
-                    price,
-                    market_type=market_type,
-                    leverage=leverage,
-                    rationale=rationale,
-                )
-            except ValueError as ledger_exc:
-                raise KrakenCliError("validation", str(ledger_exc)) from ledger_exc
+        # Enforce Kraken CLI as execution destination.
+        result = await self.cli.paper_order(side, pair, volume, order_type, price)
+        self.last_source = "kraken-cli"
+        if isinstance(result, dict):
+            result = {**result, "source": "kraken-cli", "market_type": "spot"}
+        return result
 
     async def paper_status(self) -> dict[str, Any]:
         if self.prefer_local:

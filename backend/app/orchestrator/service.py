@@ -94,6 +94,49 @@ def _normalize_weights(payload: PayloadT) -> PayloadT:
     return payload.model_copy(update={"strategy_weights": StrategyWeights(**normalized)})
 
 
+def _normalize_regime(raw: dict[str, Any]) -> dict[str, Any]:
+    key = "regime" if "regime" in raw else "marketRegime" if "marketRegime" in raw else "regime_type" if "regime_type" in raw else None
+    if not key or not isinstance(raw.get(key), str):
+        return raw
+    val = str(raw[key]).strip().upper()
+    mapping = {
+        "BULLISH": "BULL_TRENDING",
+        "MODERATE_BULLISH": "BULL_TRENDING",
+        "STRONG_BULLISH": "BULL_TRENDING",
+        "CONSOLIDATING_BULLISH": "BULL_TRENDING",
+        "BULL": "BULL_TRENDING",
+        "BEARISH": "BEAR_TRENDING",
+        "MODERATE_BEARISH": "BEAR_TRENDING",
+        "STRONG_BEARISH": "BEAR_TRENDING",
+        "CONSOLIDATING_BEARISH": "BEAR_TRENDING",
+        "BEAR": "BEAR_TRENDING",
+        "RANGE": "RANGING",
+        "RANGING": "RANGING",
+        "CONSOLIDATING": "RANGING",
+        "SIDEWAYS": "RANGING",
+        "VOLATILE": "HIGH_VOLATILITY",
+        "BOOM": "CRYPTO_BOOM",
+        "BUST": "CRYPTO_BUST",
+    }
+    if val in mapping:
+        return {**raw, key: mapping[val]}
+    
+    # Keyword fallback
+    if "BOOM" in val:
+        resolved = "CRYPTO_BOOM"
+    elif "BUST" in val:
+        resolved = "CRYPTO_BUST"
+    elif "VOLATIL" in val:
+        resolved = "HIGH_VOLATILITY"
+    elif "BULL" in val:
+        resolved = "BULL_TRENDING"
+    elif "BEAR" in val:
+        resolved = "BEAR_TRENDING"
+    else:
+        resolved = "RANGING"
+    return {**raw, key: resolved}
+
+
 def _normalize_raw_weights(raw: dict[str, Any]) -> dict[str, Any]:
     weights = raw.get("strategyWeights")
     key = "strategyWeights"
@@ -147,6 +190,7 @@ class AdvisoryOrchestrator:
         )
         try:
             raw = _parse_json_object(str(result.get("reply") or ""))
+            raw = _normalize_regime(raw)
             raw = _normalize_raw_weights(raw)
             payload = payload_type.model_validate(raw)
             payload = _normalize_weights(payload)
