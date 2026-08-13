@@ -1,1 +1,0 @@
-D:\Neo_Fabel\mcp\fable_mcp\target\release\libfable_mcp.rlib: D:\Neo_Fabel\mcp\fable_mcp\src\blindfold.rs D:\Neo_Fabel\mcp\fable_mcp\src\bridge.rs D:\Neo_Fabel\mcp\fable_mcp\src\execution.rs D:\Neo_Fabel\mcp\fable_mcp\src\lib.rs D:\Neo_Fabel\mcp\fable_mcp\src\mcp_server.rs D:\Neo_Fabel\mcp\fable_mcp\src\prompt_builder.rs

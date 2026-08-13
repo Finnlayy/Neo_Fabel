@@ -38,6 +38,7 @@ secrets/
 .agents/
 *.local
 fable-5-masterprompt-os (2)/
+mcp/fable_mcp/target/
 uploads/
 
 backend/data/trading/
@@ -47,3 +48,5 @@ backend/data/pine/*
 !backend/data/pine/.gitkeep
 
 backend/data/paper/ledger.json
+*.bak
+agent-skills/
