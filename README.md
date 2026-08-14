@@ -22,14 +22,116 @@ the official `kraken` binary for market/paper smoke tests.
 4. Start FastAPI: `python -m uvicorn backend.app.main:app --reload --port 8000`
 5. Start Vite in a second terminal: `npm run dev`
 
+### OpenAPI → frontend types
+
+Frontend transport stays [`src/api/client.ts`](src/api/client.ts) (`apiRequest` + Firebase Bearer).
+Path/schema types are generated from the live FastAPI OpenAPI document:
+
+```powershell
+# API must be running on :8000
+npm run openapi:gen
+```
+
+That writes [`src/api/generated/schema.d.ts`](src/api/generated/schema.d.ts). Helpers live in [`src/api/paths.ts`](src/api/paths.ts); the paper module is the first consumer. Vite also proxies `/openapi.json`, `/docs`, and `/redoc` to the API.
+
 Market-data endpoints:
 
 - `GET /api/v1/market/batch?asset_class=all` queries the curated common crypto, FX, and S&P 500 universe. Crypto uses the Kraken CLI; FX and equities use Alpha Vantage.
 - `GET /api/v1/market/ohlcv?asset_class=sp500&symbols=AAPL,MSFT&intervals=1min,5min,15min,60min,4h` requests OHLCV bars. Alpha Vantage's 60-minute data is deterministically aggregated into 4-hour bars. Missing provider entitlements are returned per item as explicit errors.
 
+### AI chat wire protocol (token budget)
+
+`POST /api/chat` no longer forwards the full UI transcript. The client builds a sliding window via `src/api/chatWire.ts` (last 12 substantive turns, 4k chars/message); the server trims again via `trim_chat_messages` (`AI_CHAT_MAX_MESSAGES` / `AI_CHAT_MAX_CHARS` / `AI_CHAT_MAX_CONTENT_CHARS`). Welcome/reset messages are `ephemeral` and excluded from the Gemini payload. `POST /api/gemini/analyze-trades` sends the last ~25 trades only. Orchestrate stays single-prompt (no history). Response may include `context: { trimmed, sent_chars, … }` for observability.
+
+### Master Orchestrator doctrine + prompt shots
+
+Paper-only coordinator brain under `backend/app/ai_prompts/`:
+
+- `orchestrator_doctrine.md` — roster, status packets, convergence signals, Kraken DELEGATE/REFUSE
+- `kraken_broker_skill_index.md` — slim 51-skill index (`paper_ok` | `live_gated`); never full plugin `SKILL.md` bodies
+- `prompt_shots/*.json` — ≤3 few-shot templates injected into systemInstruction (≤~6k chars total)
+
+`POST /api/gemini/orchestrate` and `POST /api/chat` with `mode: "orchestrator"` load doctrine + shots (+ index if budget). Optional `agentStatusPackets` carry compact `{id, status, lastAction≤200, directive≤280}` from the swarm UI. Usage is logged to `backend/data/academy/prompt_shot_log.jsonl`; `prompt_shot_optimizer` feeds `prompt_evolution` / A/B from careers, drills, and routing failures.
+
+### Trading Orchestrator advisory
+
+The dashboard's Master Orchestrator can run a manual, authenticated advisory
+analysis through `src/api/orchestrator.ts`. It classifies the market regime,
+scores resolved Telegram signals, explains the ranking, and recommends
+informational strategy weights. It has no imports or calls into paper/live order
+execution and always returns `mode: advisory` plus `executionAllowed: false`.
+
+Enable it deliberately in `.env.local`:
+
+```env
+ORCHESTRATOR_ADVISORY_ENABLED=true
+# Configure at least one provider from AI_PROVIDER_ORDER.
+OPENROUTER_API_KEY=replace-locally
+```
+
+Apply the audit-table migration before using decision history:
+
+```powershell
+docker compose run --rm api alembic -c backend/alembic.ini upgrade head
+```
+
+API surface:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/v1/orchestrator/market-regime` | Standalone regime analysis |
+| `POST /api/v1/orchestrator/signal-quality` | Standalone signal scoring |
+| `POST /api/v1/orchestrator/full-decision` | One consistent dashboard advisory |
+| `GET /api/v1/orchestrator/decisions` | User-scoped advisory history |
+
+The feature is manual-only: there is no polling or automatic LLM spend. Missing
+providers return an explicit error and never synthesize a neutral recommendation.
+Provider credentials belong only in ignored local environment files.
+
+```powershell
+python -m pytest backend/tests/test_prompt_shots.py backend/tests/test_academy.py -q
+```
+
 ### Agent Academy (training loop)
 
 Synthetic drills + career tracking for Neo sub-agents. **Paper / training only — never places live orders.** UI tab: **Academy** (hotkey `6`). Persistence: `backend/data/academy/` (gitignored).
+
+### ONNX Neural Core (Tab 7)
+
+Exclusive workspace (hotkey `7`) for LSTM/ONNX inference, training, and Netron graph viewing. Optional backend deps:
+
+```bash
+pip install -e "backend[onnx]"
+# or from backend/: pip install -e ".[onnx]"
+python -m backend.scripts.export_seed_models
+```
+
+APIs: `/api/v1/onnx/*` (status, models, train, infer). Static models for Netron: `/static/onnx/*.onnx`. Viewer: `/static/netron/` (upstream Netron when the `netron` package is installed, else a stub page). **Paper research only — never places live orders.**
+
+### Chronos (kline language agent)
+
+Self-taught forecasting substrate — **paper research only**. Optional Python stack:
+
+```bash
+pip install -e "backend[chronos]"
+# numpy, pandas, matplotlib, PyTorch (CPU wheel), vectorbt
+```
+
+PineTS (`pinets`) is **Node.js**, not pip — install separately for Pine Script indicators:
+
+```bash
+npm install -g pinets-cli
+# or: npx pinets-cli run path/to/script.pine --data candles.json
+```
+
+`GET /api/v1/chronos/status` reports `deps` (`numpy`, `pandas`, `torch`, `vectorbt`, `pinets_cli`). Additional endpoints when deps are present:
+
+| Endpoint | Requires | Purpose |
+|---|---|---|
+| `POST /api/v1/chronos/indicators` | numpy + pandas | RSI, EMA distance %, ATR % |
+| `POST /api/v1/chronos/research/backtest` | vectorbt | Paper EMA-cross sanity metric on lookback |
+
+See [`CHRONOS_AGENT_PLAN.md`](CHRONOS_AGENT_PLAN.md) for Phase 2+ (AE tokenizer, decoder, ONNX export).
 
 | Endpoint | Purpose |
 |---|---|
@@ -58,8 +160,29 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build api 
 - API (Linux + `/usr/local/bin/kraken`): `http://127.0.0.1:8000`
 - Keep Vite on the host: `npm run dev` → `http://localhost:5173`
 - Do **not** run `python -m uvicorn` on Windows if you need paper orders — that process has no Kraken CLI.
+- Optional Rust MCP sidecar (paper bridge health on `:9100`): `docker compose --profile mcp up --build fable-mcp` — see `mcp/fable_mcp/README.md`. Cursor should use the release binary (`mcp/fable_mcp/target/release/fable-mcp.exe`), not Compose stdio.
 
 Apply migrations from the API image: `docker compose run --rm api alembic -c backend/alembic.ini upgrade head`
+
+### Production web stack (nginx + compression)
+
+Full stack including the SPA:
+
+```powershell
+docker compose up --build
+```
+
+- **Web (nginx):** `http://127.0.0.1:8080` — serves `dist/` with **gzip** for JS/CSS/JSON, **immutable cache** on `/assets/*`, **no-cache** on `index.html`, proxies `/api/` and `/static/` (ONNX/Netron) to the API container.
+- **API (FastAPI):** `http://127.0.0.1:8000` — **GZipMiddleware** for direct hits; `/static/*` gets `Cache-Control: private, max-age=300`. Live JSON/WebSocket responses are not long-cached.
+
+Firebase Hosting (`firebase.json`) mirrors the asset cache headers; CDN gzip/brotli applies at the edge.
+
+Smoke after `docker compose up --build`:
+
+```powershell
+curl -sI -H "Accept-Encoding: gzip" http://127.0.0.1:8080/index.html   # Cache-Control: no-cache
+curl -sI -H "Accept-Encoding: gzip" http://127.0.0.1:8000/openapi.json   # Content-Encoding: gzip
+```
 
 ## Phase 1 — Qdrant vector index
 
@@ -171,11 +294,24 @@ All feature flags default to **off**. Live Kraken paths are forbidden in the
 | `AI_ADVISORY_ENABLED` | `false` | Production AI gate (fake allowed in dev) |
 | `SIGNAL_CREDENTIAL_PEPPER` | empty | HMAC pepper for route credentials |
 
+**Fable Engine (P1–P2):** internal Grid/DCA generators under `backend/app/signals/engine/`.
+Default off + dry-run. Records intents in-memory (`dry_run_recorded`); intake/migration is P3.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `FABLE_ENGINE_ENABLED` | `false` | Start engine loop in API lifespan |
+| `FABLE_ENGINE_DRY_RUN` | `true` | Record only (no paper submit until P3) |
+| `FABLE_ENGINE_POLL_SECONDS` | `10` | Poll cadence |
+| `FABLE_ENGINE_MARKET_RPM` | `30` | Token-bucket for OHLCV fetches |
+| `FABLE_ENGINE_ONNX_BIAS` | `off` | Reserved for P5 |
+
 Webhook:
 
 ```http
 POST /api/v1/webhooks/tradingview/{public_route_key}
 ```
+
+Ingress accepts **natural TradingView JSON** (official placeholders already expanded by TV) and normalizes it to Kraken-ready fields (`pair`, `side`, `volume`, `ordertype`, `price`) via `backend/app/signals/tv_webhook_parser.py`. Unresolved `{{placeholders}}` are rejected. Dry-run: `POST /api/v1/signals/tv-parse-preview` (signal admin).
 
 Worker:
 
@@ -185,6 +321,31 @@ $env:KRAKEN_AUTONOMY_LEVEL = "2"
 $env:KRAKEN_LIVE_TRADING_ENABLED = "false"
 python -m backend.app.signals
 ```
+
+## App Settings — API keys & passwords
+
+Open **Einstellungen / Settings** in the header. The integrations panel writes to a
+gitignored server vault (`backend/data/secrets/integrations.json`), applies values
+into the process environment, and reloads `Settings`. List endpoints return only
+configured/masked status; reveal + mutate require recent trading-admin auth.
+
+## tvremix MCP (Pine + market tools)
+
+Hosted client: `backend/app/integrations/tvremix_client.py`. HTTP surface:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/tvremix/status` | Key configured + tool list |
+| `GET /api/v1/tvremix/scripts` | `pine_list_*` |
+| `POST /api/v1/tvremix/search` | `pine_search_script` (+ local scan fallback) |
+| `POST /api/v1/tvremix/read-lines` | `pine_read_lines` |
+| `POST /api/v1/tvremix/errors` | `pine_get_errors` |
+| `POST /api/v1/tvremix/strategy-report` | `get_strategy_report` |
+| `POST /api/v1/tvremix/strategy-sweep` | `strategy_sweep` |
+| `POST /api/v1/tvremix/mtf` | `analyze_multi_timeframe` |
+| `GET/POST /api/v1/tvremix/ledger*` | Pine SHA256 change detection |
+
+Dashboard: **Command Overview** KPIs + equity sparkline; **3D orderbook heatmap** (`three.js`) on ADAUSD.
 
 Docker worker (profile): `docker compose --profile signals up signal-worker`
 
@@ -202,15 +363,24 @@ auth (`require_user`).
 |------|---------|
 | `GET /api/ai/health` | Gemini configured? (no auth) |
 | `POST /api/chat` | Gemini chat |
-| `POST /api/gemini/orchestrate` | Generative plan (bare JSON) |
+| `POST /api/gemini/orchestrate` | Generative plan (doctrine + prompt shots; optional status packets) |
+| `POST /api/chat` | Chat; `mode: assistant\|orchestrator` + optional packets |
 | `POST /api/gemini/analyze-trades` | Trade diagnostics |
-| `POST /api/tvapi/optimize` | Labeled deterministic parameter sweep (V1) |
-| `POST /api/tvapi/analyze-chart` | Gemini vision on chart image |
+| `POST /api/tvapi/optimize` | Candle OHLCV backtest (tv-extension-mvp); optional `scriptId` / `pineSource` via tvremix |
+| `POST /api/tvapi/chart-strategies` | tvremix Pine list (session/saved) **+** probe catalog when `TVREMIX_API_KEY` set |
+| `POST /api/tvapi/analyze-chart` | Gemini vision — **pattern only** (backtest mode rejected; use optimize) |
+
+**tvremix Pine → Optimizer:** set `TVREMIX_API_KEY` from [tvremix account API keys](https://tvremix.xyz/account#api-keys). FastAPI calls `https://tvremix.xyz/api/mcp/v1` (same hosted MCP as Cursor). “Read chart strategies” lists your scripts when Pine tools are available for the key; selecting one passes `scriptId` into optimize (read source + parse `input.*` defaults + candle grid). Cursor MCP server `user-tvremix` should use the same Bearer key if discovery fails.
+
+**LTM (Liquidity Trail Matrix):** bundled probe id `ltm_willy_v130` — Finn Powers / WillyAlgoTrader v1.3 precision analyzer (ATR trail bands + scored retests). Optimizer runs the Python port in `backend/app/integrations/backtest/ltm_analyzer.py`. Pine stub/full source: `assets/strategies/liquidity_trail_matrix_v1_3_0.pine` (paste complete TV script there when syncing).
 | `GET/POST /api/telegram/*` | Bot config, messages, send, daemon status |
 
-Env (see `.env.example`): `GEMINI_API_KEY`, `AI_CHAT_ENABLED`,
+Env (see `.env.example`): `GEMINI_API_KEY`, optional `OPENROUTER_API_KEY` /
+`GROQ_API_KEY` / `CEREBRAS_API_KEY`, `AI_PROVIDER_ORDER` (default
+`gemini,openrouter,groq,cerebras`), `AI_CHAT_ENABLED`,
 `AI_ALLOW_DETERMINISTIC_FALLBACK` (dev/tests only), `TVAPI_ENABLED`,
-`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ENABLED`.
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ENABLED`. Chat/orchestrate
+fail over on 429/5xx/timeout; vision (`analyze-chart`) stays Gemini-only.
 
 Keep local trading paper-first: `KRAKEN_AUTONOMY_LEVEL=2` and
 `KRAKEN_LIVE_TRADING_ENABLED=false`. If `/health/ready` reports
@@ -266,6 +436,68 @@ credentials, stop the worker, preserve audit/event rows, reconcile any
 
 Defaults stay safe: `KRAKEN_AUTONOMY_LEVEL=2` and `KRAKEN_LIVE_TRADING_ENABLED=false`.
 
+### Capital policy (hard rules)
+
+- **No external replenish:** CLI deposit / withdraw / transfer / funding / earn paths are blocked in-process. The bot cannot top up from outside Kraken.
+- **No debt / no below $0:** Live buys must fit available cash (USD/EUR/stables including `ZEUR`); sells cannot exceed held inventory (no shorts). Leverage &gt; 1 and non-reduce-only futures opens are rejected.
+- **Max notional:** `KRAKEN_MAX_NOTIONAL` (default `2`) caps quote size per live trade for small accounts.
+- **Supervised-first:** Manual Positions live desk can work with live trading on; unattended **Live algo** switch also needs `KRAKEN_LIVE_ALGO_ENABLED=true`.
+- **Kill switch:** `POST /api/v1/loops/kill` (header **Kill**) stops loops and attempts cancel-all. Audit: `backend/data/trading/live_audit.jsonl`.
+- **Status memory:** Full https://status.kraken.com component list is stored in `backend/data/kraken/status_components.json` (index: `status_index.json`). Live orders refuse if REST/Websocket/Kraken API or the pair’s asset component is degraded. Refresh: `POST /api/v1/kraken/status/refresh`. Agents use `.cursor/rules/kraken-status-memory.mdc`.
+
+### Global UI switches (header)
+
+Always-visible controls in the app header:
+
+| Switch | Behavior |
+|--------|----------|
+| **Paper loop** | `POST /api/v1/loops/paper/start\|stop` — starts/stops the in-process FableEngine paper path |
+| **Live algo** | `POST /api/v1/loops/live/start\|stop` — arms deadman + live session loop **only if** env gates already allow Level 4 |
+
+The Live switch never flips `KRAKEN_LIVE_TRADING_ENABLED` from the browser. If gates are off it shows **Blocked** with the reason.
+
+Status: `GET /api/v1/loops/status`
+
+### Trade Agent (scheduled runtime)
+
+Bridges the Fable5 TradeAgent schedule model into Neo (paper-first):
+
+| Piece | Neo path |
+|-------|----------|
+| Scheduler + watchdog | `backend/app/trading/trade_agent/` |
+| API | `GET/POST /api/v1/trade-agent/{status,start,stop,trigger/{job_id}}` |
+| CLI | `python -m backend.scripts.run_trade_agent {status\|market\|pre-market\|label\|optimize\|positions\|background}` |
+| Windows Task Scheduler bats | `scripts/schedule_*.bat` (morning / preopen / market / label / optimizer) |
+| Register tasks | `powershell -ExecutionPolicy Bypass -File .\scripts\setup_scheduled_tasks.ps1` (−`IncludeOptimizer` optional) |
+
+Slots include Berlin market scans + ET entry windows from `EVENT_DRIVEN_TRADING.md`, nightly GA optimizer, and 5‑minute positions watchdog. Enable in-API scheduler with `TRADE_AGENT_ENABLED=true` (optional `TRADE_AGENT_AUTO_START=true`). Scheduled scans use tvremix by default (`TRADE_AGENT_SCHEDULED_MARKET_SOURCE=tvremix`), while the continuous FableEngine loop should use `FABLE_ENGINE_CANDLE_SOURCE=ccxt`. TradingView alerts arrive through the webhook/ngrok path and are not polled. Scans drive **FableEngine dry-run** — they do not place live orders.
+
+Windows Task Scheduler (Berlin wall clock, same as Fable5 TradeAgent):
+
+| Time | Task | Bat |
+|------|------|-----|
+| 07:00 | Morning pre-market | `schedule_morning_scan.bat` |
+| 15:00 | Pre-open (~09:00 ET) | `schedule_preopen_scan.bat` |
+| 16:00 | Market hours (~10:00 ET) | `schedule_market_scan.bat` |
+| 18:00 | ML trade labeling | `schedule_label_trades.bat` |
+| 02:30 | GA optimizer (opt-in `-IncludeOptimizer`) | `schedule_optimizer.bat` |
+
+Remove tasks: `powershell -File .\scripts\setup_scheduled_tasks.ps1 -UnregisterOnly`
+
+Windows Task Scheduler (Berlin wall clock, same as Fable5 TradeAgent):
+
+| Time | Task | Bat |
+|------|------|-----|
+| 07:00 | Morning pre-market | `schedule_morning_scan.bat` |
+| 15:00 | Pre-open (~09:00 ET) | `schedule_preopen_scan.bat` |
+| 16:00 | Market hours (~10:00 ET) | `schedule_market_scan.bat` |
+| 18:00 | ML trade labeling | `schedule_label_trades.bat` |
+| 02:30 | GA optimizer (opt-in) | `schedule_optimizer.bat` |
+
+### Positions control desk
+
+Positions tab can open/close (including partial + limit close), cancel / cancel-all / amend live orders, and place protective SL / TP / trailing stops. Order types mirror Kraken spot (`market`, `limit`, `stop-loss`, `stop-loss-limit`, `take-profit`, `take-profit-limit`, `trailing-stop`, `trailing-stop-limit`) plus futures place/edit/cancel via `/api/v1/orders*`. Manual live actions require autonomy ≥ 3 and live trading enabled; the algo loop still requires autonomy ≥ 4.
+
 Guardrail env vars (enforced in agent code, not by the CLI):
 
 | Variable | Default | Purpose |
@@ -273,7 +505,8 @@ Guardrail env vars (enforced in agent code, not by the CLI):
 | `KRAKEN_MAX_ORDER_SIZE` | `0.01` | Max volume per order |
 | `KRAKEN_MAX_OPEN_POSITIONS` | `3` | Cap concurrent open orders/positions |
 | `KRAKEN_MAX_TRADES_PER_HOUR` | `10` | Frequency limit |
-| `KRAKEN_PAIR_ALLOWLIST` | `BTCUSD,ETHUSD` | Only these pairs |
+| `KRAKEN_MIN_TRADE_INTERVAL_SECONDS` | `30` | Min seconds between new trades |
+| `KRAKEN_PAIR_ALLOWLIST` | `ADAUSD,XRPUSD` | Only these pairs |
 | `KRAKEN_DEADMAN_SECONDS` | `600` | Auto-cancel open orders if agent dies |
 
 API:

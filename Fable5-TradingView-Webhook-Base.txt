@@ -1,0 +1,11 @@
+﻿FABLE 5 TradingView webhook base
+
+Public API: https://lesa-ionospheric-affably.ngrok-free.dev
+
+Full webhook URL (after you create a Signal Route):
+https://lesa-ionospheric-affably.ngrok-free.dev/api/v1/webhooks/tradingview/tvr_sIH9Jp_wuiaghKXaW5h6-igvggaXNrb0wrRXDaZ
+
+UI: http://localhost:5173  (Signal Routes = shortcut 5)
+Local API: http://127.0.0.1:8000
+
+Flags enabled: SIGNAL_ROUTES + TRADINGVIEW_INGRESS + WORKER + EXECUTION (paper only)

@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "fable-mcp": {
+      "command": "D:/Neo_Fabel/mcp/fable_mcp/target/release/fable-mcp.exe",
+      "args": [],
+      "env": {
+        "FABLE_MCP_BRIDGE_URL": "http://127.0.0.1:8000",
+        "FABLE_MCP_BRIDGE_ENABLED": "true",
+        "FABLE_MCP_DEFAULT_PAIR": "ADAUSD",
+        "RUST_LOG": "fable_mcp=info"
+      }
+    },
+    "fable-mcp-dev": {
+      "command": "cargo",
+      "args": ["run", "--quiet", "--manifest-path", "mcp/fable_mcp/Cargo.toml"],
+      "cwd": "D:/Neo_Fabel",
+      "env": {
+        "FABLE_MCP_BRIDGE_URL": "http://127.0.0.1:7000",
+        "FABLE_MCP_BRIDGE_ENABLED": "true",
+        "FABLE_MCP_DEFAULT_PAIR": "ADAUSD",
+        "RUST_LOG": "fable_mcp=info"
+      }
+    }
+  },
+  "_comment": "Prefer fable-mcp (release binary) for production. Tools: place_order, build_prompt_snapshot, process_next_bar. stdout=JSON-RPC only; logs on stderr. Paper-only bridge: POST /api/v1/mcp/paper/fill. Linux binary path: mcp/fable_mcp/target/release/fable-mcp"
+}

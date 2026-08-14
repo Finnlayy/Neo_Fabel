@@ -1,13 +1,23 @@
-import React, { useState, useEffect } from "react";
-import { TickerData, Trade, SubAgentState, GenerativePlan, MainTab } from "./types";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { TickerData, Trade, SubAgentState, GenerativePlan, MainTab, AgentStatusPacket, TelegramSignal } from "./types";
 import SignalRoutesPage from "./features/signalRoutes/SignalRoutesPage";
 import AcademyPage from "./features/academy/AcademyPage";
+import OnnxPage from "./features/onnx/OnnxPage";
+import ChronosPage from "./features/chronos/ChronosPage";
+import AgencyPage from "./features/agency/AgencyPage";
+import PaperPerformancePage from "./features/paper/PaperPerformancePage";
+import PositionsPage from "./features/positions/PositionsPage";
 import AuthPanel from "./auth/AuthPanel";
+import IntegrationsSettingsPanel from "./features/settings/IntegrationsSettingsPanel";
+import CommandOverview from "./components/CommandOverview";
+import OsSystemOverview from "./components/OsSystemOverview";
+import OrderbookHeatmap3D from "./components/OrderbookHeatmap3D";
 import { fetchCryptoTickers, fetchEquityTickers, fetchOrderBook, upsertTickerHistory } from "./api/market";
 import { connectMarketStream } from "./api/marketStream";
 import { fetchAiHealth } from "./api/ai";
 import { fetchReadyStatus, type ReadyStatus } from "./api/health";
 import { fetchPaperStatus, mapPaperStatusToTrades } from "./api/paper";
+import { pushRnaContext } from "./api/rnaContext";
 import { INITIAL_SUB_AGENTS } from "./data";
 import { closesToBlindCandles, scanBlindPatterns } from "./services/blindPatternScan";
 
@@ -19,14 +29,15 @@ import ExecutedTradesSection from "./components/ExecutedTradesSection";
 import ResourceAllocation from "./components/ResourceAllocation";
 import LiveMarketHeatmap from "./components/LiveMarketHeatmap";
 import IntegratedConnectors from "./components/IntegratedConnectors";
+import TradingLoopSwitches from "./components/TradingLoopSwitches";
 import TvapiOptimizer from "./components/TvapiOptimizer";
 import GeminiChatbot from "./components/GeminiChatbot";
-import NeuralTracker from "./components/NeuralTracker";
 import RiskAssessmentHeatmap from "./components/RiskAssessmentHeatmap";
 import CircularGauge from "./components/CircularGauge";
 import AgentTimeline from "./components/AgentTimeline";
 import NavigationMenu from "./components/NavigationMenu";
 import NeuralVectorAnalyzer from "./components/NeuralVectorAnalyzer";
+import OrchestratorAdvisoryPanel from "./components/OrchestratorAdvisoryPanel";
 import { announceTradeOutcome } from "./services/casinoAudio";
 import { AnimatePresence, motion } from "motion/react";
 
@@ -59,7 +70,7 @@ const TRANSLATIONS = {
     close: "Close",
     soundVolume: "Sound volume",
     keyboardShortcuts: "Keyboard Shortcuts",
-    keyDesc: "Use hotkeys [1-5] to instantly snap views.",
+    keyDesc: "Use hotkeys [1-7] to switch workspaces.",
     auditoryFeedback: "Acoustic Telemetry",
     voicePack: "HoN Announcer",
     saveSettings: "Save Settings",
@@ -105,7 +116,7 @@ const TRANSLATIONS = {
     close: "Schließen",
     soundVolume: "Audio-Lautstärke",
     keyboardShortcuts: "Tastatur-Kurzbefehle",
-    keyDesc: "Verwenden Sie Hotkeys [1-5], um Ansichten sofort zu wechseln.",
+    keyDesc: "Verwenden Sie Hotkeys [1-7], um Arbeitsbereiche zu wechseln.",
     auditoryFeedback: "Akustische Telemetrie",
     voicePack: "HoN-Sprecher",
     saveSettings: "Einstellungen speichern",
@@ -139,6 +150,7 @@ export default function App() {
   const [orderBookOnline, setOrderBookOnline] = useState(false);
   const [queueLatencyMs, setQueueLatencyMs] = useState<number | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [telegramSignals, setTelegramSignals] = useState<TelegramSignal[]>([]);
   const [subAgents, setSubAgents] = useState<SubAgentState[]>(INITIAL_SUB_AGENTS);
   const [activePlan, setActivePlan] = useState<GenerativePlan | null>(null);
   const [allocation, setAllocation] = useState<{ name: string; value: number }[]>([]);
@@ -190,10 +202,21 @@ export default function App() {
   const orchestratorScore = Math.round(
     Math.max(0, Math.min(100, avgEfficiency * 0.65 + Math.max(0, 100 - avgAbsChange * 10) * 0.35)),
   );
-  // Composite index: live breadth / sentiment from ticker changes.
-  const compositeIndex = Math.round(Math.max(0, Math.min(100, bullishPct)));
-  const sentimentLabel =
-    bullishPct >= 55 ? `${bullishPct.toFixed(1)}% Bullish` : bullishPct <= 45 ? `${(100 - bullishPct).toFixed(1)}% Bearish` : `${bullishPct.toFixed(1)}% Mixed`;
+  // Sentiment: gauge + side label share one strength metric (dominant-side %).
+  const sentimentBias: "Bullish" | "Bearish" | "Mixed" =
+    bullishPct >= 55 ? "Bullish" : bullishPct <= 45 ? "Bearish" : "Mixed";
+  const sentimentStrength =
+    sentimentBias === "Bearish" ? 100 - bullishPct : bullishPct;
+  const compositeIndex = Math.max(0, Math.min(100, sentimentStrength));
+  const sentimentLabel = `${compositeIndex.toFixed(1)}% ${
+    language === "de"
+      ? sentimentBias === "Bullish"
+        ? "Bullisch"
+        : sentimentBias === "Bearish"
+          ? "Bearisch"
+          : "Gemischt"
+      : sentimentBias
+  }`;
   const anomalyLabel = avgAbsChange >= 8 ? (language === "de" ? "Volatilität hoch" : "High volatility") : t("noneDetected");
   const latencyLabel = queueLatencyMs !== null ? `${queueLatencyMs}ms` : "—";
 
@@ -203,54 +226,30 @@ export default function App() {
   const rnaBlindSummary =
     subAgents.find((a) => a.id === "rna_smart")?.lastAction ??
     (language === "de" ? "Blind-Scan idle" : "Blind scan idle");
-  const osTelemetryRows = [
-    {
-      label: language === "de" ? "Markt" : "Market",
-      value: marketLive
-        ? `LIVE · ${marketSource ?? "stream"} · ${tickers.length} tkr`
-        : language === "de"
-          ? "STALE / kein Stream"
-          : "STALE / no stream",
-      tone: marketLive ? "text-emerald-400" : "text-amber-400",
-    },
-    {
-      label: language === "de" ? "Orderbuch" : "Depth",
-      value: orderBookOnline
-        ? language === "de"
-          ? "ONLINE"
-          : "ONLINE"
-        : language === "de"
-          ? "OFFLINE"
-          : "OFFLINE",
-      tone: orderBookOnline ? "text-emerald-400" : "text-slate-500",
-    },
-    {
-      label: "AI",
-      value: aiStatusLabel,
-      tone: aiStatusLabel.includes("OFFLINE") ? "text-rose-400" : "text-cyan-400",
-    },
-    {
-      label: language === "de" ? "Ausführung" : "Exec",
-      value: `${readyStatus?.execution ?? "unknown"} · L${readyStatus?.autonomy_level ?? "—"}`,
-      tone: "text-slate-300",
-    },
-    {
-      label: language === "de" ? "Agenten" : "Agents",
-      value: `${agentsActive}/${subAgents.length} ACTIVE${agentsOptimizing ? ` · ${agentsOptimizing} OPT` : ""}${agentsAlert ? ` · ${agentsAlert} ALERT` : ""}`,
-      tone: agentsAlert ? "text-rose-400" : agentsOptimizing ? "text-amber-400" : "text-emerald-400",
-    },
-    {
-      label: language === "de" ? "Compliance" : "Compliance",
-      value: isComplianceActive
-        ? language === "de"
-          ? "ON · Paper only"
-          : "ON · paper only"
-        : language === "de"
-          ? "OFF"
-          : "OFF",
-      tone: isComplianceActive ? "text-rose-300" : "text-amber-400",
-    },
-  ] as const;
+
+  const rnaPattern = useMemo(() => {
+    const focus = tickers.find((t) => t.symbol === activeSymbol);
+    const focusHist = (focus?.history ?? []).filter((n) => n > 0);
+    const closes =
+      focusHist.length >= 2 ? focusHist : focus && focus.price > 0 ? [focus.price] : [];
+    if (closes.length < 2) return null;
+    const blind = scanBlindPatterns(closesToBlindCandles(closes));
+    if (blind.candleCount < 2 || blind.hits.length === 0) return null;
+    const top = blind.hits[0];
+    return { bias: top.bias, confidence: top.confidence };
+  }, [tickers, activeSymbol]);
+
+  useEffect(() => {
+    if (!rnaPattern) return;
+    void pushRnaContext({
+      bias: rnaPattern.bias,
+      confidence: rnaPattern.confidence,
+      symbol: activeSymbol,
+    }).catch(() => {
+      // Signal routes may be disabled; RNA context is best-effort.
+    });
+  }, [rnaPattern, activeSymbol]);
+
   const osFooter = activePlan
     ? language === "de"
       ? `Aktive Direktive: "${activePlan.planTitle}" · ${allocation.length} Allokations-Knoten · ${trades.length} Paper-Rows.`
@@ -584,6 +583,16 @@ export default function App() {
   }, []);
 
   // Paper ledger + AI health + ready status
+  const refreshPaperTrades = useCallback(async () => {
+    try {
+      const paper = await fetchPaperStatus();
+      const mapped = mapPaperStatusToTrades(paper.data);
+      if (mapped.length > 0) setTrades(mapped);
+    } catch {
+      // Auth may be missing; keep existing rows.
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
@@ -607,15 +616,7 @@ export default function App() {
       } catch {
         if (!cancelled) setReadyStatus(null);
       }
-      try {
-        const paper = await fetchPaperStatus();
-        if (!cancelled) {
-          const mapped = mapPaperStatusToTrades(paper.data);
-          if (mapped.length > 0) setTrades(mapped);
-        }
-      } catch {
-        // Auth may be missing; keep client paper rows only.
-      }
+      if (!cancelled) await refreshPaperTrades();
     };
     void refresh();
     const timer = setInterval(() => void refresh(), 20000);
@@ -623,7 +624,7 @@ export default function App() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [refreshPaperTrades]);
 
   // Clear trade announcement after 4 seconds
   useEffect(() => {
@@ -638,14 +639,21 @@ export default function App() {
   // A paper order is recorded as pending until a real backend execution result
   // supplies fills and realized P&L. The client never invents a win/loss.
   const handleExecuteTrade = (newTradeData: Omit<Trade, "id" | "time" | "pnl" | "status">) => {
-    const freshTrade: Trade = {
-      id: `PAPER-${Date.now()}`,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-      ...newTradeData,
-      pnl: 0,
-      status: "PENDING",
-    };
-    setTrades((prev) => [...prev, freshTrade]);
+    void refreshPaperTrades();
+
+    // Wire position cost into prediction and sentiment analysis
+    if (rnaPattern && newTradeData.positionCost) {
+      void pushRnaContext({
+        bias: rnaPattern.bias,
+        confidence: rnaPattern.confidence,
+        symbol: newTradeData.asset,
+        positionCost: newTradeData.positionCost,
+        executionPrice: newTradeData.price,
+      }).catch(() => {
+        // Signal routes may be disabled; RNA context is best-effort.
+      });
+    }
+
     setSubAgents((prev) =>
       prev.map((agent) =>
         agent.id === "kraken_broker"
@@ -654,13 +662,21 @@ export default function App() {
               status: "OPTIMIZING",
               lastAction:
                 language === "de"
-                  ? `Kraken-Broker · Paper-Order ${freshTrade.type} ${freshTrade.asset} @ ${freshTrade.price} eingereiht.`
-                  : `Kraken broker · queued paper ${freshTrade.type} ${freshTrade.asset} @ ${freshTrade.price}.`,
+                  ? `Kraken-Broker · Paper-Order ${newTradeData.type} ${newTradeData.amount} ${newTradeData.asset} @ ${newTradeData.price} (Cost: $${newTradeData.positionCost?.toLocaleString(undefined, {maximumFractionDigits: 2})} eingereiht.`
+                  : `Kraken broker · queued paper ${newTradeData.type} ${newTradeData.amount} ${newTradeData.asset} @ ${newTradeData.price} (Cost: $${newTradeData.positionCost?.toLocaleString(undefined, {maximumFractionDigits: 2})}).`,
             }
           : agent,
       ),
     );
   };
+
+  const agentStatusPackets = (): AgentStatusPacket[] =>
+    subAgents.map((agent) => ({
+      id: agent.id,
+      status: agent.status,
+      lastAction: (agent.lastAction || "").slice(0, 200),
+      directive: (agent.directive || "").slice(0, 280),
+    }));
 
   // Handle Deployment of Gemini-Generated Trading Plan
   const handleDeployPlan = (plan: GenerativePlan) => {
@@ -670,13 +686,18 @@ export default function App() {
     }
 
     // Update active sub-agent directives based on Gemini results!
+    const dirs = plan.subAgentDirectives;
     setSubAgents((prevAgents) =>
       prevAgents.map((agent) => {
         let directive = agent.directive;
-        if (agent.id === "market_data") directive = plan.subAgentDirectives.marketData;
-        if (agent.id === "adaptive") directive = plan.subAgentDirectives.adaptiveAgent;
-        if (agent.id === "rna_smart") directive = plan.subAgentDirectives.rnaSmartelligent;
-        if (agent.id === "risk_gov") directive = plan.subAgentDirectives.riskGovernor;
+        if (agent.id === "market_data") directive = dirs.marketData;
+        if (agent.id === "adaptive") directive = dirs.adaptiveAgent;
+        if (agent.id === "rna_smart") directive = dirs.rnaSmartelligent;
+        if (agent.id === "risk_gov") directive = dirs.riskGovernor;
+        if (agent.id === "kraken_broker" && dirs.krakenBroker) directive = dirs.krakenBroker;
+        if (agent.id === "predictive" && dirs.predictive) directive = dirs.predictive;
+        if (agent.id === "analytic" && dirs.analytic) directive = dirs.analytic;
+        if (agent.id === "orchestrator" && dirs.orchestrator) directive = dirs.orchestrator;
 
         return {
           ...agent,
@@ -704,6 +725,14 @@ export default function App() {
   const handleUpdateAgentStatus = (id: string, status: SubAgentState["status"]) => {
     setSubAgents((prev) =>
       prev.map((agent) => (agent.id === id ? { ...agent, status } : agent))
+    );
+  };
+
+  const handleUpdateAgentLastAction = (id: string, lastAction: string) => {
+    setSubAgents((prev) =>
+      prev.map((agent) =>
+        agent.id === id ? { ...agent, lastAction: lastAction.slice(0, 200) } : agent,
+      ),
     );
   };
 
@@ -937,6 +966,8 @@ export default function App() {
                 {isComplianceActive ? t("enforced") : t("unguarded")}
               </span>
             </div>
+
+            <TradingLoopSwitches language={language} />
             
             {/* All-Time Realized P&L Widget */}
             <div id="all-time-pnl-widget" className="flex flex-col lg:items-end bg-white/5 border border-white/10 px-3 py-1 rounded-sm shadow-[0_0_15px_rgba(0,0,0,0.4)] min-w-[125px] transition-all hover:border-white/20">
@@ -993,53 +1024,22 @@ export default function App() {
             className="space-y-6"
           >
             {/* WORKSPACE A: OMNI-DASHBOARD */}
-            {(activeTab === "dashboard" || activeTab === "full") && (
+            {activeTab === "dashboard" && (
               <>
+                <CommandOverview
+                  language={language}
+                  onNavigate={(tab) => setActiveTab(tab)}
+                />
                 {/* Master Control and Signal Dial Row - Bento Styled */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 font-mono text-xs">
-                  {/* Master Orchestrator Agent Panel */}
-                  <div className="bg-slate-900/40 border border-white/5 rounded-xl p-5 glow-emerald flex flex-col justify-between h-56 relative overflow-hidden transition-all duration-300 hover:border-white/10 hover:bg-slate-900/60">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <span className="text-emerald-400 font-bold uppercase tracking-wider text-[11px]">
-                          {t("masterOrchestrator")}
-                        </span>
-                        <span className="text-[9px] text-emerald-500/70 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                          {language === "de" ? "OS REGLER" : "OS CONTROLLER"}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 leading-relaxed">
-                        {t("masterOrchestratorDesc")}
-                      </p>
-                    </div>
-
-                    {/* Circular Gauge Meter */}
-                    <div className="flex items-center justify-between mt-3">
-                      <CircularGauge
-                        score={orchestratorScore}
-                        label={t("score")}
-                        stroke="#10b981"
-                        textClass="text-emerald-400"
-                      />
-
-                      <div className="flex-1 space-y-1 pl-4 text-[10px]">
-                        <div className="flex justify-between border-b border-white/5 pb-0.5">
-                          <span className="text-slate-500">{t("activeDirectives")}:</span>
-                          <span className="text-emerald-400 font-semibold">{activePlan ? (language === "de" ? "Eigene" : "Custom") : (language === "de" ? "Standard" : "Standard")}</span>
-                        </div>
-                        <div className="flex justify-between border-b border-white/5 pb-0.5">
-                          <span className="text-slate-500">{t("queueLatency")}:</span>
-                          <span className="text-slate-300 font-semibold">{latencyLabel}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">{t("safetyCompliance")}:</span>
-                          <span className={`font-semibold ${isComplianceActive ? "text-emerald-400" : "text-rose-400"}`}>
-                            {isComplianceActive ? (language === "de" ? "Aktiv" : "Active") : t("hardOverride")}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <OrchestratorAdvisoryPanel
+                    tickers={tickers}
+                    signals={telegramSignals}
+                    rnaPattern={rnaPattern}
+                    activeSymbol={activeSymbol}
+                    trades={trades}
+                    language={language}
+                  />
 
                   {/* Fable 5 Master Console Panel */}
                   <div className="bg-slate-900/40 border border-white/5 rounded-xl p-5 glow-cyan flex flex-col justify-between h-56 relative overflow-hidden transition-all duration-300 hover:border-white/10 hover:bg-slate-900/60">
@@ -1064,6 +1064,7 @@ export default function App() {
                         label={t("index")}
                         stroke="#06b6d4"
                         textClass="text-cyan-400"
+                        precision={1}
                       />
 
                       <div className="flex-1 space-y-1 pl-4 text-[10px]">
@@ -1086,32 +1087,38 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* OS telemetry — live backend/agent state, not marketing copy */}
-                  <div className="bg-slate-900/40 border border-white/5 rounded-xl p-5 glow-rose flex flex-col justify-between h-56 transition-all duration-300 hover:border-white/10 hover:bg-slate-900/60">
-                    <div className="space-y-2.5 min-h-0">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <span className="text-purple-400 font-bold uppercase tracking-wider text-[11px]">
-                          {t("systemOverview")}
-                        </span>
-                        <span className="text-[9px] text-purple-500/70 border border-purple-500/30 px-1.5 py-0.5 rounded">
-                          {language === "de" ? "OS TELEMETRIE" : "OS TELEMETRY"}
-                        </span>
-                      </div>
-                      <div className="space-y-1 text-[9px] font-mono overflow-y-auto max-h-[7.5rem] pr-1">
-                        {osTelemetryRows.map((row) => (
-                          <div key={row.label} className="flex justify-between gap-2 border-b border-white/5 pb-0.5">
-                            <span className="text-slate-500 uppercase shrink-0">{row.label}</span>
-                            <span className={`text-right truncate ${row.tone}`}>{row.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="pt-2 bg-slate-950/40 border border-white/5 p-2.5 rounded-lg text-[9px] text-slate-300 flex items-start gap-2">
-                      <Sparkles className={`w-4 h-4 text-purple-400 shrink-0 mt-0.5 ${activePlan || agentsOptimizing ? "animate-pulse" : ""}`} />
-                      <span className="leading-relaxed line-clamp-3">{osFooter}</span>
-                    </div>
-                  </div>
+                  {/* OS telemetry — live backend/agent state + token meter */}
+                  <OsSystemOverview
+                    language={language}
+                    marketLive={marketLive}
+                    marketSource={marketSource}
+                    tickerCount={tickers.length}
+                    orderBookOnline={orderBookOnline}
+                    aiStatusLabel={aiStatusLabel}
+                    execLabel={`${readyStatus?.execution ?? "unknown"} · L${readyStatus?.autonomy_level ?? "—"}`}
+                    agentsActive={agentsActive}
+                    agentsTotal={subAgents.length}
+                    agentsOptimizing={agentsOptimizing}
+                    agentsAlert={agentsAlert}
+                    isComplianceActive={isComplianceActive}
+                    onToggleCompliance={() => {
+                      setIsComplianceActive(!isComplianceActive);
+                      setSubAgents((prev) =>
+                        prev.map((a) =>
+                          a.id === "risk_gov"
+                            ? {
+                                ...a,
+                                lastAction: `Manually toggled safe override compliance rig to ${!isComplianceActive ? "ON" : "OFF"}.`,
+                              }
+                            : a,
+                        ),
+                      );
+                    }}
+                    footer={osFooter}
+                    planActive={Boolean(activePlan)}
+                    onNavigate={setActiveTab}
+                    onAiStatus={setAiStatusLabel}
+                  />
                 </div>
 
                 {/* SubAgentsSection Overview */}
@@ -1132,6 +1139,7 @@ export default function App() {
                 <SimulatedTrading 
                   tickers={tickers}
                   onExecuteTrade={handleExecuteTrade}
+                  onPaperRefresh={refreshPaperTrades}
                   isComplianceActive={isComplianceActive}
                   tradingExchange={tradingExchange}
                 />
@@ -1142,7 +1150,8 @@ export default function App() {
                     <ExecutedTradesSection trades={trades} chartData={chartData} />
                   </div>
                   <div>
-                    <TelegramFeed 
+                    <TelegramFeed
+                      onSignalsChange={setTelegramSignals}
                       onSignalAction={(prompt) => {
                         setActiveTab("strategy");
                         setTimeout(() => {
@@ -1175,7 +1184,8 @@ export default function App() {
                         const ticker = tickers.find(t => t.symbol === asset);
                         const price = ticker ? ticker.price : 100;
                         const size = asset === "BTC" ? 0.25 : asset === "ETH" ? 2.5 : 25;
-                        handleExecuteTrade({ asset, type, price, amount: size });
+                        const positionCost = size * price;
+                        handleExecuteTrade({ asset, type, price, amount: size, positionCost });
                       }}
                     />
                   </div>
@@ -1201,9 +1211,19 @@ export default function App() {
                   marketLive={marketLive}
                 />
 
+                <OrderbookHeatmap3D
+                  pair={
+                    activeSymbol === "ADA" || activeSymbol === "XRP"
+                      ? `${activeSymbol}USD`
+                      : "ADAUSD"
+                  }
+                  language={language}
+                />
+
                 <SimulatedTrading 
                   tickers={tickers}
                   onExecuteTrade={handleExecuteTrade}
+                  onPaperRefresh={refreshPaperTrades}
                   isComplianceActive={isComplianceActive}
                   tradingExchange={tradingExchange}
                 />
@@ -1213,7 +1233,8 @@ export default function App() {
                     <ExecutedTradesSection trades={trades} chartData={chartData} />
                   </div>
                   <div>
-                    <TelegramFeed 
+                    <TelegramFeed
+                      onSignalsChange={setTelegramSignals}
                       onSignalAction={(prompt) => {
                         setActiveTab("strategy");
                         setTimeout(() => {
@@ -1246,7 +1267,8 @@ export default function App() {
                         const ticker = tickers.find(t => t.symbol === asset);
                         const price = ticker ? ticker.price : 100;
                         const size = asset === "BTC" ? 0.25 : asset === "ETH" ? 2.5 : 25;
-                        handleExecuteTrade({ asset, type, price, amount: size });
+                        const positionCost = size * price;
+                        handleExecuteTrade({ asset, type, price, amount: size, positionCost });
                       }}
                     />
                   </div>
@@ -1261,6 +1283,7 @@ export default function App() {
                   allocation={allocation}
                   activePlan={activePlan}
                   onDeployPlan={handleDeployPlan}
+                  agentStatusPackets={agentStatusPackets()}
                 />
 
                 {/* Sub-workspace selector */}
@@ -1300,8 +1323,24 @@ export default function App() {
                       <TvapiOptimizer activeSymbol={activeSymbol} />
                     </div>
                     <div className="space-y-6">
-                      <GeminiChatbot />
-                      <NeuralTracker currentPrice={tickers.find(t => t.symbol === activeSymbol)?.price || 64250} />
+                      <GeminiChatbot agentStatusPackets={agentStatusPackets()} />
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("onnx")}
+                        className="w-full text-left bg-slate-900/50 border border-lime-500/20 hover:border-lime-400/40 rounded-xl p-4 font-mono transition-colors cursor-pointer"
+                      >
+                        <div className="text-[10px] uppercase tracking-widest text-lime-400 font-bold">
+                          {language === "de" ? "ONNX-Neuronales Kernmodul" : "ONNX Neural Core"}
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+                          {language === "de"
+                            ? "LSTM-Inferenz, Training und Netron-Graph sind in Tab 7 ausgelagert."
+                            : "LSTM inference, training, and Netron graph live in dedicated Tab 7."}
+                        </p>
+                        <span className="inline-block mt-3 text-[10px] text-lime-300 font-bold">
+                          {language === "de" ? "Tab 7 öffnen →" : "Open Tab 7 →"}
+                        </span>
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -1309,6 +1348,33 @@ export default function App() {
                 )}
               </>
             )}
+
+            {activeTab === "paper" && <PaperPerformancePage language={language} />}
+
+            {activeTab === "positions" && <PositionsPage language={language} />}
+
+            {activeTab === "onnx" && (
+              <OnnxPage
+                currentPrice={tickers.find((t) => t.symbol === activeSymbol)?.price ?? 64250}
+                activeSymbol={activeSymbol}
+                marketLive={marketLive}
+                language={language}
+              />
+            )}
+
+            {activeTab === "chronos" && (
+              <ChronosPage
+                activeSymbol={activeSymbol}
+                language={language}
+                marketLive={marketLive}
+                subAgents={subAgents}
+                onUpdateAgentStatus={handleUpdateAgentStatus}
+                onUpdateAgentLastAction={handleUpdateAgentLastAction}
+                rnaPattern={rnaPattern}
+              />
+            )}
+
+            {activeTab === "agency" && <AgencyPage language={language} />}
 
             {/* WORKSPACE D: SWARM GOVERNANCE */}
             {activeTab === "signals" && (
@@ -1394,6 +1460,7 @@ export default function App() {
                         label={t("index")}
                         stroke="#06b6d4"
                         textClass="text-cyan-400"
+                        precision={1}
                       />
 
                       <div className="flex-1 space-y-1 pl-4 text-[10px]">
@@ -1416,31 +1483,37 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-900/40 border border-white/5 rounded-xl p-5 glow-rose flex flex-col justify-between h-56 transition-all duration-300 hover:border-white/10 hover:bg-slate-900/60">
-                    <div className="space-y-2.5 min-h-0">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <span className="text-purple-400 font-bold uppercase tracking-wider text-[11px]">
-                          OS SYSTEM OVERVIEW
-                        </span>
-                        <span className="text-[9px] text-purple-500/70 border border-purple-500/30 px-1.5 py-0.5 rounded">
-                          OS TELEMETRY
-                        </span>
-                      </div>
-                      <div className="space-y-1 text-[9px] font-mono overflow-y-auto max-h-[7.5rem] pr-1">
-                        {osTelemetryRows.map((row) => (
-                          <div key={row.label} className="flex justify-between gap-2 border-b border-white/5 pb-0.5">
-                            <span className="text-slate-500 uppercase shrink-0">{row.label}</span>
-                            <span className={`text-right truncate ${row.tone}`}>{row.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="pt-2 bg-slate-950/40 border border-white/5 p-2.5 rounded-lg text-[9px] text-slate-300 flex items-start gap-2">
-                      <Sparkles className={`w-4 h-4 text-purple-400 shrink-0 mt-0.5 ${activePlan || agentsOptimizing ? "animate-pulse" : ""}`} />
-                      <span className="leading-relaxed line-clamp-3">{osFooter}</span>
-                    </div>
-                  </div>
+                  <OsSystemOverview
+                    language={language}
+                    marketLive={marketLive}
+                    marketSource={marketSource}
+                    tickerCount={tickers.length}
+                    orderBookOnline={orderBookOnline}
+                    aiStatusLabel={aiStatusLabel}
+                    execLabel={`${readyStatus?.execution ?? "unknown"} · L${readyStatus?.autonomy_level ?? "—"}`}
+                    agentsActive={agentsActive}
+                    agentsTotal={subAgents.length}
+                    agentsOptimizing={agentsOptimizing}
+                    agentsAlert={agentsAlert}
+                    isComplianceActive={isComplianceActive}
+                    onToggleCompliance={() => {
+                      setIsComplianceActive(!isComplianceActive);
+                      setSubAgents((prev) =>
+                        prev.map((a) =>
+                          a.id === "risk_gov"
+                            ? {
+                                ...a,
+                                lastAction: `Manually toggled safe override compliance rig to ${!isComplianceActive ? "ON" : "OFF"}.`,
+                              }
+                            : a,
+                        ),
+                      );
+                    }}
+                    footer={osFooter}
+                    planActive={Boolean(activePlan)}
+                    onNavigate={setActiveTab}
+                    onAiStatus={setAiStatusLabel}
+                  />
                 </div>
 
                 <SubAgentsSection 
@@ -1462,96 +1535,6 @@ export default function App() {
               </>
             )}
 
-            {/* WORKSPACE E: FULL WORKSPACE (ORIGINAL SEQUENTIAL VIEW) */}
-            {activeTab === "full" && (
-              <>
-                <IntegratedConnectors 
-                  tradingExchange={tradingExchange}
-                  setTradingExchange={setTradingExchange}
-                />
-
-                <LiveMarketHeatmap 
-                  tickers={tickers} 
-                  onSelectTicker={(symbol) => {
-                    setActiveSymbol(symbol);
-                    setSubAgents(prev => prev.map(a => a.id === "market_data" ? { ...a, lastAction: `Incepted index focus update for ${symbol}/USD tickers.` } : a));
-                  }}
-                  activeSymbol={activeSymbol}
-                  marketLive={marketLive}
-                />
-
-                <div className="grid grid-cols-1 gap-6">
-                  <RiskAssessmentHeatmap tickers={tickers} marketLive={marketLive} marketAsOf={marketAsOf} />
-                  <AgentTimeline />
-                </div>
-
-                <SimulatedTrading 
-                  tickers={tickers}
-                  onExecuteTrade={handleExecuteTrade}
-                  isComplianceActive={isComplianceActive}
-                  tradingExchange={tradingExchange}
-                />
-
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                  <div className="xl:col-span-2">
-                    <TvapiOptimizer activeSymbol={activeSymbol} />
-                  </div>
-                  <div className="space-y-6">
-                    <GeminiChatbot />
-                    <NeuralTracker currentPrice={tickers.find(t => t.symbol === activeSymbol)?.price || 64250} />
-                  </div>
-                </div>
-
-                <ResourceAllocation 
-                  allocation={allocation}
-                  activePlan={activePlan}
-                  onDeployPlan={handleDeployPlan}
-                />
-
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                  <div className="xl:col-span-2">
-                    <ExecutedTradesSection trades={trades} chartData={chartData} />
-                  </div>
-                  <div>
-                    <TelegramFeed 
-                      onSignalAction={(prompt) => {
-                        const el = document.getElementById("generative-goal-planning-card");
-                        if (el) el.scrollIntoView({ behavior: "smooth" });
-                        handleDeployPlan({
-                          planTitle: "AI Signal Ingestion Blueprint",
-                          summary: `Orchestrating adaptive strategy optimized for alert directive: "${prompt}".`,
-                          subAgentDirectives: {
-                            marketData: `Scan volume corridors for confirmation matching the Telegram signal.`,
-                            adaptiveAgent: `Elevate multipliers if token momentum vectors match sentiment spikes.`,
-                            rnaSmartelligent: `Audit fractal pattern integrity to reject noise and bypass fake traps.`,
-                            riskGovernor: `Enforce a strict trailing drawdown constraint at 2.0% maximum allocation.`
-                          },
-                          resourceAllocation: [
-                            { name: "BTC", value: 30 },
-                            { name: "ETH", value: 25 },
-                            { name: "SOL", value: 30 },
-                            { name: "MATIC", value: 15 }
-                          ],
-                          suggestedRules: [
-                            "Verify signal authenticity across dual aggregated Telegram streams",
-                            "Suspend long positions instantly if composite signal score collapses below +40",
-                            "Scale execution volume dynamically with respect to active support walls"
-                          ]
-                        });
-                      }}
-                      onSimulateTradeSignal={(asset, type) => {
-                        const ticker = tickers.find(t => t.symbol === asset);
-                        const price = ticker ? ticker.price : 100;
-                        const size = asset === "BTC" ? 0.25 : asset === "ETH" ? 2.5 : 25;
-                        handleExecuteTrade({ asset, type, price, amount: size });
-                        const card = document.getElementById("executed-trades-card");
-                        if (card) card.scrollIntoView({ behavior: "smooth" });
-                      }}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
           </motion.div>
         </AnimatePresence>
 
@@ -1628,7 +1611,7 @@ export default function App() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className="w-full max-w-lg bg-slate-950 border border-cyan-500/30 rounded-xl overflow-hidden font-mono text-xs text-slate-300 shadow-2xl shadow-cyan-950/20"
+              className="w-full max-w-2xl max-h-[90vh] flex flex-col bg-slate-950 border border-cyan-500/30 rounded-xl overflow-hidden font-mono text-xs text-slate-300 shadow-2xl shadow-cyan-950/20"
             >
               {/* Header */}
               <div className="flex items-center justify-between bg-slate-900/60 px-5 py-4 border-b border-white/10">
@@ -1647,7 +1630,7 @@ export default function App() {
               </div>
 
               {/* Body */}
-              <div className="p-6 space-y-5">
+              <div className="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
                 <div className="bg-slate-900/30 border border-white/5 p-4 rounded-lg space-y-3 normal-case tracking-normal">
                   <div className="flex justify-between items-center">
                     <span className="text-white font-bold uppercase tracking-wider text-[10px]">
@@ -1657,6 +1640,9 @@ export default function App() {
                   </div>
                   <AuthPanel />
                 </div>
+
+                <IntegrationsSettingsPanel language={language} />
+
                 {/* Language selection card */}
                 <div className="bg-slate-900/30 border border-white/5 p-4 rounded-lg space-y-3">
                   <div className="flex justify-between items-center">

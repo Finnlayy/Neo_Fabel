@@ -7,8 +7,8 @@ import logging
 
 from ..database import SessionFactory
 from ..integrations.ai_evaluator import build_evaluator
+from ..integrations.paper_factory import build_paper_router
 from ..paper_orders import PaperOrderService
-from ..integrations.kraken_cli import KrakenCli
 from ..settings import get_settings
 from .executor import PaperOrderExecutionAdapter
 from .safety import assert_signal_paper_only, assert_signals_module_imports
@@ -23,14 +23,11 @@ def main() -> None:
     if not settings.signal_worker_enabled:
         raise SystemExit("SIGNAL_WORKER_ENABLED must be true to start the signal worker")
 
-    cli = KrakenCli(
-        binary=settings.kraken_binary,
-        timeout_seconds=settings.kraken_timeout_seconds,
-        allow_trade_commands=False,
+    router = build_paper_router(settings)
+    executor = PaperOrderExecutionAdapter(
+        service=PaperOrderService(sink=router),
+        default_market=settings.paper_default_market,  # type: ignore[arg-type]
     )
-    executor = PaperOrderExecutionAdapter(service=PaperOrderService(sink=cli))
-    # Evaluator is composed but Bypass never calls it.
-    _ = build_evaluator(settings)
     worker = SignalWorker(
         settings=settings,
         session_factory=SessionFactory,

@@ -28,7 +28,10 @@ async function resolveToken(): Promise<string | null> {
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers ?? {});
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
-  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
+  if (init.body && !headers.has("Content-Type") && !isFormData) {
+    headers.set("Content-Type", "application/json");
+  }
 
   const token = await resolveToken();
   if (token && !headers.has("Authorization")) {

@@ -1,0 +1,6016 @@
+{
+  "source": "https://status.kraken.com/api/v2/summary.json",
+  "status_page": "https://status.kraken.com",
+  "fetched_at": "2026-07-20T20:53:41.699584Z",
+  "page_status": {
+    "indicator": "minor",
+    "description": "Partially Degraded Service"
+  },
+  "component_count": 826,
+  "non_operational": [
+    {
+      "id": "683t18h65j42",
+      "name": "Bonk (BONK) - Solana",
+      "status": "degraded_performance",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8nh7rvvs6mjh",
+      "name": "Digital Currency Funding",
+      "status": "degraded_performance",
+      "group": true,
+      "description": null
+    },
+    {
+      "id": "mg04yl7f135x",
+      "name": "Stablr Euro (EURR) - Ethereum",
+      "status": "degraded_performance",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "50l1w5c94g51",
+      "name": "Stablr USD (USDR) - Ethereum",
+      "status": "degraded_performance",
+      "group": false,
+      "description": null
+    }
+  ],
+  "incidents": [
+    {
+      "id": "lkxdh0gjtkn1",
+      "name": "Bonk (BONK) Deposits and Withdrawals Temporarily Suspended",
+      "status": "identified",
+      "impact": "minor",
+      "updated_at": "2026-07-08T18:11:15.273Z",
+      "shortlink": "https://stspg.io/rs1m68gxgzn6"
+    },
+    {
+      "id": "x4z8gsp2y577",
+      "name": "Stablr USD (USDR) and Stablr Euro (EURR) Funding Methods Halted",
+      "status": "identified",
+      "impact": "minor",
+      "updated_at": "2026-07-01T14:03:13.543Z",
+      "shortlink": "https://stspg.io/vxhf1h9y715y"
+    }
+  ],
+  "watchlist_relevant": [
+    {
+      "id": "cjsl9bxj7l5w",
+      "name": "Cardano (ADA)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kh8xpqff83pc",
+      "name": "Cardano (ADA) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mjcw7t9vx2lm",
+      "name": "Custody REST API",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8nh7rvvs6mjh",
+      "name": "Digital Currency Funding",
+      "status": "degraded_performance",
+      "group": true,
+      "description": null
+    },
+    {
+      "id": "htzr13867m37",
+      "name": "Euro (EUR) - Instant",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qjfn16jx5chv",
+      "name": "Euro (EUR) - Opt-in Rewards",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6z41zf9mf196",
+      "name": "Euro (EUR) - SEPA",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0td9f7xs51tl",
+      "name": "Euro (EUR) - Wire Transfer Deposits",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jg9mwmqjw67f",
+      "name": "Forest Protocol (FOREST) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "m4vv9vvvxnp9",
+      "name": "Iagon (IAG) - Cardano",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qkyy5vkk5zpx",
+      "name": "Kraken API",
+      "status": "operational",
+      "group": true,
+      "description": null
+    },
+    {
+      "id": "2jqzgyzc02vl",
+      "name": "Midnight (NIGHT) - Cardano",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cfpbbhgnlnbf",
+      "name": "REST",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dxfwygd9wc17",
+      "name": "REST API",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r0lwfr5tdc37",
+      "name": "REST API",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "51n45n98xz9c",
+      "name": "Schuman EUR\u00d8P (EUROP) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "s4h8nltnmxv5",
+      "name": "Snek (SNEK) - Cardano",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mg04yl7f135x",
+      "name": "Stablr Euro (EURR) - Ethereum",
+      "status": "degraded_performance",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vz83fx0396f0",
+      "name": "Websocket",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "d482m8nqx6vy",
+      "name": "Websocket API",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "sryr76qnbtq3",
+      "name": "Websocket API",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7fm2m08jpzvf",
+      "name": "XRP (XRP)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "sbppx70qw44l",
+      "name": "XRP (XRP) - Custody",
+      "status": "operational",
+      "group": false,
+      "description": null
+    }
+  ],
+  "components": [
+    {
+      "id": "dzpffyzmr270",
+      "name": "0x (ZRX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6s7d9kdwg1lt",
+      "name": "1inch (1INCH) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "b1hfjv6jn5pw",
+      "name": "375ai (EAT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bjc4l9qd7ntl",
+      "name": "Aave (AAVE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "g2363j3jh73l",
+      "name": "Aavegotchi (GHST) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "l4tzv2tjdhm8",
+      "name": "AB (AB)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wfshs0xh8qdw",
+      "name": "Acala (ACA)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zwjff05rkvz3",
+      "name": "Across Protocol (ACX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "n2rgs5twqbph",
+      "name": "Act I The AI Prophecy (ACT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "d1kzl2r2bhxh",
+      "name": "Acurast (ACU) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6gzdg2byhpc8",
+      "name": "AdEx (ADX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "s1xc1kk4y6q1",
+      "name": "ADI Token (ADI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lgctfn5nhcx7",
+      "name": "Aerodrome Finance (AERO) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "y3sjrwlq4bvq",
+      "name": "Aethir (ATH) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cgndgx3sgy21",
+      "name": "Aevo (AEVO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jx09s3x324rf",
+      "name": "AI Rig Complex (ARC) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6fllpj0bcc60",
+      "name": "ai16z (AI16Z) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "w86hfm6791g1",
+      "name": "AIOZ Network (AIOZ) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "d96p5553z9j6",
+      "name": "aixbt by Virtuals (AIXBT) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3plt49q73nrt",
+      "name": "Akash (AKT)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0rft8qxkx624",
+      "name": "Akedo (AKE) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "pqb5mw3dnkvx",
+      "name": "Alchemist AI (ALCH) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fwj62fzsz3dr",
+      "name": "Alchemix (ALCX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t6mq4t2scy2f",
+      "name": "Alchemy Pay (ACH) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r8bmfxfvn4qh",
+      "name": "ALEO (ALEO)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "94n99m1rz45w",
+      "name": "Algorand (ALGO)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7rxdlk0xfkjf",
+      "name": "Alien Worlds (TLM) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "431qxvqsp41z",
+      "name": "Alkimi (ALKIMI) - Sui",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "388gykmhs9p2",
+      "name": "Allora (ALLO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "yt0gdxxbxm0l",
+      "name": "Almanak (ALMANAK) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jxndkmfsl4vv",
+      "name": "Altair (AIR)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tbrvj3602lzl",
+      "name": "ALTHEA (ALTHEA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5yg10zx09kc1",
+      "name": "AltLayer (ALT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rlfkfrxsstyg",
+      "name": "Amnis Finance (AMI) - Aptos",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3q1gx7h2wn6y",
+      "name": "Ampleforth Governance Token (FORTH) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lhjbf1pmw972",
+      "name": "Analog (ANLOG) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3b68wv733t0g",
+      "name": "Animecoin (ANIME) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "208fytggpgcn",
+      "name": "Ankr (ANKR) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5p404h3p2wpf",
+      "name": "Anoma (XAN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1qr8gt4vgx3q",
+      "name": "ApeCoin (APE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fz8kvx3yhms6",
+      "name": "APENFT (APENFT) - Tron",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ny0cdq3v5wfm",
+      "name": "API3 (API3) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xhr5vptdxr6n",
+      "name": "aPriori (APR) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6l028c8c7h0q",
+      "name": "Aptos (APT)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vmnh1vyjltsh",
+      "name": "Apu Apustaja (APU) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7rsz456gtnln",
+      "name": "apxUSD (APXUSD) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "g7pqclwrbv1f",
+      "name": "Arbitrum (ARB)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gqbg3b4r18mx",
+      "name": "Argentine Peso (ARS) - Domestic",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7p214k1rb2fw",
+      "name": "Arkham (ARKM) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gh5h39zk61s4",
+      "name": "Arpa Chain (ARPA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8111r7z15y12",
+      "name": "ArtToken (ART) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "chm3y6p00pd8",
+      "name": "Arweave (AR)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "64nw6qqqn5yy",
+      "name": "Assister (ASRR) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6c0xkpy9mh8m",
+      "name": "Astar (ASTR)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0dn8b8wh0sh3",
+      "name": "Aster (ASTER) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2np2vvkpx83l",
+      "name": "Astra Nova (RVV) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r3pl1bq43sj6",
+      "name": "Audius (AUDIO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "46xlvn3y0d4n",
+      "name": "Augur (REP) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bk5484xr3n0w",
+      "name": "Augur v2 (REPV2) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2hwpnq2hgrlb",
+      "name": "AUSD (AUSD) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "j96gswzdmb74",
+      "name": "Australian Dollar (AUD) - Domestic",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "txlx2yfj3n1y",
+      "name": "Autonomys (AI3)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ql53w1yknz8j",
+      "name": "AVA (AVA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bvk4vxs8nppw",
+      "name": "Ava AI (AVAAI) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3h33bbjsmt0j",
+      "name": "Avalanche (AVAX)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qfxfmvwcktgk",
+      "name": "Avalanche (AVAX) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "78cbjm3p7tx2",
+      "name": "Avantis (AVNT) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "psmbbdvcf67z",
+      "name": "Axie Infinity Shards (AXS) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "yrt9cgd88glq",
+      "name": "Aztec (AZTEC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ctzj4fnrjhkd",
+      "name": "B3 Base (B3) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bp2zlhkg7lv3",
+      "name": "Babylon (BABY)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2ksc0s76c64t",
+      "name": "BabyShark (BABYSHARK) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "czjggp0ny8n8",
+      "name": "Backstage (BKS) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "nb10y9bcyv3r",
+      "name": "Badger DAO (BADGER) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cw42ptr5yd0d",
+      "name": "Balance (EPT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wns6cmfwhz54",
+      "name": "Balancer (BAL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "c5712gnkwq5g",
+      "name": "Banana For Scale (BANANAS31) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dt0dnpdrm9tb",
+      "name": "Bancor (BNT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "h8n57c1g0ynt",
+      "name": "Band Protocol (BAND) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fbpq243333bv",
+      "name": "Barnbridge (BOND) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "nxz7mwbj0nwg",
+      "name": "Based (BASED) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wpwklzdb1xzt",
+      "name": "Basic Attention Token (BAT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8j72pyy2nd2r",
+      "name": "Basilisk (BSX)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1jhrmc6z7hw3",
+      "name": "Beam (BEAM) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1d0lvj69dm3f",
+      "name": "Beamable Network (BMB) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "f3jpg0tn8fpt",
+      "name": "Beldex (BDX) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0y5xdrjw7f74",
+      "name": "Benqi (QI)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "nmr43dyzrs9k",
+      "name": "Berachain (BERA)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hkq522z5h5vh",
+      "name": "Biconomy (BICO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "x3s889kg1sw6",
+      "name": "Bifrost (BNC)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2v8hy8zn796d",
+      "name": "Big Time (BIGTIME) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ysn30fx4smwl",
+      "name": "Billions Network (BILL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "v2g009ct5zsv",
+      "name": "Bio Protocol (BIO) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t68tj6z014m1",
+      "name": "Bitcoin (BTC) - Bitcoin",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7s1xjvp7c44m",
+      "name": "Bitcoin (BTC) - Custody",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "sknws9bd8j0y",
+      "name": "Bitcoin (BTC) - Lightning",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "b0x4rhccfvtx",
+      "name": "Bitcoin (BTC) - Opt-in Rewards",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6bs003byl8tb",
+      "name": "Bitcoin (kBTC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2dm354w00by9",
+      "name": "Bitcoin (kBTC) - Ink",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bq4y3wltf4q0",
+      "name": "Bitcoin (kBTC) - Optimism",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "30f052n51m26",
+      "name": "Bitcoin Cash (BCH)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xzvf1lj9dvp2",
+      "name": "BitDAO (BIT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5bxbm1kdd4j5",
+      "name": "Bitget Token (BGB) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ltv5x5mp6nzk",
+      "name": "Bitlayer (BTR) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mrjm8wbxvv7z",
+      "name": "Bittensor (TAO)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "b0lkj12dl4b5",
+      "name": "Bittensor (TAO) - Custody",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "q8n8ml48tz4v",
+      "name": "Bittensor (TAO) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hrjgbqzhs52l",
+      "name": "Bittensor (TAO) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3rcrhtjbt1bv",
+      "name": "Bittorrent (BTT) - Tron",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "svjy3fhm1q5h",
+      "name": "Black Mirror (MIRROR) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xbrfr7lk32nr",
+      "name": "Bless Network (BLESS) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "x1xq61llmhwh",
+      "name": "Bluefin (BLUE) - Sui",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hdjhpftsgw7j",
+      "name": "Blur (BLUR) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dscnnnds51w7",
+      "name": "Bluwhale AI Token (BLUAI) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jzyg68fzcg5y",
+      "name": "Bluzelle (BLZ) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2dp5bmnp2s1d",
+      "name": "BNB (BNB)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "c9rj7z4gp65j",
+      "name": "BNB (BNB) - Custody",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7yz9p8mzz88t",
+      "name": "BNB (BNB) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ttx75w7z2bsf",
+      "name": "BNB (BNB) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gcltlhsd7f54",
+      "name": "Boba Network (BOBA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5p5196sb876t",
+      "name": "Bondex Token (BDXN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3mrdnnk7n36c",
+      "name": "Bonfida (FIDA) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "683t18h65j42",
+      "name": "Bonk (BONK) - Solana",
+      "status": "degraded_performance",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jtgcfftk3l73",
+      "name": "Bonzo Finance (BONZO) - Hedera",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2ftg1wc2s7xd",
+      "name": "BOS Token (BOS) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "h68017d4hb4g",
+      "name": "Bounce (AUCTION) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "b8xkvvk6kyry",
+      "name": "Brazilian Real (BRL) - Domestic",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "yhyl12f4tcst",
+      "name": "BREVIS (BREV) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tyjy8z6lmrt8",
+      "name": "BSquared Network (B2) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jvfnl543bm9z",
+      "name": "Bubblemaps (BMT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "v8y8r8hrr587",
+      "name": "Build on Bitcoin (BOB) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tbqh0vrqkwmb",
+      "name": "Camp Network (CAMP) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fqx1g8tyf127",
+      "name": "Canadian Dollar (CAD) - Domestic",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jy45bqly6lm0",
+      "name": "Canadian Dollar (CAD) - International",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r3jzljwk7wjr",
+      "name": "Canton Network (CC)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "pdw13lww4n6v",
+      "name": "Cap (CAP) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cjsl9bxj7l5w",
+      "name": "Cardano (ADA)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kh8xpqff83pc",
+      "name": "Cardano (ADA) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6v86j01khl8s",
+      "name": "Cartesi (CTSI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qphln5m27113",
+      "name": "Carv (CARV) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "yj9np4ssnbg3",
+      "name": "CASH (CASH) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "y5qy0ywb51cs",
+      "name": "cat in a dogs world (MEW) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "txgtxx1ff9v9",
+      "name": "Celer Network (CELR) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "sx00ryf2vqjq",
+      "name": "Celestia (TIA)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "97zbv9f8p77f",
+      "name": "Celestia (TIA) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "szy9ky247dsj",
+      "name": "Celo (CELO)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gz3jqpl08c8j",
+      "name": "Centrifuge (CFG) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "f7j80mrp1291",
+      "name": "Chainlink (LINK) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hkqvcpgk8nfq",
+      "name": "Checkmate (CHECK) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "h8n4s722db87",
+      "name": "Cheems Token (CHEEMS) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5k5x940hbkdk",
+      "name": "Chiliz (CHZ) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lkrldkq3jqn4",
+      "name": "Chillhouse (CHILLHOUSE) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rz4060b2d4bj",
+      "name": "Chintai (CHEX) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7df7m05hnvff",
+      "name": "Chromia (CHR) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "sgn6b1jr33xy",
+      "name": "Chutes (SN64) - Bittensor",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "w8qj41m9n8ns",
+      "name": "Citrea (CTR) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wg0dkq28t304",
+      "name": "Civic (CVC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8sstjpw0fbss",
+      "name": "Clearpool (CPOOL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hmqnvxvtpr21",
+      "name": "Clover Finance (CLV) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "964hxllzcsvc",
+      "name": "Codatta (XNY) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6cy9fnb1qlx0",
+      "name": "Coin98 (C98) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mbm6fq0hf8hf",
+      "name": "Colombian Peso (COP) - Domestic",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hpr9z272g4rj",
+      "name": "Compound (COMP) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7f0kvm39p534",
+      "name": "Concordium (CCD)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "m60w3gzsd0py",
+      "name": "Conflux (CFX)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "g45gyrwnf3vg",
+      "name": "Constellation (DAG) - Ink",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cqdym96pck1d",
+      "name": "Convex (CVX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2v3r143xnlx3",
+      "name": "Cookie DAO (COOKIE) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "pz80z5h6psdy",
+      "name": "COP Minteo (COPM) - Polygon",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dln7t3rnprb8",
+      "name": "Coq Inu (COQ) - Avalanche",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1h3rq36lwlxb",
+      "name": "Corn (CORN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "55fgf2hxf5kt",
+      "name": "Cosmos (ATOM)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5fw69bxznnp2",
+      "name": "Cosmos (ATOM) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1d8drs63rkbj",
+      "name": "COTI (COTI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0mf8lq6l2t2z",
+      "name": "Covalent (CQT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "symlwfsnt170",
+      "name": "Covalent (CXT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "z4nlj50630sr",
+      "name": "CoW Protocol (COW) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "l47wsydczk23",
+      "name": "Creditcoin (CTC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "nf26cg29h0qd",
+      "name": "Cronos (CRO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "b94td45lcwbk",
+      "name": "Cross-Exchange Transfers",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9yvg2jl3hclq",
+      "name": "Cross-Exchange Transfers",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "h2mf5qswgkst",
+      "name": "Curve DAO Token (CRV) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mjcw7t9vx2lm",
+      "name": "Custody REST API",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xbsph64382zw",
+      "name": "Custody User Interface",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9dwmt8cr9g8z",
+      "name": "Cyber (CYBER) - Optimism",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jxkg31dvd0yn",
+      "name": "Dai (DAI) - Arbitrum One",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ycgq47zgzg7v",
+      "name": "Dai (DAI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mm4vdkvvb09y",
+      "name": "Dai (DAI) - Polygon",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1yytk7dxncbw",
+      "name": "Dash (DASH)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t9l3m6srbwj9",
+      "name": "Debit / Credit Cards",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "p60gzzcdvj5y",
+      "name": "deBridge (DBR) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "d418bw3nc4d8",
+      "name": "Decentraland (MANA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7tkjg5s4nn4t",
+      "name": "Decred (DCR)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3g4zf4m9bqlt",
+      "name": "DeepBook (DEEP) - Sui",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "y5nkgc3s8sjd",
+      "name": "Definitive (EDGE) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "myxjpr8p5xbt",
+      "name": "Degen (DEGEN) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1trg0l64hyw6",
+      "name": "Dent (DENT)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2c8s410t8w6g",
+      "name": "Derive (DRV) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8nh7rvvs6mjh",
+      "name": "Digital Currency Funding",
+      "status": "degraded_performance",
+      "group": true,
+      "description": null
+    },
+    {
+      "id": "kt0gd98ps5vv",
+      "name": "DOG (Bitcoin) - Runes",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mr8bzc705203",
+      "name": "Dogecoin (DOGE)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "f8rtnjbdtm0b",
+      "name": "Dogecoin (DOGE) - Custody",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "45ybkpbb8rc2",
+      "name": "Dogs (DOGS) - The Open Network",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fc9yqp8kt5kw",
+      "name": "dogwifhat (WIF) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9scltcx1gn02",
+      "name": "Doland Tremp (TREMP) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wcbc9j0qfm7p",
+      "name": "Dolomite (DOLO) - Berachain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wqzxjg641ws0",
+      "name": "DoubleZero (2Z) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lm0nhn55bcbd",
+      "name": "Dovu (DOVU) - Hedera",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "f07pnnscmb06",
+      "name": "Drift Protocol (DRIFT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wbx4m2qp2qhn",
+      "name": "Dual (DUAL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jhggh9ct3nqz",
+      "name": "DuckChain (DUCK) - The Open Network",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r3khp5dl7cfc",
+      "name": "dYdX (DYDX)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "k9pnrbthb8kx",
+      "name": "dYdX (DYDX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vwyks0hzqywl",
+      "name": "Dymension (DYM)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zx35l9ntnh5y",
+      "name": "Dymension (DYM) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rbhwqz43ppcz",
+      "name": "Earn",
+      "status": "operational",
+      "group": true,
+      "description": null
+    },
+    {
+      "id": "h3hp2sm2hvb2",
+      "name": "Echelon Prime (PRIME) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ttp1yk1wjw1f",
+      "name": "Eclipse (ES) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dbc2fd1r1k7w",
+      "name": "ECOMI (OMI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "g0n5z8v7tbgz",
+      "name": "edgeX (EDGEX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t1cwfkjy5w8d",
+      "name": "EigenLayer (EIGEN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jbpv88q3tws9",
+      "name": "Elixir (ELX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "4p81567c3jry",
+      "name": "ElizaOS (ELIZAOS) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r7q2svsg42cs",
+      "name": "Embed",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "32rtrt5208wx",
+      "name": "Energy Web Token (EWT)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qdsq8x3lt590",
+      "name": "Enjin (ENJ) - Enjin Relaychain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "k0m9z11bld10",
+      "name": "ENSO (ENSO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6p3px17w8r2y",
+      "name": "Enzyme Finance (MLN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "yxsrj4kl8ffh",
+      "name": "EOS (EOS)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "krzysyd8fv9p",
+      "name": "Equities",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "30ny3rsgpd1s",
+      "name": "ERC20 Tokens - Custody",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kdmnmz1jrkhl",
+      "name": "Espresso (ESP) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qj0670n3x4rw",
+      "name": "EstateX (ESX) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jfrrklnkpj12",
+      "name": "Ethena (ENA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "m34t49l49jq4",
+      "name": "Ethena USDe (USDE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "80wf3ftwmfjm",
+      "name": "Ethereum (ETH)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lsswcwzxj62n",
+      "name": "Ethereum (ETH) - Arbitrum Nova",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1k5g92plrhmg",
+      "name": "Ethereum (ETH) - Arbitrum One",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fcxncxlwltn1",
+      "name": "Ethereum (ETH) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9q5v0598jtgt",
+      "name": "Ethereum (ETH) - Custody",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "g4rx5vsjh6x6",
+      "name": "Ethereum (ETH) - Ink",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rdf84n0bq9wx",
+      "name": "Ethereum (ETH) - Linea",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "my3w0rzkzj3w",
+      "name": "Ethereum (ETH) - MegaETH",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "n00463bclc6y",
+      "name": "Ethereum (ETH) - Optimism",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "12db1f26gbrd",
+      "name": "Ethereum (ETH) - Polygon",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8nh0t5gmjszv",
+      "name": "Ethereum (ETH) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3rv6830y8p9n",
+      "name": "Ethereum (ETH) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hnl2zm31n6r5",
+      "name": "Ethereum (ETH) - zkSync Era",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lp7l8c8g22lt",
+      "name": "Ethereum Classic (ETC)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "d2h87rwvxk4b",
+      "name": "Ethereum Name Service (ENS) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dpzrq3wyfz8w",
+      "name": "Etherfi (ETHFI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tg02p3sydqhp",
+      "name": "ETHGas (GWEI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "w4lttyx9jymx",
+      "name": "Euler (EUL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "crfsx0gnmf4c",
+      "name": "EURC (EURC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "htzr13867m37",
+      "name": "Euro (EUR) - Instant",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qjfn16jx5chv",
+      "name": "Euro (EUR) - Opt-in Rewards",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6z41zf9mf196",
+      "name": "Euro (EUR) - SEPA",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0td9f7xs51tl",
+      "name": "Euro (EUR) - Wire Transfer Deposits",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t4cqc6txmk19",
+      "name": "EURQ (EURQ) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ysyl5vq6pyjt",
+      "name": "EURQ (EURQ) - Polygon",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bsjpmgfnp1r7",
+      "name": "EVAA Protocol (EVAA) - The Open Network",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kw6cdwnr5p9j",
+      "name": "Everything (EV) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mvxsyt3xnqmr",
+      "name": "Falcon Finance (FF) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hyk5gk02fmq3",
+      "name": "Fartcoin (FARTCOIN) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bjf3sr668pr2",
+      "name": "Fetch.ai (FET)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9qscq1927prd",
+      "name": "Fidelity Digital Dollar (FIDD) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2890jdf2lsvh",
+      "name": "FIGHT (FIGHT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3c3x3qczfbfs",
+      "name": "Filecoin (FIL)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "pwc5xxqb9057",
+      "name": "FIX",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "c47tyz6lmggl",
+      "name": "Flare (FLR)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r4wc05cw7d9n",
+      "name": "Flare (FLR) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "z0ffz3pbr2r5",
+      "name": "FLOCK (FLOCK) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ll7z7bh2j0pf",
+      "name": "Floki (FLOKI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0nmkw1jbyg07",
+      "name": "Flow (FLOW)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bm3d65k66jxx",
+      "name": "Flow (FLOW) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jkvfbrb6zg9t",
+      "name": "Fluent (BLEND) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kgtkb0cjft67",
+      "name": "Flux (FLUX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6nb8lqbwfkdg",
+      "name": "Fly Trade (FLY) - Sonic",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0tjnq862bhvc",
+      "name": "Folks (FOLKS) - Avalanche",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jg9mwmqjw67f",
+      "name": "Forest Protocol (FOREST) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1txw3rppnds4",
+      "name": "Fractal Bitcoin (WFB) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7h7hscncg45s",
+      "name": "Frax Share (FXS) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "sdg4kv53psxt",
+      "name": "Frontier Stable Token (FRNT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0xyy9k0qxvbs",
+      "name": "FUN Token (FUN) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5lpnymmzzxzf",
+      "name": "Fwog (FWOG) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3k9t8j7h8n6y",
+      "name": "Gaia Token (GAIA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r3cp7w9xswgx",
+      "name": "GAIB (GAIB) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mnj22k5w1wwz",
+      "name": "Gala Games (GALA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "h8whzstqb58z",
+      "name": "GameBuild (GAME2) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3l4qwf53cpvy",
+      "name": "Gari Network (GARI) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "f8fwjfg06cfc",
+      "name": "Gas (GAS) - Neo X",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8mc6rt7z9jzn",
+      "name": "Genius Terminal (GENIUS) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "4cz8djxbr1gl",
+      "name": "Genshiro (GENS)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xgm965hg231f",
+      "name": "GensoKishi Metaverse (MV) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hkf5jgn41qcr",
+      "name": "Gensyn (AI)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xlqtk16dj10y",
+      "name": "Ghiblification (GHIBLI) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bpjlxpfvzy6q",
+      "name": "Gib (GIB) - Hedera",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "m4cb5411zd51",
+      "name": "Gigachad (GIGA) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "s7gbkpl55q5g",
+      "name": "Gitcoin (GTC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bqbm7ppfg1j2",
+      "name": "GMX (GMX)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "720g2hhwqdn0",
+      "name": "Gnosis (GNO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6tn1xwrjs8j3",
+      "name": "Goatseus Maximus (GOAT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "51bkq0hsp23v",
+      "name": "Goldfinch (GFI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "n60ybqypw4rl",
+      "name": "Gomining Token (GOMINING) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "d1588r1r1x1k",
+      "name": "Grass (GRASS) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cvd9ktyk626v",
+      "name": "Gravity (G) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lwg86cjj0h7y",
+      "name": "Green Satoshi Token (GST) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kj4pll6kpf70",
+      "name": "GRIFFAIN (GRIFFAIN) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9myjlttm1ccl",
+      "name": "Gunz (GUN) - Avalanche",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3xgtz5fvxzc7",
+      "name": "Hamster Kombat (HMSTR) - The Open Network",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6thfw0kzc74r",
+      "name": "HarryPotterObamaSonic10Inu (HPOS10I) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "yplx5bbyd8nz",
+      "name": "Harvest (FARM) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bmxdk532rbnz",
+      "name": "Hashflow (HFT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ydmypyvwlvc2",
+      "name": "HashKey Platform Token (HSK) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "653h373x5rhg",
+      "name": "HashPack (PACK) - Hedera",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "k2yvjv441w9r",
+      "name": "Hedera (HBAR)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ldjjd0fgs9f2",
+      "name": "Helium (HNT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "95drp25rkzgh",
+      "name": "Hey Anon (ANON) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bsdpc4mp298s",
+      "name": "Hippius (SN75) - Bittensor",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zcjgfhxy9tpj",
+      "name": "Hivemapper (HONEY) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "d5tp8cbk70qv",
+      "name": "Holoworld (HOLO) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5yshwl1xs73q",
+      "name": "Humanity (H) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "g4qcl5tzhkw3",
+      "name": "Hydration (HDX)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "72dgyhq8hyhg",
+      "name": "Hyperliquid (HYPE)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "x6rbqczws13c",
+      "name": "Hyperliquid (HYPE) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "m4vv9vvvxnp9",
+      "name": "Iagon (IAG) - Cardano",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "43sw92nxwl49",
+      "name": "ICON (ICX)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qzx7zddf04gq",
+      "name": "iDEAL",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qx99svmdldlr",
+      "name": "IDEX (IDEX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "20t1nbbl56pn",
+      "name": "idOS (IDOS) - Arbitrum One",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "d12kh8b7bghv",
+      "name": "iExec RLC (RLC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fbsqnqztj43n",
+      "name": "Immutable X (IMX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qxjp852fdy8m",
+      "name": "Impossible Cloud Network (ICNT) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "pdcxwr91xtkn",
+      "name": "Infinex (INX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xjnp4xx23283",
+      "name": "INFINIT (IN) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7yghyysglvg5",
+      "name": "Infinity Ground (AIN) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dcdxr3m4r4jf",
+      "name": "Infrared Token (IR) - Berachain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "437v7vlt6yqj",
+      "name": "Initia (INIT)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xd6r3qtp40qx",
+      "name": "Injective (INJ)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t6c0qd0tr02n",
+      "name": "Injective (INJ) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1z2nxqd5cjdj",
+      "name": "Internet Computer Protocol (ICP)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "56qnhpmz4h4v",
+      "name": "Intuition (TRUST) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "321zgc1xh6p8",
+      "name": "Japanese Yen (JPY) - Domestic",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "l2j06r3w4q5k",
+      "name": "JasmyCoin (JASMY) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "llx5gvrchq87",
+      "name": "Jeo Boden (BODEN) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qx918vvq5d0c",
+      "name": "Jito (JTO) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hn853yc0wskk",
+      "name": "JOE (JOE) - Avalanche",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fcmh9z8m6yxb",
+      "name": "Juno (JUNO)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "nbxs1kd9qx9z",
+      "name": "Jupiter (JUP) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r9l249pdq6sg",
+      "name": "JUST (JST) - Tron",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "p3dlz5qcx7c1",
+      "name": "Kaito (KAITO) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "181cnn3dpjn7",
+      "name": "Kamino (KMNO) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6tv404msxbmn",
+      "name": "Kaspa (KAS)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3s8qpgbywjjg",
+      "name": "Katana (KAT)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t74fkhplrnx5",
+      "name": "Kava (KAVA)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "30w8pgkt8fj7",
+      "name": "Kava (KAVA) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "61bqvp9ffvwg",
+      "name": "Keep Network (KEEP) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "z9pk2gmv98kq",
+      "name": "Keep3r (KP3R) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wkk9p2wlwvdm",
+      "name": "Keeta (KTA) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "f8dp6t5r6yjl",
+      "name": "Kernel (KERNEL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wgwksvmc38df",
+      "name": "Ket (KET) - Avalanche",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qwn082r01ng0",
+      "name": "KGeN (KGEN) - Aptos",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "skzqklxn61bm",
+      "name": "KILT (KILT)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0vqttdjrmswq",
+      "name": "Kin (KIN) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kqfhnmv3wg7z",
+      "name": "Kinetiq (KNTQ) - HyperEVM",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "b1mpm8k19bvy",
+      "name": "Kinto (K) - Arbitrum One",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0jb43711rs84",
+      "name": "Krak App",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dwsy2y98f06z",
+      "name": "Krak Card",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qkyy5vkk5zpx",
+      "name": "Kraken API",
+      "status": "operational",
+      "group": true,
+      "description": null
+    },
+    {
+      "id": "btr7ydhgj4vf",
+      "name": "Kraken App",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "77r52jbmww8v",
+      "name": "Kraken Derivatives",
+      "status": "operational",
+      "group": true,
+      "description": null
+    },
+    {
+      "id": "mn1jj1m4v3p7",
+      "name": "Kraken Institutional",
+      "status": "operational",
+      "group": true,
+      "description": null
+    },
+    {
+      "id": "wbb1tdgdzgmc",
+      "name": "Kraken MTF",
+      "status": "operational",
+      "group": true,
+      "description": null
+    },
+    {
+      "id": "lrx5gjxzw65q",
+      "name": "Kraken Pro App",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "g7g31vkv6hyy",
+      "name": "Kraken Wallet",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "df5mb7p1jnt4",
+      "name": "Kujira (KUJI)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "50whxf5mfmmc",
+      "name": "KULA (KULA) - Avalanche",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jsfhc3k9fcvb",
+      "name": "Kusama (KSM)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ptvf4j5xtzqg",
+      "name": "Kusama (KSM) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "klb5j9t57j9s",
+      "name": "Kyber Network (KNC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fzxc1qqjj0tn",
+      "name": "Large Cap DTF (LCAP) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tb53s5h8jxpw",
+      "name": "Lava Network (LAVA) - Arbitrum One",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2n8233rc5gt8",
+      "name": "Layer3 (L3) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "78rr95zcsj0j",
+      "name": "LayerZero (ZRO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zrs0nsydrbr9",
+      "name": "LCX (LCX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wxl1ht7r6zg8",
+      "name": "LIDO DAO (LDO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "57kttxbsv69g",
+      "name": "LimeWire Token (LMWR) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "f7zfx8gct57z",
+      "name": "Linea (LINEA)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r2j90kls3ptx",
+      "name": "Liquid Staked Ethereum (LSETH) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5trd6gndvpv1",
+      "name": "Liquid Staked SOL (LSSOL) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "g3m810tt51y2",
+      "name": "Liquity (LQTY) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "86ztg91m6j8f",
+      "name": "Lisk (LSK) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1yk5mfzh5p20",
+      "name": "Litecoin (LTC)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "567mjfmfb6ll",
+      "name": "Litentry (LIT)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kskk53ltxh77",
+      "name": "Lium (SN51) - Bittensor",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "yz69zw5gd7w6",
+      "name": "LivePeer (LPT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lzpws1npbr60",
+      "name": "Loaded Lions (LION) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zcy1sgnsqgq7",
+      "name": "LOBO THE WOLF PUP (LOBO) - Runes",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "sl37rnxrsvwz",
+      "name": "LOCK IN (LOCKIN) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lx905xd3ndyn",
+      "name": "LOFI (LOFI) - Sui",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bh3xsqbwk0tw",
+      "name": "Loopring (LRC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2hmp2ht72j90",
+      "name": "Lucky Kat (KOBAN) - Sui",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "j06kxjbjpj7l",
+      "name": "Lumen (XLM)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7q3lskz0n0sm",
+      "name": "Magic Eden (ME) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "139k68n4bc1r",
+      "name": "Manadia (UMXM) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "p81pnn6xd81z",
+      "name": "Mango (MNGO) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gg6rkm3vm8lv",
+      "name": "Mantle (MNT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "w72fgkbnwxwt",
+      "name": "Mantra (MANTRA)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vc5m9hl9mm9c",
+      "name": "Marinade SOL (MSOL) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7h4785bd02kk",
+      "name": "Marlin (POND) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "x0b3cy6w0lhf",
+      "name": "Mask Network (MASK) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jfg912tvq456",
+      "name": "Matchain (MAT)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rv79drf7g44x",
+      "name": "MegaETH (MEGA)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wlfl5dhp2ts6",
+      "name": "Melania Meme (MELANIA) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5xq2msk85tj9",
+      "name": "Memecoin (MEME) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0t3286tqvscm",
+      "name": "MemeCore (M) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tysx9vb98jhw",
+      "name": "Merlin Chain (MERL)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xqjx551064d4",
+      "name": "Meteora (MET) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1cp3r6qpdnz3",
+      "name": "Metis (METIS)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qfxp7yxs6xgt",
+      "name": "Mexican Peso (MXN) - Domestic",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "97wn9291m7h3",
+      "name": "Mezo (MEZO) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6h9kxsfmz4b9",
+      "name": "Michi (MICHI) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2jqzgyzc02vl",
+      "name": "Midnight (NIGHT) - Cardano",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1jsf2jcwtwzd",
+      "name": "Mina (MINA)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0y5zc5pfwfsf",
+      "name": "Mina (MINA) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "v4w2jcgzjrxz",
+      "name": "Mind Network (FHE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hs66ppvv515c",
+      "name": "Mira (MIRA) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8bb25njzv2c7",
+      "name": "Mirror Protocol (MIR) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "y9d639hzx1fj",
+      "name": "Moca Network (MOCA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8s3g1q5rrkps",
+      "name": "Mog Coin (MOG) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "clnjxc50tqy3",
+      "name": "Monad (MON)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r5p088rw24k3",
+      "name": "Monero (XMR)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "s0xhwwdp4qxv",
+      "name": "Moo Deng (MOODENG) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7bqmmr6b8pv3",
+      "name": "Moonbeam (GLMR)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qx0zkc3k9vw5",
+      "name": "Moonchain (MXC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "nxpf4kl8dwg4",
+      "name": "Moonriver (MOVR)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7630hvjmb33p",
+      "name": "Moons (MOON) - Arbitrum Nova",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vdztylds55xp",
+      "name": "Moonwalk (MF) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9fj38c47vyr9",
+      "name": "Moonwell (WELL) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1dbqvqctgk01",
+      "name": "Morpho (MORPHO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "f4zz733rgndy",
+      "name": "Mubarak (MUBARAK) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qhkllns31kqt",
+      "name": "Multichain (MULTI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "v4dcw4tqz0gg",
+      "name": "MultiversX (EGLD)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jvk4w56vcsds",
+      "name": "My Neighbor Alice (ALICE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "11bjx5cd98p4",
+      "name": "MYX Finance (MYX) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3g9m440lxpnw",
+      "name": "Nano (NANO)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jmgv2mvmj0sb",
+      "name": "NEAR Protocol (NEAR)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7vxpnhn201rf",
+      "name": "NEAR Protocol (NEAR) - Custody",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gk05sbpzc453",
+      "name": "NEAR Protocol (NEAR) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "nj1z5xzfj5kp",
+      "name": "Neiro (NEIRO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3y9dsz0lf9lg",
+      "name": "Neo (NEO) - Neo X",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xzr7xm4r3bz3",
+      "name": "Nesa (NES) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cz3k8b8tmhx2",
+      "name": "Neutron (NTRN) - Cosmos",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5rrtvr31v4h6",
+      "name": "Nexus (NEX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mpdcdtqcfjzx",
+      "name": "Nillion (NIL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "c4bngkvyqsy8",
+      "name": "Nobody Sausage (NOBODY) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tq39zl19fb5q",
+      "name": "Nockchain (NOCK) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hkg680jxqcx9",
+      "name": "NodeOps (NODE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5t0dg1f8rs7w",
+      "name": "Nodle (NODL)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "m4k274ffxjzj",
+      "name": "Nosana (NOS) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "spz5q4plgxp5",
+      "name": "Notcoin (NOT) - The Open Network",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fwdvfttz099j",
+      "name": "Numeraire (NMR) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ldht59z91bbp",
+      "name": "NYM (NYM)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rzskrsb429cv",
+      "name": "Obol (OBOL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "thdph1xh6x4m",
+      "name": "OCEAN Token (OCEAN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vxmxs141l545",
+      "name": "Odos (ODOS) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cf04q29b39fh",
+      "name": "OFFICIAL TRUMP (TRUMP) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9l690qb3v5vh",
+      "name": "OlaXBT (AIO) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "l8w5272bngww",
+      "name": "OMG Network (OMG) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "crrltk2z9z89",
+      "name": "Omni (OMNI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "w4ln4cl2dlg3",
+      "name": "Ondo (ONDO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lgyklh964hr4",
+      "name": "Onyxcoin (XCN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fq5hsdmfgqt5",
+      "name": "Oobit (OOB) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "m69vklmg343h",
+      "name": "Open Campus (EDU) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qgb877nqrppp",
+      "name": "OpenLedger (OPEN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8660fkk02w25",
+      "name": "Opinion (OPN) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2czt6fmvttxl",
+      "name": "Optimism (OP)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vnc1rwz0msgr",
+      "name": "Orca (ORCA) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xx7xr6rnzv0d",
+      "name": "Orchid (OXT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7wfzrm6l65tr",
+      "name": "Orderly Network (ORDER) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "th691czvk9hx",
+      "name": "Origin Protocol (OGN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kkjx5xm5hwp7",
+      "name": "OriginTrail (OTP)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tqf0290ctv7f",
+      "name": "OriginTrail (TRAC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "d5qv6t5p9gf3",
+      "name": "Osmosis (OSMO)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0vjg4sw03606",
+      "name": "OTC",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mstt3kq60qqs",
+      "name": "OVERTAKE (TAKE) - Sui",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "q5g5cvdh9h83",
+      "name": "PACT (PACT) - Aptos",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ktts6x6p1jd8",
+      "name": "PancakeSwap (CAKE) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cmrcfx9slbb9",
+      "name": "Parcl (PRCL) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "g27s1v76vx12",
+      "name": "Particle Network (PARTI) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "59d6q8sy3bs1",
+      "name": "PAX Gold (PAXG) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "p52436prwj8n",
+      "name": "Payment Methods",
+      "status": "operational",
+      "group": true,
+      "description": null
+    },
+    {
+      "id": "3rrx18tpdc71",
+      "name": "PayPal",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8f7znc18z5g5",
+      "name": "PayPal USD (PYUSD) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "4lyb9blb7l0g",
+      "name": "PayPal USD (PYUSD) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zpygv9b6kkp7",
+      "name": "Peanut the Squirrel (PNUT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2tjyh1wbp89h",
+      "name": "peaq (PEAQ)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8201xn2yjyl3",
+      "name": "Pendle (PENDLE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "q2q98kdfp8ys",
+      "name": "Pepe (PEPE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "srchjwqpl115",
+      "name": "Pepecoin (PEP)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vtg3zy2s44hk",
+      "name": "Pepecoin (PEPECOIN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lwyxybrz65q3",
+      "name": "Perpetual Protocol (PERP) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0yd5ljtb8sjw",
+      "name": "Phala (PHA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1sktyqw8d1bf",
+      "name": "Pharos (PROS) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "n0b2rydl7755",
+      "name": "Pi (PI)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5vx8vsl56wf0",
+      "name": "Picasso (PICA)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xc0rkl2r6ldl",
+      "name": "Pieverse (PIEVERSE) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zwky7kq18g9f",
+      "name": "Pipe Network (PIPE) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "l1fyzk59lqvz",
+      "name": "Planck (PLANCK) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vhxh15mb7m1d",
+      "name": "Plasma (XPL)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "w0c2j6wxghb0",
+      "name": "PlaysOut (PLAY) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "v8r0gd107dy0",
+      "name": "Plume (PLUME) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ff1hgs4pn418",
+      "name": "Polkadot (DOT)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rwpsdjldfw61",
+      "name": "Polkadot (DOT) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "p78p2qqzh4k0",
+      "name": "Polkastarter (POLS) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "yrm8tf63rpz2",
+      "name": "Polygon (MATIC) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fc2jvldvf930",
+      "name": "Polygon (POL)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wkdg2ny2hmvq",
+      "name": "Polygon (POL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "djssv6xwtfz7",
+      "name": "Ponke (PONKE) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "czy0x2t560tn",
+      "name": "Popcat (POPCAT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dbkmb6g1qgvj",
+      "name": "Portal (PORTAL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kgcgrnfpw17n",
+      "name": "Portal To Bitcoin (PTB) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7l7zjnb8tdx9",
+      "name": "Pound Sterling (GBP) - Domestic",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1mqp24xw6y32",
+      "name": "Pound Sterling (GBP) - Instant",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0rblcrwdp20r",
+      "name": "Pound Sterling (GBP) - International",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hhhds0m8qphy",
+      "name": "Powerledger (POWR) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bph6k0lqxnp0",
+      "name": "Prompt (PROMPT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9jch904919mt",
+      "name": "Prop Trading",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "c4887h1y27h8",
+      "name": "Propy (PRO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bfk9jpn587gw",
+      "name": "Pudgy Penguins (PENGU) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zy7ghjymlksd",
+      "name": "Puffer Finance (PUFFER) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "44fh7tcsvcvf",
+      "name": "PUMP (PUMP) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kzhclgms3r3p",
+      "name": "Pyth Network (PYTH)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6dfm48j48q8r",
+      "name": "Qtum (QTUM)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "p5wzbhqz917q",
+      "name": "QuackAI (Q)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "g1fgynpfl7f9",
+      "name": "Quai Network (QUAI)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gl0q8dsygxc6",
+      "name": "Quant (QNT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dbcfnk71b28x",
+      "name": "Radicle (RAD) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "my4nbl3dzws3",
+      "name": "Raiinmaker (RAIIN) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5h09b2vk356r",
+      "name": "Rails (RAILS) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1lzgkynv6t8m",
+      "name": "Rain (RAIN) - Arbitrum One",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zdsrl5pm80h8",
+      "name": "Rarible (RARI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "pjq7bwgts4yz",
+      "name": "RaveDAO (RAVE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gm0zrrpqyfgq",
+      "name": "Raydium (RAY) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9tdxv7t9fj2k",
+      "name": "Rayls (RLS) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t478hpqfw14b",
+      "name": "REAL Finance (ASSET) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7zsdyhfg76w3",
+      "name": "RedStone (RED) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "pckyk3hnj2bh",
+      "name": "Rekt (REKT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wd4xm1yrrmph",
+      "name": "Ren (REN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "4c81sh8pt4vk",
+      "name": "Render (RENDER) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ywwk0bsvd2mh",
+      "name": "Renzo (REZ) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "c9g7d0k7dqc3",
+      "name": "Reppo (REPPO) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2qnf1ptvvvgy",
+      "name": "Request (REQ) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5fzl86krwz3b",
+      "name": "ResearchCoin (RSC) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r2d8frzfwx1z",
+      "name": "Reserve Rights (RSR) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cfpbbhgnlnbf",
+      "name": "REST",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dxfwygd9wc17",
+      "name": "REST API",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r0lwfr5tdc37",
+      "name": "REST API",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bcsxwz09fc54",
+      "name": "Retardio (RETARDIO) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zyn6tqrqx7mq",
+      "name": "RHEA (RHEA) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "nkrd0q0mhpwq",
+      "name": "Ripple USD (RLUSD) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ysm54j0t9jfs",
+      "name": "River (RIVER) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "h44q3zsl1jzw",
+      "name": "Rizenet (RIZE) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "4v3tsyfy14nd",
+      "name": "Robo Token (ROBO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7214sztp7gcp",
+      "name": "Robonomics (XRT)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r0hr0pfy6d7c",
+      "name": "Rocket Pool (RPL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "n2m3gchvlm14",
+      "name": "RollX (ROLL) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0d0jpbj55590",
+      "name": "Rubic (RBC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1g2r0fg30p24",
+      "name": "Saber (SBR) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "799ynt12zx8v",
+      "name": "Safe (SAFE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "73b36rgfvsps",
+      "name": "Saga (SAGA)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cw9lc6dbp2wg",
+      "name": "Sahara AI (SAHARA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "n13qqdwf03r5",
+      "name": "Samoyed Coin (SAMO) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1y31pn9fkc71",
+      "name": "Sanctum (CLOUD) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cgpbrgmhr12l",
+      "name": "Sand (SAND) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tc4nxx699sqs",
+      "name": "Sapien (SAPIEN) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fy81t5t8d0lg",
+      "name": "Saros (SAROS) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "f2mtc7sv5frh",
+      "name": "SatLayer (SLAY) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wq8b02b3dlfx",
+      "name": "SaucerSwap (SAUCE) - Hedera",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t8vr4q5813zk",
+      "name": "Scallop (SCA) - Sui",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "51n45n98xz9c",
+      "name": "Schuman EUR\u00d8P (EUROP) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "b6nw7p9889rq",
+      "name": "Scor (SCOR) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gt78rh8945w1",
+      "name": "Secret Network (SCRT)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1trnt62x9fgp",
+      "name": "Secret Network (SCRT) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vnfdwn36bl36",
+      "name": "Seeker (SKR) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "pqkbgpx550yy",
+      "name": "Sei (SEI)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wxvff25969tr",
+      "name": "Sei (SEI) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3lsp1xgwzh0n",
+      "name": "SelfKey (KEY)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rz2gw5dv26z2",
+      "name": "Sentient (SENT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "q5wm5pwclbr8",
+      "name": "Sentio (ST) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "x613lv0dcwlf",
+      "name": "Serum (SRM) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qjsjcq06fcrl",
+      "name": "Shape (SHAPE)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t1hbh2xzk3qh",
+      "name": "Shiba Inu (SHIB) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0rjrljklx8cs",
+      "name": "Shiden (SDN)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "llyry5hs2nw7",
+      "name": "Siacoin (SC)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zkkpgl1kqs09",
+      "name": "Sidekick (SIDEKICK) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tb39tk7x42b4",
+      "name": "Sigma (SIGMA) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0sjzr37w5pz1",
+      "name": "Sign (SIGN) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cjd9mg0gpm2t",
+      "name": "Simons Cat (CAT) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "phx4xwq3xstl",
+      "name": "Single Sign-On",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "q9jncrdqn0x0",
+      "name": "Single Sign-On",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rrtxh62vkhyz",
+      "name": "Sky (SKY) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "s4h8nltnmxv5",
+      "name": "Snek (SNEK) - Cardano",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "j0tvv94httc4",
+      "name": "SogniAI (SOGNI) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "h4h0bgz8txfy",
+      "name": "Solana (SOL)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gm8zrqj91yvd",
+      "name": "Solana (SOL) - Custody",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wdlph5mcx9zs",
+      "name": "Solana (SOL) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "44zmkrjp8gw9",
+      "name": "Solayer (LAYER) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "j5q90dj372nx",
+      "name": "Solstice (SLX) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3hh9sl197kkh",
+      "name": "Solv Protocol (SOLV) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9fpl3xcsyydl",
+      "name": "Somnia (SOMI) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "l9qzchswy1z1",
+      "name": "Songbird (SGB)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7n3rzhmtd9d3",
+      "name": "Sonic (S)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xhb754dxx3xk",
+      "name": "Sonic SVM (SONIC) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "2ythfxv5kyvb",
+      "name": "SOON (SOON) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t08d6gbh8pp7",
+      "name": "SoSoValue (SOSO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fkjt2b6x4m57",
+      "name": "Space and Time (SXT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "k33sfvjqrr1g",
+      "name": "SpaceCoin (SPACE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t4lt7hqybqv3",
+      "name": "Spell Token (SPELL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "djhz60bbf1k3",
+      "name": "Spice (SPICE) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t4g5rzkcnh80",
+      "name": "SPL Tokens - Custody",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "b6x41z61fqxx",
+      "name": "SPX6900 (SPX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1k8t9s3wtbcb",
+      "name": "SSV Network (SSV) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "4t1qsr2tyzvk",
+      "name": "STABLE (STABLE) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mg04yl7f135x",
+      "name": "Stablr Euro (EURR) - Ethereum",
+      "status": "degraded_performance",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "50l1w5c94g51",
+      "name": "Stablr USD (USDR) - Ethereum",
+      "status": "degraded_performance",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "47358d5915ny",
+      "name": "Stacks (STX)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gbb3f7dkcftr",
+      "name": "Stafi Protocol (FIS) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zxj8427gl8cf",
+      "name": "Star Atlas (ATLAS) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "36gl1ylpwck9",
+      "name": "Star Atlas DAO (POLIS) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "k3x44k485lrs",
+      "name": "Stargate Finance (STG) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rl1r1rkvvb58",
+      "name": "Starknet Token (STRK)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8220nthfmyqf",
+      "name": "STBL (STBL) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vvq7n3q4mmn5",
+      "name": "Stella (ALPHA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1l77xdjfrvyd",
+      "name": "STEPN (GMT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "yw0zhjkgsptd",
+      "name": "Stool Prisondente (JAILSTOOL) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6ddfjkbqj2v0",
+      "name": "Storj (STORJ) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5f7ztcjqnnzw",
+      "name": "Story (IP)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "68mvj6jgg5x5",
+      "name": "Stride (STRD) - Cosmos",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mn8yny6z0h54",
+      "name": "Stronghold (SHX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "l0mpxc08785f",
+      "name": "Succinct (PROVE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tqjg025q0gdg",
+      "name": "Sui (SUI)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lbv2nmn0t07l",
+      "name": "Sui (SUI) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "yycwz7xhjgvy",
+      "name": "Suku (SUKU) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8ngpxlg8z4p8",
+      "name": "Sun (SUN) - Tron",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "k1q10wqknlm0",
+      "name": "Sundog (SUNDOG) - Tron",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bmkw5x1dn0s5",
+      "name": "SuperFarm (SUPER) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rxvz2m3k8rsq",
+      "name": "Superform (UP) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "44l7vfpwd7wz",
+      "name": "Superp (SUP) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mrgqp7k0vyp1",
+      "name": "SuperRare (RARE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "pnmkgdgfpffj",
+      "name": "Support",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dpcwlx9dyswy",
+      "name": "Sushi (SUSHI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vybccbcd5bw2",
+      "name": "Swarms (SWARMS) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "67gt3w3k6xv9",
+      "name": "Sweat Economy (SWEAT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xbdmflxkxq5l",
+      "name": "Swell (SWELL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "43hxr0dpbpdw",
+      "name": "Swipe (SXP) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bqpt666lzjz0",
+      "name": "Swiss Franc (CHF) - Domestic",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lhh93s5b0dgn",
+      "name": "Swiss Franc (CHF) - International",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vnqcrfyvpzny",
+      "name": "Synapse (SYN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1ljh242ktc73",
+      "name": "Syndicate (SYND) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0x8lngbzncv6",
+      "name": "Synthetix (SNX) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jsj0k1h7f591",
+      "name": "Syrup (SYRUP) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "j8qjtgy4v4r1",
+      "name": "TAC (TAC) - The Open Network",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "snrv3bcnz09l",
+      "name": "Talus Token (US) - Sui",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8psp2v3nmgdt",
+      "name": "Tanssi Network (TANSSI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7nk8vf8vdlf0",
+      "name": "tBTC (TBTC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "y2p6kc9ghpd9",
+      "name": "Telcoin Network (TEL) - Polygon",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lhk3z1ycjtcf",
+      "name": "Tensor (TNSR) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xph836v33hv6",
+      "name": "Term Finance (TERM) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mv5xkmpl7j8m",
+      "name": "Terra Classic (LUNA) - Cosmos",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kd9htvg14lx5",
+      "name": "Tether EURt (EURT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zlj53cnl0ht8",
+      "name": "Tether Gold (XAUT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0klfp9h3hcnf",
+      "name": "Tether USD (USDT) - Aptos",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "nrpcjwlxp7wh",
+      "name": "Tether USD (USDT) - Arbitrum One",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dcg3zx72fnp7",
+      "name": "Tether USD (USDT) - Avalanche",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1x1mnkk6cpz6",
+      "name": "Tether USD (USDT) - Conflux",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5vwyp79tk316",
+      "name": "Tether USD (USDT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "57cbn1yr0mg0",
+      "name": "Tether USD (USDT) - Flare",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "s2n8nd2qdvdt",
+      "name": "Tether USD (USDT) - HyperEVM (USDT0)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xrzkq3mqy22q",
+      "name": "Tether USD (USDT) - Ink",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8s1qhr4dyr2y",
+      "name": "Tether USD (USDT) - MegaETH",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "scj2781hcrqm",
+      "name": "Tether USD (USDT) - Opt-in Rewards",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kjc2r0khn191",
+      "name": "Tether USD (USDT) - Optimism",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6y9h7mrmv0mc",
+      "name": "Tether USD (USDT) - Plasma",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tk8hnvx1vs4b",
+      "name": "Tether USD (USDT) - Polygon",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "sz49xhkpkxvz",
+      "name": "Tether USD (USDT) - Sei - EVM",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "g8rmk73bwkm8",
+      "name": "Tether USD (USDT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "k950tgvd51w6",
+      "name": "Tether USD (USDT) - Tempo (USDT0)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jjs3tdtb42pk",
+      "name": "Tether USD (USDT) - The Open Network",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0wwmhp8kczsw",
+      "name": "Tether USD (USDT) - Tron",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fvg57m4jk0y6",
+      "name": "Tether USD (USDT) - Xlayer (USDT0)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6flp6qz3d5hs",
+      "name": "Tezos (XTZ)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bf8bkgwc4zwb",
+      "name": "Tezos (XTZ) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "y0d7g659v2gd",
+      "name": "The Graph (GRT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "v5c0t0hc5w13",
+      "name": "The Graph (GRT) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1cs2y6nzkx6g",
+      "name": "Theoriq (THQ) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9xp9vvkt43jv",
+      "name": "THORChain (RUNE)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0zbdb8fv5s60",
+      "name": "Threshold (T) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jq004lm526q3",
+      "name": "Titcoin (TITCOIN) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "50qrmgsk7r00",
+      "name": "Tokemak (TOKE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "4pg8st6443hw",
+      "name": "tokenbot (CLANKER) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "6bxfkx6j6cqz",
+      "name": "TokenFi (TOKEN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bwmr1wfjnlvp",
+      "name": "Toncoin (TON) - Custody",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "15k1nkcgqhyd",
+      "name": "Toncoin (TON) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "70k3dcml4lzq",
+      "name": "Toncoin (TON) - The Open Network",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "qb130n6q7fjv",
+      "name": "Toshi (TOSHI) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "b2c133dgx1wg",
+      "name": "Tria (TRIA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "fgghs8sj03kn",
+      "name": "Tribe (TRIBE) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rprwn4xm3l4y",
+      "name": "TRON (TRX)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "xshhgd2xqzkf",
+      "name": "TRON (TRX) - Staking",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "436y2b0nbkbs",
+      "name": "TrueFi (TRU) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "43sdcb91377v",
+      "name": "Turbo (TURBO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "34pbt61jk7s0",
+      "name": "U.S. Dollar Payment Token (USDPT) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "sddhnycrpnwk",
+      "name": "U2U Network (U2U) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dnrz842kgtqw",
+      "name": "Unicorn Fart Dust (UFD) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tkjqy2mcydxx",
+      "name": "UnifAI Network (UAI) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "w6dmjdgnbx39",
+      "name": "Unifi Protocol DAO (UNFI)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "q4nd52vrdwhj",
+      "name": "UNION (U) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "z6n4l4qzfszh",
+      "name": "Uniswap (UNI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "15wh37ryw5cw",
+      "name": "UNITAS (UNITAS) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "v7fc3hgvxnh7",
+      "name": "Unite (UNITE) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "g9ry4913lstn",
+      "name": "Universal Market Access (UMA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9c8v4zy9mh8v",
+      "name": "US Dollar (USD) - Domestic",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "z446gqkcz3jm",
+      "name": "US Dollar (USD) - Instant",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "nh4qvx5mzst1",
+      "name": "US Dollar (USD) - International",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rp057rsdh40t",
+      "name": "US Dollar (USD) - Opt-in Rewards",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "n4wc9j9lbwty",
+      "name": "USA\u20ae (USAT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "q91twq3tn48w",
+      "name": "USD.AI (CHIP) - Arbitrum One",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "s9lj3xbhm9k0",
+      "name": "USD1 (USD1) - AB",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "77b9y34r6k8x",
+      "name": "USD1 (USD1) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "m9vswg3myrg6",
+      "name": "USDC (USDC) - Algorand",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "y28bbjgxl1mb",
+      "name": "USDC (USDC) - Arbitrum One",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "td1tcgt55csc",
+      "name": "USDC (USDC) - Avalanche",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vz63zpcsblnd",
+      "name": "USDC (USDC) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rpslp54vz762",
+      "name": "USDC (USDC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tgsmbyrzqzc3",
+      "name": "USDC (USDC) - Hedera",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "btlx6qpwcj7m",
+      "name": "USDC (USDC) - Ink",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t46sxhd5sr99",
+      "name": "USDC (USDC) - Opt-in Rewards",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "pb5cbvsvqmvd",
+      "name": "USDC (USDC) - Optimism",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bphnjt9fv60f",
+      "name": "USDC (USDC) - Polygon",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "83krl6xfnkb9",
+      "name": "USDC (USDC) - Sei - EVM",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "429cbd342btz",
+      "name": "USDC (USDC) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "4vsdp5gzxnqw",
+      "name": "USDC (USDC) - Sonic",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gfj52cyfhl34",
+      "name": "USDC (USDC) - Stellar",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "3whwxty76sbn",
+      "name": "USDC (USDC) - Sui",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tkkctkv94vgd",
+      "name": "USDC (USDC) - XDC Network",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "sntclgvfy7n0",
+      "name": "USDCx (USDC) - Canton Network",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5vwn9b4zsf3w",
+      "name": "USDD (USDD) - Tron",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bywpyk57c2dz",
+      "name": "USDG (USDG) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "zzf3f2z0ymcl",
+      "name": "USDG (USDG) - Ink",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "71f8814s6zp0",
+      "name": "USDG (USDG) - Opt-in Rewards",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "p3961ht0fx69",
+      "name": "USDG (USDG) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vqm0zm4g59hz",
+      "name": "USDG (USDG) - Xlayer",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kmtxyx6g37s2",
+      "name": "USDQ (USDQ) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9s852txdzj83",
+      "name": "USDQ (USDQ) - Polygon",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tv98yf4tnzfj",
+      "name": "USDS (USDS) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8ltp9k1pw4kd",
+      "name": "Useless Coin (USELESS) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dbf3t5k1xr3q",
+      "name": "User Interface",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "83y5mz39x283",
+      "name": "User Interface",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "017l8zn4ccng",
+      "name": "Usual (USUAL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "dylzw5r1dxgc",
+      "name": "UXLINK (UXLINK) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vwgpq4bywqch",
+      "name": "Vanar Chain (VANRY) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "p8pch8g6w3n5",
+      "name": "Vanta Network (SN8) - Bittensor",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gyqrsnk65vk3",
+      "name": "VeChain (VET)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "4grjbb3sq89j",
+      "name": "Velo (VELO) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "155cyy5t17kv",
+      "name": "Velodrome Finance (VELODROME) - Optimism",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hl3mv40lhzv0",
+      "name": "Velvet (VELVET) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "p5jtb1y5dqlk",
+      "name": "Venice Token (VVV) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "t3l0xvg5ppts",
+      "name": "Verse World (VERSE) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "72j2q7pk326w",
+      "name": "VeThor (VTHO) - VeChain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "56nl473xst44",
+      "name": "Vine (VINE) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "l945n2bvhc8w",
+      "name": "Virtuals Protocol (VIRTUAL) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "rjp25hr286n4",
+      "name": "Vision (VSN) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "52zyg12rm20f",
+      "name": "VOOI (VOOI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jvjjvg9tz5v4",
+      "name": "Vultisig (VULT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "8ltfbwy9c7dl",
+      "name": "WalletConnect Token (WCT) - Optimism",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "30j3sr1kc6ny",
+      "name": "Walrus (WAL) - Sui",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "r7r3qrzplmhy",
+      "name": "War (WAR) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mhcnmhlldpkh",
+      "name": "Website",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vz83fx0396f0",
+      "name": "Websocket",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "d482m8nqx6vy",
+      "name": "Websocket API",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "sryr76qnbtq3",
+      "name": "Websocket API",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "lzzxvdvs7vvg",
+      "name": "WEMIX (WEMIX)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "pjhw01z6n2dx",
+      "name": "WenWenCoin (WEN) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "ts286wfvmxqy",
+      "name": "WhiteBIT Coin (WBT) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "p2bv6c8tfjdt",
+      "name": "Wingbits (WINGS) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9hzdbc4w2vl8",
+      "name": "WINkLink (WIN) - Tron",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "c7fvdmvr5v0f",
+      "name": "Woo Network (WOO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "w5jl11590wyp",
+      "name": "World Liberty Financial (WLFI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "12bnhcnwv1dt",
+      "name": "World Mobile Token (WMTX) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hfrldp0bkspy",
+      "name": "Worldcoin (WLD) - Optimism",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "tf7xpsw23t1m",
+      "name": "Wormhole (W) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "kgm6hh4vt67d",
+      "name": "Wrapped Axelar (WAXL) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "vgsqqzbwmr2s",
+      "name": "Wrapped Bitcoin (WBTC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "hs1ypnl3sq7x",
+      "name": "Wrapped Ether (WETH) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "1jt0lthh9jpr",
+      "name": "X Layer (OKB)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5frdrlxwcbc2",
+      "name": "XDC Network (XDC)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "q5xrhrm0f3ny",
+      "name": "XION (XION) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "662h68hvwp63",
+      "name": "XMoney (XMN) - Sui",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "7fm2m08jpzvf",
+      "name": "XRP (XRP)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "sbppx70qw44l",
+      "name": "XRP (XRP) - Custody",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "stvv31wcjwrz",
+      "name": "xStocks",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "p2l1hgcxvx08",
+      "name": "Xterio (XTER) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jdr0qcr6b0sh",
+      "name": "XYO (XYO) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "w59y873vk39b",
+      "name": "XYO Layer One (XL1) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "jp3rj0s81tyz",
+      "name": "YALA (YALA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "99kq8psz9gp0",
+      "name": "Yearn Finance (YFI) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "0chldrkk6d3c",
+      "name": "Yield Guild Games (YGG) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "m2ct75xnrrnp",
+      "name": "YieldBasis (YB) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "gc83gbw38j5p",
+      "name": "YOM (YOM) - Avalanche C-Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "cjqzfqss3y6g",
+      "name": "Yooldo Games (ESPORTS) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9h0s30x1zrqh",
+      "name": "Zama Protocol (ZAMA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9fsxygzcpf5s",
+      "name": "Zcash (ZEC)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "10fznhht4h4n",
+      "name": "Zebec Network (ZBCN) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "wbytzv5mtd6n",
+      "name": "Zerebro (ZEREBRO) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bpp2zh5tv10t",
+      "name": "Zero Gravity (0G)",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "nm5dxkf6lql4",
+      "name": "ZEROBASE (ZBT) - BNB Chain",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "mzwx5v6t62sy",
+      "name": "Zeta (ZEX) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "b60fp6skqm4z",
+      "name": "ZetaChain (ZETA) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "h9ld20647wvg",
+      "name": "Zeus Network (ZEUS) - Solana",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "c9q6rylzff0p",
+      "name": "ZIGChain (ZIG) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "58jr24mhym8k",
+      "name": "Zircuit (ZRC) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "5m84rhr111dh",
+      "name": "zkPASS (ZKP) - Ethereum",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "bjhr8tcpdqhw",
+      "name": "zkSync (ZK) - zkSync Era",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "9n7488p272v3",
+      "name": "zkVerify (VFY) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    },
+    {
+      "id": "y5l2yjw8587h",
+      "name": "ZORA (ZORA) - Base",
+      "status": "operational",
+      "group": false,
+      "description": null
+    }
+  ],
+  "safe_trading_policy": {
+    "block_if_api_not_operational": true,
+    "block_asset_if_component_degraded": true,
+    "never_deposit_withdraw_via_bot": true,
+    "prefer_pairs": [
+      "ADAUSD",
+      "ADAEUR",
+      "XRPUSD",
+      "XRPEUR"
+    ]
+  }
+}

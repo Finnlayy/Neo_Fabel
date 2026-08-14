@@ -56,7 +56,23 @@ class FakeSignalEvaluator:
                 prompt_version=self.settings.advisory_prompt_version,
                 latency_ms=0,
             )
-        decision: AdvisoryDecision = self.force_decision or "approve"
+        if self.force_decision is not None:
+            decision: AdvisoryDecision = self.force_decision
+        else:
+            # Pattern → Signal-Route Boost (deterministic stub):
+            # If RNA provided a pattern bias+confidence, let it steer the advisory decision.
+            decision = "approve"
+            if candidate.pattern_bias is not None and candidate.pattern_confidence is not None:
+                confidence = float(candidate.pattern_confidence)
+                threshold = 65.0
+                expected = "bullish" if candidate.side == "buy" else "bearish"
+
+                if candidate.pattern_bias == "neutral":
+                    decision = "abstain"
+                elif candidate.pattern_bias == expected:
+                    decision = "approve" if confidence >= threshold else "abstain"
+                else:
+                    decision = "reject" if confidence >= threshold else "abstain"
         reason = {
             "approve": "canonical_signal_consistent",
             "reject": "canonical_signal_rejected",

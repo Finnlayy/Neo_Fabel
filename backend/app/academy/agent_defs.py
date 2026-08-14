@@ -11,6 +11,15 @@ class AgentDefinition:
     archetype: str
     drill_type: str
     personality_vector: dict[str, float]
+    display_name: str
+    profession: str
+    agenda: str
+    lifetask: str
+    # On the trading decision path (Agency / capital-adjacent roles).
+    trades: bool = True
+    # Included in Academy night/manual auto-cycles.
+    # False for meta roles and self-taught agents (Chronos runs its own loop).
+    academy_train: bool = True
 
 
 # Maps Jules scouts → Neo INITIAL_SUB_AGENTS ids.
@@ -18,57 +27,157 @@ NEO_AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
     AgentDefinition(
         name="orchestrator",
         archetype="Diplomat",
-        drill_type="regime_identification",
+        drill_type="orchestration_teamwork",
         personality_vector={"analytical": 0.5, "cautious": 0.5, "momentum_driven": 0.5},
+        display_name="Master Orchestrator",
+        profession="Agency Director",
+        agenda="Align swarm packets, skill routing, and execution gates into one coherent plan.",
+        lifetask="Keep the agency paper-safe while maximizing coordinated decision quality.",
+        trades=False,
+        academy_train=False,
     ),
     AgentDefinition(
         name="market_data",
         archetype="Analyst",
-        drill_type="pattern_recognition",
+        drill_type="market_tape",
         personality_vector={"analytical": 0.9, "cautious": 0.4, "momentum_driven": 0.8},
+        display_name="Market Data Agent",
+        profession="Market Intelligence Officer",
+        agenda="Ingest multi-venue ticks, depth, and OHLCV so every peer shares one tape truth.",
+        lifetask="Never leave the agency blind — freshness and coverage before narrative.",
+        trades=True,
     ),
     AgentDefinition(
         name="rna_smart",
         archetype="Patternist",
         drill_type="pattern_recognition",
         personality_vector={"analytical": 0.85, "cautious": 0.35, "momentum_driven": 0.7},
+        display_name="RNA Smartelligent",
+        profession="Blind Geometry Specialist",
+        agenda="Read candlestick structure as relative geometry — no symbols, no absolute prices.",
+        lifetask="Surface honest pattern bias the agency can debate without look-ahead leakage.",
+        trades=True,
     ),
     AgentDefinition(
         name="risk_gov",
         archetype="Guardian",
-        drill_type="crisis_detection",
+        drill_type="risk_policy",
         personality_vector={"analytical": 0.8, "cautious": 0.95, "momentum_driven": 0.1},
+        display_name="Risk Governor",
+        profession="Chief Risk Officer",
+        agenda="Enforce drawdown, autonomy, and compliance shields before any capital path.",
+        lifetask="Block toxic regimes early; protect the agency from irreversible live risk.",
+        trades=True,
     ),
     AgentDefinition(
         name="kraken_broker",
         archetype="Operator",
-        drill_type="execution_quality",
+        drill_type="paper_execution",
         personality_vector={"analytical": 0.9, "cautious": 0.9, "momentum_driven": 0.2},
+        display_name="Kraken Broker Execution",
+        profession="Execution Specialist",
+        agenda="Route paper fills cleanly; report slippage and rejects without live side-effects.",
+        lifetask="Make execution telemetry trustworthy so strategy never invents fills.",
+        trades=True,
     ),
     AgentDefinition(
         name="predictive",
         archetype="Strategist",
-        drill_type="regime_identification",
+        drill_type="regime_forecast",
         personality_vector={"analytical": 0.7, "cautious": 0.7, "momentum_driven": 0.3},
+        display_name="Predictive Modeling",
+        profession="Regime Strategist",
+        agenda="Project short-horizon vectors and volatility corridors for planning only.",
+        lifetask="Warn the agency when regimes shift before they become losses.",
+        trades=True,
+    ),
+    AgentDefinition(
+        name="chronos",
+        archetype="KLine Linguist",
+        drill_type="kline_language",
+        personality_vector={"analytical": 0.95, "cautious": 0.75, "momentum_driven": 0.45},
+        display_name="Chronos K-Line Agent",
+        profession="K-Line Language Scientist",
+        agenda="Tokenize OHLCVA via causal Z-score + BSQ; forecast with coarse/fine structure.",
+        lifetask="Teach the agency the language of markets — paper signals, never auto-execution.",
+        trades=True,
+        # Chronos self-teaches via its own pipeline; Academy does not auto-drill it.
+        academy_train=False,
     ),
     AgentDefinition(
         name="analytic",
         archetype="Analyst",
-        drill_type="sentiment_analysis",
+        drill_type="market_brief",
         personality_vector={"analytical": 0.9, "cautious": 0.4, "momentum_driven": 0.6},
+        display_name="Analytical Analysis",
+        profession="Portfolio Analyst",
+        agenda="Compile performance, yield, and multi-asset context into decision-ready briefs.",
+        lifetask="Turn ledger noise into clear agency scorecards.",
+        trades=False,
+        academy_train=False,
     ),
     AgentDefinition(
         name="adaptive",
         archetype="Researcher",
-        drill_type="sentiment_analysis",
+        drill_type="param_adapt",
         personality_vector={"analytical": 0.8, "cautious": 0.4, "momentum_driven": 0.6},
+        display_name="Adaptive Agent",
+        profession="Parameter Researcher",
+        agenda="Retune thresholds and sizing as regimes evolve — always under risk_gov veto.",
+        lifetask="Keep the agency adaptive without becoming reckless.",
+        trades=True,
     ),
 )
 
 NEO_AGENT_NAMES: tuple[str, ...] = tuple(d.name for d in NEO_AGENT_DEFINITIONS)
 
+# Trading-path roles (includes Chronos; excludes meta/briefing).
+TRADING_AGENT_NAMES: tuple[str, ...] = tuple(d.name for d in NEO_AGENT_DEFINITIONS if d.trades)
+
+# Academy auto-cycle roster (trading path minus self-taught / meta).
+ACADEMY_TRAINABLE_NAMES: tuple[str, ...] = tuple(
+    d.name for d in NEO_AGENT_DEFINITIONS if d.academy_train and d.trades
+)
+
 _BY_NAME = {d.name: d for d in NEO_AGENT_DEFINITIONS}
+
+_LEVEL_THRESHOLDS: tuple[tuple[int, str, int], ...] = (
+    (0, "Novice", 1),
+    (10, "Apprentice", 2),
+    (50, "Adept", 3),
+    (100, "Expert", 4),
+    (250, "Master", 5),
+)
 
 
 def get_agent_definition(name: str) -> AgentDefinition | None:
     return _BY_NAME.get(name)
+
+
+def academy_trainable_agents(*, trading_only: bool = True) -> tuple[str, ...]:
+    """Agents included in Academy training cycles.
+
+    Chronos is never auto-trained (self-taught). When trading_only is False,
+    meta roles may join, but self-taught agents still stay out.
+    """
+    if trading_only:
+        return ACADEMY_TRAINABLE_NAMES
+    return tuple(d.name for d in NEO_AGENT_DEFINITIONS if d.academy_train)
+
+
+def experience_rank(total_calls: int) -> tuple[int, str]:
+    """Return (level_number, experience_title) from career call count."""
+    level_num = 1
+    title = "Novice"
+    for threshold, name, num in _LEVEL_THRESHOLDS:
+        if total_calls >= threshold:
+            level_num = num
+            title = name
+    return level_num, title
+
+
+def next_level_at(total_calls: int) -> int | None:
+    for threshold, _name, _num in _LEVEL_THRESHOLDS:
+        if total_calls < threshold:
+            return threshold
+    return None

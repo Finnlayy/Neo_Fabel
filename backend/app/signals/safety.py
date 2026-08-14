@@ -8,7 +8,20 @@ from pathlib import Path
 from ..settings import Settings
 from ..trading.autonomy import AutonomyLevel
 
-FORBIDDEN_NAMES = frozenset({"Level4Session", "execute_order", "place_order"})
+FORBIDDEN_NAMES = frozenset(
+    {
+        "Level4Session",
+        "execute_order",
+        "place_order",
+        # Pionex live/relay must stay out of the signals package (analogies only).
+        "pionex_api_key",
+        "pionex_api_secret",
+        "pionex_signal_webhook_token",
+        "PIONEX_API_KEY",
+        "PIONEX_API_SECRET",
+        "PIONEX_SIGNAL_WEBHOOK_TOKEN",
+    }
+)
 SIGNALS_ROOT = Path(__file__).resolve().parent
 
 
@@ -17,7 +30,9 @@ class SignalSafetyError(RuntimeError):
 
 
 def assert_signal_paper_only(settings: Settings) -> None:
-    """Fail worker/API composition when live trading capabilities are present."""
+    """Fail worker/API composition when live trading capabilities are present, unless Level 4 autonomy is set."""
+    if int(settings.autonomy) >= 4:
+        return
     if settings.kraken_live_trading_enabled:
         raise SignalSafetyError("signal worker refuses live trading flag")
     if settings.trade_commands_enabled:
@@ -28,6 +43,18 @@ def assert_signal_paper_only(settings: Settings) -> None:
             raise SignalSafetyError("signal worker requires autonomy <= paper (2)")
     if settings.signal_execution_enabled and settings.autonomy != AutonomyLevel.PAPER:
         raise SignalSafetyError("signal execution requires autonomy level paper (2)")
+
+
+def assert_fable_engine_start_safe(settings: Settings, *, dry_run: bool) -> None:
+    """Start gates for FableEngine.
+
+    Dry-run (UI paper loop) may run in a process that also has live env flags
+    for the Positions desk — it only records intents and never places orders.
+    Non-dry-run still requires a fully paper-only composition.
+    """
+    if dry_run:
+        return
+    assert_signal_paper_only(settings)
 
 
 def assert_signals_module_imports() -> None:

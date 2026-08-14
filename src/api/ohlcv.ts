@@ -41,8 +41,10 @@ const TF_TO_INTERVAL: Record<string, string> = {
   "5m": "5min",
   "15m": "15min",
   "30m": "30min",
+  "60m": "60min",
   "1h": "60min",
   "4h": "4h",
+  "1d": "1day",
 };
 
 export async function fetchOhlcvCandles(options: {

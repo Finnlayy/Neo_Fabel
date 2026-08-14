@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
-import { 
-  LayoutDashboard, Terminal, BrainCircuit, Users, Route, GraduationCap
+import {
+  LayoutDashboard, Terminal, BrainCircuit, Users, Route, GraduationCap, Cpu, Hourglass, Briefcase, LineChart, Layers
 } from "lucide-react";
 import type { MainTab } from "../types";
 
@@ -32,12 +32,20 @@ export default function NavigationMenu({
   executedCount,
   language = "en"
 }: NavigationMenuProps) {
+  const de = language === "de";
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
       
       switch (e.key) {
+        case "0":
+          setActiveTab("paper");
+          break;
+        case "p":
+        case "P":
+          setActiveTab("positions");
+          break;
         case "1":
           setActiveTab("dashboard");
           break;
@@ -56,6 +64,15 @@ export default function NavigationMenu({
         case "6":
           setActiveTab("academy");
           break;
+        case "7":
+          setActiveTab("onnx");
+          break;
+        case "8":
+          setActiveTab("chronos");
+          break;
+        case "9":
+          setActiveTab("agency");
+          break;
         default:
           break;
       }
@@ -66,53 +83,100 @@ export default function NavigationMenu({
   }, [setActiveTab]);
 
   const tabs: Array<{
-    id: Exclude<MainTab, "full">;
+    id: MainTab;
     label: string;
     icon: typeof LayoutDashboard;
     desc: string;
     accent: string;
+    hotkey: string;
   }> = [
+    {
+      id: "positions",
+      label: de ? "Positionen" : "Positions",
+      icon: Layers,
+      accent: "cyan",
+      desc: de ? "Paper & Live verwalten" : "Manage paper & live holdings",
+      hotkey: "P",
+    },
+    {
+      id: "paper",
+      label: de ? "Paper-Performance" : "Paper Performance",
+      icon: LineChart,
+      accent: "emerald",
+      desc: de ? "Equity, PnL & Fills (Paper)" : "Equity, PnL & fills (paper)",
+      hotkey: "0",
+    },
     {
       id: "dashboard",
       label: "Omni-Dashboard",
       icon: LayoutDashboard,
       accent: "emerald",
-      desc: language === "de" ? "Live-Arbeitsbereich-Übersicht" : "Live workspace overview"
+      desc: language === "de" ? "Live-Arbeitsbereich-Übersicht" : "Live workspace overview",
+      hotkey: "1",
     },
     {
       id: "terminal",
       label: language === "de" ? "Handels-Terminal" : "Trading Terminal",
       icon: Terminal,
       accent: "cyan",
-      desc: language === "de" ? "Orderbuch & Ausführungen" : "Order book & executions"
+      desc: language === "de" ? "Orderbuch & Ausführungen" : "Order book & executions",
+      hotkey: "2",
     },
     {
       id: "strategy",
       label: language === "de" ? "KI-Strategiestudio" : "AI Strategy Studio",
       icon: BrainCircuit,
       accent: "violet",
-      desc: language === "de" ? "Generativer Co-Pilot & Ziele" : "Generative co-pilot & goals"
+      desc: language === "de" ? "Generativer Co-Pilot & Ziele" : "Generative co-pilot & goals",
+      hotkey: "3",
     },
     {
       id: "swarm",
       label: language === "de" ? "Schwarm-Verwaltung" : "Swarm Governance",
       icon: Users,
       accent: "amber",
-      desc: language === "de" ? "Risikoüberwachung & Node-Status" : "Risk governing & node state"
+      desc: language === "de" ? "Risikoüberwachung & Node-Status" : "Risk governing & node state",
+      hotkey: "4",
     },
     {
       id: "signals",
       label: language === "de" ? "Signal-Routen" : "Signal Routes",
       icon: Route,
       accent: "sky",
-      desc: language === "de" ? "TradingView & MCP-Eingang" : "TradingView & MCP ingress"
+      desc: language === "de" ? "TradingView & MCP-Eingang" : "TradingView & MCP ingress",
+      hotkey: "5",
     },
     {
       id: "academy",
       label: language === "de" ? "Akademie" : "Academy",
       icon: GraduationCap,
       accent: "teal",
-      desc: language === "de" ? "Agenten-Training & Drills" : "Agent training & drills"
+      desc: language === "de" ? "Agenten-Training & Drills" : "Agent training & drills",
+      hotkey: "6",
+    },
+    {
+      id: "onnx",
+      label: language === "de" ? "ONNX-Neuronales Kernmodul" : "ONNX Neural Core",
+      icon: Cpu,
+      accent: "lime",
+      desc: language === "de" ? "LSTM-Inferenz & Modell-Graph" : "LSTM inference & model graph",
+      hotkey: "7",
+    },
+    {
+      id: "chronos",
+      label: language === "de" ? "Chronos-Agent" : "Chronos Agent",
+      icon: Hourglass,
+      accent: "cyan",
+      desc: language === "de" ? "K-Line-Sprachmodell & Optionen" : "K-Line language model & options",
+      hotkey: "8",
+    },
+    {
+      id: "agency",
+      label: language === "de" ? "Agency" : "Agency",
+      icon: Briefcase,
+      accent: "amber",
+      desc: language === "de" ? "Rollen, Stufe & Lebensaufgaben" : "Roles, level & life tasks",
+      hotkey: "9",
     },
   ];
 
@@ -123,6 +187,7 @@ export default function NavigationMenu({
     amber: "bg-amber-400",
     sky: "bg-sky-400",
     teal: "bg-teal-400",
+    lime: "bg-lime-400",
   };
   const accentText: Record<string, string> = {
     emerald: "text-emerald-400",
@@ -131,6 +196,7 @@ export default function NavigationMenu({
     amber: "text-amber-400",
     sky: "text-sky-400",
     teal: "text-teal-400",
+    lime: "text-lime-400",
   };
 
   return (
@@ -168,7 +234,7 @@ export default function NavigationMenu({
                     {tab.label}
                   </span>
                   <span className="text-[8px] text-slate-500 font-normal leading-none mt-1 uppercase tracking-wider hidden sm:block">
-                    {language === "de" ? "Taste" : "Key"} {idx + 1}
+                    {language === "de" ? "Taste" : "Key"} {tab.hotkey}
                   </span>
                 </div>
               </button>

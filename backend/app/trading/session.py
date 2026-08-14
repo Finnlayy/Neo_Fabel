@@ -9,6 +9,15 @@ from typing import TYPE_CHECKING, Any, Literal
 from ..integrations.kraken_cli import KrakenCli, KrakenCliError
 from .autonomy import AutonomyLevel, require_autonomy
 from .guardrails import GuardrailViolation, TradingGuardrails
+from .live_session_ledger import normalize_pair
+from .position_sizing import PositionSizingPolicy, compute_notional_eur, volume_from_notional
+from .session_policy import (
+    SessionRiskPolicy,
+    assert_confidence_ok,
+    assert_daily_loss_ok,
+    assert_market_hours_allowed,
+    assert_max_drawdown_ok,
+)
 
 if TYPE_CHECKING:
     from ..settings import Settings
@@ -38,12 +47,101 @@ class Level4Session:
         self.settings = settings
         self.guardrails: TradingGuardrails = settings.trading_guardrails()
         self.rate_limiter = get_trade_rate_limiter()
-        self.cli = cli or KrakenCli(
-            binary=settings.kraken_binary,
-            timeout_seconds=settings.kraken_timeout_seconds,
-            allow_trade_commands=settings.trade_commands_enabled,
-        )
+        if cli is not None:
+            self.cli = cli
+        else:
+            from ..integrations.paper_factory import build_kraken_cli
+
+            self.cli = build_kraken_cli(settings)
         self._deadman_armed = False
+        self.sizing_policy: PositionSizingPolicy | None = None
+        self.session_capital_eur: float | None = None
+        self.session_max_margin_eur: float | None = None
+        self.risk_policy: SessionRiskPolicy | None = None
+
+    def set_sizing_policy(
+        self,
+        policy: PositionSizingPolicy,
+        *,
+        capital_eur: float,
+        max_margin_eur: float,
+    ) -> None:
+        self.sizing_policy = policy
+        self.session_capital_eur = float(capital_eur)
+        self.session_max_margin_eur = float(max_margin_eur)
+
+    def set_risk_policy(self, policy: SessionRiskPolicy) -> None:
+        self.risk_policy = policy
+
+    def resolve_order_volume(
+        self,
+        *,
+        price: Decimal,
+        confidence: float | None = None,
+        stop_pct: float | None = None,
+        take_pct: float | None = None,
+        volume: Decimal | None = None,
+    ) -> tuple[Decimal, dict[str, Any]]:
+        """Return (volume, sizing_detail). Explicit volume wins when provided."""
+        if volume is not None and volume > 0:
+            return volume, {"mode": "explicit_volume", "volume": str(volume)}
+        if self.sizing_policy is None:
+            raise ValueError("no position sizing policy set for this session")
+        capital = float(self.session_capital_eur or 0)
+        margin = float(self.session_max_margin_eur or capital)
+        detail = compute_notional_eur(
+            self.sizing_policy,
+            capital_eur=capital,
+            max_margin_eur=margin,
+            confidence=confidence,
+            stop_pct=stop_pct,
+            take_pct=take_pct,
+        )
+        notional = float(detail.get("notional_eur") or 0)
+        if notional <= 0:
+            raise ValueError("sizing resolved to zero notional")
+        sized = volume_from_notional(notional_eur=notional, price=price)
+        detail["volume"] = str(sized)
+        return sized, detail
+
+    def apply_session_limits(
+        self,
+        *,
+        max_margin_eur: float,
+        max_concurrent_trades: int,
+        symbols: list[str] | None = None,
+    ) -> TradingGuardrails:
+        """Tighten env guardrails for one live session (never widen)."""
+        base = self.guardrails
+        margin = Decimal(str(max_margin_eur))
+        if margin <= 0:
+            raise ValueError("max_margin_eur must be > 0")
+        if max_concurrent_trades < 1 or max_concurrent_trades > 10:
+            raise ValueError("max_concurrent_trades must be 1..10")
+
+        requested = [normalize_pair(s) for s in (symbols or []) if normalize_pair(s)]
+        if requested:
+            unknown = [s for s in requested if s not in base.pair_allowlist]
+            if unknown:
+                raise ValueError(
+                    "symbols outside env allowlist: "
+                    + ",".join(unknown)
+                    + f" (env={','.join(sorted(base.pair_allowlist))})"
+                )
+            pairs = frozenset(requested)
+        else:
+            pairs = base.pair_allowlist
+
+        tightened = TradingGuardrails(
+            max_order_size=base.max_order_size,
+            max_notional=min(base.max_notional, margin),
+            max_open_positions=min(base.max_open_positions, int(max_concurrent_trades)),
+            max_trades_per_hour=base.max_trades_per_hour,
+            min_trade_interval_seconds=base.min_trade_interval_seconds,
+            pair_allowlist=pairs,
+        )
+        self.guardrails = tightened
+        return tightened
 
     def _assert_level4(self) -> None:
         require_autonomy(self.settings.autonomy, AutonomyLevel.AUTONOMOUS)
@@ -69,7 +167,12 @@ class Level4Session:
         record(
             "withdrawal_note",
             True,
-            "API key must be trade-only (no Withdraw Funds permission)",
+            "API key must be trade-only (no Withdraw Funds / no funding permissions)",
+        )
+        record(
+            "capital_policy",
+            True,
+            "no external replenish; no debt/leverage>1; no negative cash; max notional enforced",
         )
 
         try:
@@ -109,48 +212,161 @@ class Level4Session:
         return await self.arm_deadman()
 
     async def monitor_snapshot(self) -> dict[str, Any]:
-        """Level 1 monitoring view — safe at any autonomy level with query keys."""
+        """Level 1 monitoring view — safe at any autonomy level with query keys.
+
+        When live trading is disabled, skip the Kraken CLI entirely (paper research
+        must not require a local `kraken` binary).
+        """
         balance: dict[str, Any] | None = None
         open_orders: dict[str, Any] | None = None
         errors: list[dict[str, str]] = []
-        try:
-            balance = await self.cli.balance()
-        except KrakenCliError as exc:
-            errors.append({"source": "balance", "category": exc.category, "message": str(exc)})
-        try:
-            open_orders = await self.cli.open_orders()
-        except KrakenCliError as exc:
-            errors.append({"source": "open_orders", "category": exc.category, "message": str(exc)})
+        paper_only = not self.settings.kraken_live_trading_enabled
+
+        if not paper_only:
+            try:
+                balance = await self.cli.balance()
+            except KrakenCliError as exc:
+                errors.append({"source": "balance", "category": exc.category, "message": str(exc)})
+            try:
+                open_orders = await self.cli.open_orders()
+            except KrakenCliError as exc:
+                errors.append({"source": "open_orders", "category": exc.category, "message": str(exc)})
+
         return {
             "autonomy_level": int(self.settings.autonomy),
+            "paper_only": paper_only,
             "deadman_seconds": self.settings.kraken_deadman_seconds,
             "deadman_armed": self._deadman_armed,
             "guardrails": {
                 "max_order_size": str(self.guardrails.max_order_size),
+                "max_notional": str(self.guardrails.max_notional),
                 "max_open_positions": self.guardrails.max_open_positions,
                 "max_trades_per_hour": self.guardrails.max_trades_per_hour,
+                "min_trade_interval_seconds": self.guardrails.min_trade_interval_seconds,
                 "pair_allowlist": sorted(self.guardrails.pair_allowlist),
                 "trades_in_last_hour": self.rate_limiter.trades_in_window(),
             },
             "balance": balance,
             "open_orders": open_orders,
             "errors": errors,
+            "note": (
+                "Kraken CLI skipped — live trading disabled; paper lots via /api/v1/positions"
+                if paper_only
+                else None
+            ),
         }
 
     async def execute_order(
         self,
         side: Literal["buy", "sell"],
         pair: str,
-        volume: Decimal,
+        volume: Decimal | None,
         order_type: Literal["market", "limit"] = "limit",
         price: Decimal | None = None,
         *,
         open_positions: int | None = None,
+        confidence_pct: float | None = None,
+        rationale: str | None = None,
+        skip_human_verification: bool = False,
     ) -> dict[str, Any]:
-        """Validate, guardrail-check, then place with --yes (Level 4)."""
+        """Validate, guardrail-check, then place with --yes (Level 4).
+
+        When session human_verification is on (and not skipped), queues a Telegram
+        approval instead of placing immediately.
+        """
         self._assert_level4()
         if not self._deadman_armed:
             raise PermissionError("dead man's switch must be armed before autonomous orders")
+
+        risk = self.risk_policy
+        sizing_detail: dict[str, Any] = {
+            "mode": "explicit_volume",
+            "volume": str(volume) if volume is not None else None,
+        }
+        execution_price_estimate = price
+        if risk is not None:
+            try:
+                assert_market_hours_allowed(pair, allow_pre_post_market=risk.allow_pre_post_market)
+                assert_confidence_ok(confidence_pct, min_confidence_pct=risk.min_confidence_pct)
+                from backend.app.trading.live_session_ledger import live_session_ledger
+
+                active_session = live_session_ledger.active or {}
+                day_loss = float(active_session.get("realized_loss_eur_today") or 0)
+                assert_daily_loss_ok(
+                    realized_loss_eur=day_loss,
+                    daily_loss_limit_eur=risk.daily_loss_limit_eur(),
+                )
+                assert_max_drawdown_ok(
+                    drawdown_usd=float(active_session.get("session_drawdown_usd") or 0),
+                    max_drawdown_usd=risk.max_drawdown_usd(),
+                )
+            except ValueError as exc:
+                from backend.app.trading.live_audit import log_live_event
+
+                log_live_event(
+                    "live_reject",
+                    code="session_policy",
+                    message=str(exc),
+                    side=side,
+                    pair=pair,
+                    volume=str(volume),
+                )
+                raise KrakenCliError("validation", f"session_policy: {exc}") from exc
+
+        if side == "buy" and self.sizing_policy is not None:
+            if self.sizing_policy.mode == "dynamic_kelly" and confidence_pct is None:
+                raise KrakenCliError(
+                    "validation",
+                    "dynamic_kelly requires system confidence for every live entry",
+                )
+            sizing_price = price
+            if sizing_price is None:
+                tick = await self.cli.ticker(pair)
+                last = tick.get("last") or tick.get("price") or tick.get("close")
+                if isinstance(last, list) and last:
+                    last = last[0]
+                sizing_price = Decimal(str(last or "0"))
+            execution_price_estimate = sizing_price
+            volume, sizing_detail = self.resolve_order_volume(
+                price=sizing_price,
+                confidence=(float(confidence_pct) / 100.0) if confidence_pct is not None else None,
+                volume=None,
+            )
+        elif volume is None or volume <= 0:
+            raise KrakenCliError("validation", "explicit positive volume required for live exits")
+
+        if risk is not None and risk.human_verification and not skip_human_verification:
+            from backend.app.trading.trade_approvals import (
+                send_trade_proposal_telegram,
+                trade_approvals,
+            )
+
+            proposal = trade_approvals.create(
+                side=side,
+                pair=pair,
+                volume=volume,
+                order_type=order_type,
+                price=price,
+                confidence_pct=confidence_pct,
+                rationale=rationale,
+            )
+            await send_trade_proposal_telegram(self.settings, proposal)
+            from backend.app.trading.live_audit import log_live_event
+
+            log_live_event(
+                "live_awaiting_approval",
+                proposal_id=proposal.proposal_id,
+                side=side,
+                pair=pair,
+                volume=str(volume),
+                position_sizing=sizing_detail,
+            )
+            return {
+                "status": "awaiting_approval",
+                "proposal_id": proposal.proposal_id,
+                "proposal": proposal.to_dict(),
+                "position_sizing": sizing_detail,
+            }
 
         if open_positions is None:
             try:
@@ -166,7 +382,34 @@ class Level4Session:
                 pair=pair, volume=volume, open_positions=open_positions
             )
             self.rate_limiter.assert_can_trade()
+            from backend.app.integrations.kraken_status import assert_safe_to_trade_pair
+
+            assert_safe_to_trade_pair(normalized)
+            balance = await self.cli.balance()
+            from backend.app.trading.capital_policy import assert_live_order_capital
+
+            assert_live_order_capital(
+                side=side,
+                pair=normalized,
+                volume=volume,
+                price=execution_price_estimate,
+                balance_payload=balance if isinstance(balance, dict) else None,
+                market_type="spot",
+                leverage=1,
+                reduce_only=False,
+                max_notional=self.guardrails.max_notional,
+            )
         except GuardrailViolation as exc:
+            from backend.app.trading.live_audit import log_live_event
+
+            log_live_event(
+                "live_reject",
+                code=exc.code,
+                message=str(exc),
+                side=side,
+                pair=pair,
+                volume=str(volume),
+            )
             raise KrakenCliError("validation", f"{exc.code}: {exc}") from exc
 
         try:
@@ -184,6 +427,20 @@ class Level4Session:
 
         result = await self.cli.place_order(side, normalized, volume, order_type, price, yes=True)
         self.rate_limiter.record_trade()
+        from backend.app.trading.live_audit import log_live_event
+
+        log_live_event(
+            "live_place",
+            side=side,
+            pair=normalized,
+            volume=str(volume),
+            order_type=order_type,
+            price=str(price) if price is not None else None,
+            source="level4_session",
+            position_sizing=sizing_detail,
+        )
+        if isinstance(result, dict):
+            result = {**result, "position_sizing": sizing_detail}
         return result
 
 

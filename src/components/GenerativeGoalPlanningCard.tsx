@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { GenerativePlan } from "../types";
+import { AgentStatusPacket, GenerativePlan } from "../types";
 import { Sparkles, AlertCircle, Check, Loader2 } from "lucide-react";
 import { ApiError } from "../api/client";
 import { postOrchestrate } from "../api/ai";
@@ -7,9 +7,14 @@ import { postOrchestrate } from "../api/ai";
 interface GenerativeGoalPlanningCardProps {
   activePlan: GenerativePlan | null;
   onDeployPlan: (plan: GenerativePlan) => void;
+  agentStatusPackets?: AgentStatusPacket[];
 }
 
-export default function GenerativeGoalPlanningCard({ activePlan, onDeployPlan }: GenerativeGoalPlanningCardProps) {
+export default function GenerativeGoalPlanningCard({
+  activePlan,
+  onDeployPlan,
+  agentStatusPackets = [],
+}: GenerativeGoalPlanningCardProps) {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +27,7 @@ export default function GenerativeGoalPlanningCard({ activePlan, onDeployPlan }:
     setError(null);
 
     try {
-      const plan = await postOrchestrate(prompt);
+      const plan = await postOrchestrate(prompt, agentStatusPackets);
       onDeployPlan(plan);
     } catch (err: unknown) {
       const message =

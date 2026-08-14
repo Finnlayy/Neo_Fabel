@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.app.academy.ab_testing import ab_testing
 from backend.app.academy.academy_curriculum import academy_curriculum
+from backend.app.academy.agency_roster import agency_summary, build_agency_roster
 from backend.app.academy.agent_registry import agent_registry
 from backend.app.academy.training_drills import training_drills
 from backend.app.academy.training_loop import training_loop
@@ -43,6 +44,19 @@ async def train_cycle(_user: dict[str, Any] = Depends(require_user)) -> dict[str
 async def agents_registry(_user: dict[str, Any] = Depends(require_user)) -> dict[str, Any]:
     agents = agent_registry.get_all_identities()
     return {"agents": [a.model_dump() for a in agents]}
+
+
+@router.get("/agency/roster")
+async def agency_roster(_user: dict[str, Any] = Depends(require_user)) -> dict[str, Any]:
+    """Agency job board: name, profession, agenda, lifetask, level, XP, confidence."""
+    roster = build_agency_roster()
+    agent_registry.save_registry()
+    return {
+        "agency": "Neo Fabel Agency",
+        "paper_only": True,
+        "summary": agency_summary(roster),
+        "agents": roster,
+    }
 
 
 @router.post("/agents/deploy")

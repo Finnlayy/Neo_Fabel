@@ -28,13 +28,19 @@ import {
 
 interface NeuralTrackerProps {
   currentPrice?: number;
+  symbol?: string;
+  preferLiveRuntime?: boolean;
 }
 
-export default function NeuralTracker({ currentPrice = 64250 }: NeuralTrackerProps) {
+export default function NeuralTracker({
+  currentPrice = 64250,
+  symbol = "BTCUSD",
+  preferLiveRuntime = false,
+}: NeuralTrackerProps) {
   // Model state variables
   const [selectedModel, setSelectedModel] = useState<string>("model4.onnx");
   const [state, setState] = useState<NeuralInferenceState>(() => 
-    NeuralOptimizationEngine.calculateInference(currentPrice, "model4.onnx")
+    NeuralOptimizationEngine.simulateInference(currentPrice, "model4.onnx")
   );
   
   // Tab control: 'live' | 'zscore' | 'python'
@@ -63,11 +69,26 @@ export default function NeuralTracker({ currentPrice = 64250 }: NeuralTrackerPro
   const [isTraining, setIsTraining] = useState(false);
   const [activeSimulationMode, setActiveSimulationMode] = useState<'live' | 'hs' | 'db'>('live');
 
-  // Trigger calculation updates when price or selected model changes
+  // Live ORT when available; otherwise simulated inference.
   useEffect(() => {
-    const updatedInference = NeuralOptimizationEngine.calculateInference(currentPrice, selectedModel);
-    setState(updatedInference);
-  }, [currentPrice, selectedModel]);
+    let cancelled = false;
+    const run = async () => {
+      if (preferLiveRuntime) {
+        const updated = await NeuralOptimizationEngine.calculateInferenceLive(
+          currentPrice,
+          selectedModel,
+          symbol,
+        );
+        if (!cancelled) setState(updated);
+        return;
+      }
+      setState(NeuralOptimizationEngine.simulateInference(currentPrice, selectedModel));
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPrice, selectedModel, symbol, preferLiveRuntime]);
 
   // Append live ticker price when the parent feed updates — no random jitter.
   useEffect(() => {
@@ -85,18 +106,23 @@ export default function NeuralTracker({ currentPrice = 64250 }: NeuralTrackerPro
   // Handle weight optimization training cycle
   const handleTrainCycle = () => {
     setIsTraining(true);
-    // Casino sound: Start active slot reel roll
     playReelSpin(2000);
 
-    setTimeout(() => {
+    void (async () => {
+      const live = await NeuralOptimizationEngine.trainModel(selectedModel, symbol);
       setIsTraining(false);
-      // Casino sound: Successful cascade sound
       playCascadingCoins();
-      setState(prev => ({ 
-        ...prev, 
-        confidence: parseFloat(Math.min(99.9, prev.confidence + 1.2).toFixed(1)) 
+      if (live) {
+        setState({ ...live, isTraining: false });
+        return;
+      }
+      // Fallback: simulated confidence bump when backend ONNX extra is missing
+      setState((prev) => ({
+        ...prev,
+        confidence: parseFloat(Math.min(99.9, prev.confidence + 1.2).toFixed(1)),
+        syncStatus: "SIM TRAIN",
       }));
-    }, 2000);
+    })();
   };
 
   // Helper to trigger specific pattern scenarios for interactive validation

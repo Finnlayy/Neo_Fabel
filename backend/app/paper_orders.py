@@ -26,6 +26,9 @@ class PaperOrderSink(Protocol):
         volume: Decimal,
         order_type: Literal["market", "limit"],
         price: Decimal | None,
+        *,
+        market_type: Literal["spot", "futures"] = "spot",
+        leverage: int = 1,
     ) -> dict[str, Any]: ...
 
 
@@ -109,6 +112,8 @@ class PaperOrderService:
         order_type: Literal["market", "limit"],
         price: Decimal | None,
         request_id: str,
+        market_type: Literal["spot", "futures"] = "spot",
+        leverage: int = 1,
     ) -> dict[str, Any]:
         """Place a paper order for a signal event. event_id is the idempotency key."""
         existing = await session.scalar(
@@ -141,7 +146,15 @@ class PaperOrderService:
         await session.commit()
 
         try:
-            result = await self.sink.paper_order(side, pair, volume, order_type, price)
+            result = await self.sink.paper_order(
+                side,
+                pair,
+                volume,
+                order_type,
+                price,
+                market_type=market_type,
+                leverage=leverage,
+            )
         except KrakenCliError as exc:
             intent.status = "REJECTED"
             intent.error_code = exc.category
@@ -167,6 +180,8 @@ class PaperOrderService:
                 payload.volume,
                 payload.order_type,
                 payload.price,
+                market_type=payload.market_type,
+                leverage=payload.leverage,
             )
         except KrakenCliError as exc:
             intent.status = "REJECTED"

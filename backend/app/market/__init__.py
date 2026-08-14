@@ -1,5 +1,19 @@
-"""Phase 2 market streaming (read-only)."""
+"""Market instrument types — spot vs futures normalization."""
 
-from .stream import MarketStreamHub, get_market_stream_hub
+from .instruments import (
+    Instrument,
+    MarketType,
+    futures_symbol_for_spot,
+    is_futures_symbol,
+    normalize_symbol,
+    resolve_instrument,
+)
 
-__all__ = ["MarketStreamHub", "get_market_stream_hub"]
+__all__ = [
+    "Instrument",
+    "MarketType",
+    "futures_symbol_for_spot",
+    "is_futures_symbol",
+    "normalize_symbol",
+    "resolve_instrument",
+]

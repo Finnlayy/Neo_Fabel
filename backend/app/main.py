@@ -1,12 +1,19 @@
 import asyncio
+import logging
 import re
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any, Literal, cast
 from uuid import uuid4
 
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
+
+from .http_static_cache import StaticCacheMiddleware
 
 from .auth import require_trading_admin, require_trading_admin_recent, require_user
 from .database import SessionFactory
@@ -14,10 +21,12 @@ from .integrations.alpha_vantage import AlphaVantageClient, AlphaVantageError
 from .integrations.ccxt_market import CcxtMarketClient, compact_pair, to_ccxt_symbol
 from .integrations.kraken_cli import KrakenCli, KrakenCliError
 from .integrations.kraken_public import KrakenPublicClient, normalize_orderbook_levels
+from .integrations.paper_factory import build_paper_router
 from .integrations.paper_router import PaperExecutionRouter
 from .market.stream import get_market_stream_hub
 from .paper_orders import PaperOrderService
 from .schemas import (
+    ClosePositionRequest,
     MarketBatchItem,
     MarketBatchResponse,
     OhlcvBatchResponse,
@@ -31,15 +40,57 @@ from .schemas import (
 from .settings import get_settings
 from .routers.academy import router as academy_router
 from .routers.ai import router as ai_router
+from .routers.chronos import router as chronos_router
 from .routers.market_stream import router as market_stream_router
+from .routers.onnx import router as onnx_router
 from .routers.telegram import router as telegram_router
 from .routers.tvapi import router as tvapi_router
 from .routers.vector import router as vector_router
+from .routers.ga import router as ga_router
+from .routers.loops import router as loops_router
+from .routers.trade_agent import router as trade_agent_router
+from .routers.kraken_status import router as kraken_status_router
+from .routers.orders import router as orders_router
+from .routers.integrations_settings import router as integrations_settings_router
+from .routers.tvremix import router as tvremix_router
+from .routers.mcp_paper import router as mcp_paper_router
+from .routers.orchestrator import router as orchestrator_router
+from .integrations.onnx.paths import ensure_onnx_data_dir
+from .integrations.onnx.runtime import ensure_seed_models, netron_static_dir, onnx_deps_available
 from .academy.training_loop import training_loop
 from .signals.mcp_server import mcp_router
 from .signals.router import router as signal_router
 from .signals.safety import assert_signals_module_imports
+from .trading.autonomy import AutonomyLevel
+from .trading.loops import trading_loops
 from .trading.session import Level4Session
+from .trading.trade_agent import trade_agent
+
+logger = logging.getLogger("neo_fabel.api")
+
+
+def _kraken_status_snapshot() -> dict[str, Any]:
+    try:
+        from .integrations.kraken_status import load_index
+
+        idx = load_index()
+        if not idx:
+            return {"loaded": False}
+        non_op = idx.get("non_operational") or []
+        return {
+            "loaded": True,
+            "fetched_at": idx.get("fetched_at"),
+            "indicator": idx.get("indicator"),
+            "description": idx.get("description"),
+            "non_operational_count": len(non_op),
+            "non_operational": [
+                {"name": c.get("name"), "status": c.get("status")}
+                for c in non_op
+                if isinstance(c, dict)
+            ][:20],
+        }
+    except Exception:  # noqa: BLE001 — health must not fail on status IO
+        return {"loaded": False}
 
 
 settings = get_settings()
@@ -54,14 +105,89 @@ INTRADAY_INTERVALS = {"1min", "5min", "15min", "30min", "60min", "4h"}
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    from .signals.engine.generator import FableEngine, set_fable_engine
+
     hub = get_market_stream_hub()
     await hub.start()
+    if settings.opencode_config_write:
+        from .integrations.opencode_config import write_opencode_config
+
+        try:
+            write_opencode_config(settings)
+        except Exception:  # noqa: BLE001 — optional local tooling must not block API start
+            logger.exception("opencode config write failed")
+    if settings.signal_routes_enabled and settings.fable_engine_enabled:
+        from .database import SessionFactory
+        from .signals.bootstrap import ensure_fable_routes
+
+        try:
+            await ensure_fable_routes(SessionFactory, settings)
+        except Exception:  # noqa: BLE001 — bootstrap must not block API start
+            logger.exception("fable route bootstrap failed")
     if settings.training_loop_auto_start and settings.training_loop_enabled:
         await training_loop.start()
+    if settings.trade_agent_auto_start and settings.trade_agent_enabled:
+        try:
+            await trade_agent.start(settings)
+        except Exception:  # noqa: BLE001
+            logger.exception("trade agent auto-start failed")
+    engine_task: asyncio.Task | None = None
+    if settings.fable_engine_enabled:
+        from .database import SessionFactory
+
+        engine = FableEngine(settings=settings, session_factory=SessionFactory)
+        set_fable_engine(engine)
+        engine_task = asyncio.create_task(engine.run_forever(), name="fable-engine")
+    if settings.telegram_daemon_enabled:
+        from .integrations.telegram_daemon import start_telegram_daemon
+
+        try:
+            await start_telegram_daemon(settings)
+        except Exception:  # noqa: BLE001 — optional feed must not block API start
+            logger.exception("telegram daemon start failed")
+    try:
+        from .integrations.telegram_trade_notify import start_system_heartbeat
+
+        await start_system_heartbeat(settings)
+    except Exception:  # noqa: BLE001 — optional notify must not block API start
+        logger.exception("telegram system heartbeat start failed")
     try:
         yield
     finally:
+        try:
+            from .integrations.telegram_trade_notify import stop_system_heartbeat
+
+            await stop_system_heartbeat(settings)
+        except Exception:  # noqa: BLE001
+            logger.exception("telegram system heartbeat stop failed")
+        if settings.telegram_daemon_enabled:
+            from .integrations.telegram_daemon import stop_telegram_daemon
+
+            try:
+                await stop_telegram_daemon()
+            except Exception:  # noqa: BLE001
+                logger.exception("telegram daemon stop failed")
+        if engine_task is not None:
+            from .signals.engine.generator import get_fable_engine
+
+            running = get_fable_engine()
+            if running is not None:
+                running.stop()
+            engine_task.cancel()
+            try:
+                await engine_task
+            except asyncio.CancelledError:
+                pass
+            set_fable_engine(None)
         training_loop.stop_now()
+        try:
+            await trade_agent.stop()
+        except Exception:  # noqa: BLE001
+            logger.exception("trade agent shutdown failed")
+        try:
+            await trading_loops.shutdown()
+        except Exception:  # noqa: BLE001
+            logger.exception("trading loops shutdown failed")
         await hub.stop()
 
 
@@ -137,14 +263,42 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID"],
 )
+# Compress JSON/HTML/static when clients accept gzip (direct :8000 / Vite proxy / nginx upstream).
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
+app.add_middleware(StaticCacheMiddleware)
 app.include_router(signal_router)
 app.include_router(mcp_router)
+app.include_router(mcp_paper_router)
 app.include_router(ai_router)
+app.include_router(orchestrator_router)
 app.include_router(tvapi_router)
 app.include_router(telegram_router)
 app.include_router(vector_router)
 app.include_router(market_stream_router)
 app.include_router(academy_router)
+app.include_router(onnx_router)
+app.include_router(chronos_router)
+app.include_router(ga_router)
+app.include_router(loops_router)
+app.include_router(trade_agent_router)
+app.include_router(kraken_status_router)
+app.include_router(orders_router)
+app.include_router(integrations_settings_router)
+app.include_router(tvremix_router)
+
+# ONNX artifacts for Netron iframe (no Bearer — same-origin static only).
+_onnx_dir = ensure_onnx_data_dir()
+if onnx_deps_available():
+    try:
+        ensure_seed_models()
+    except Exception:  # noqa: BLE001 — seed best-effort at import
+        pass
+app.mount("/static/onnx", StaticFiles(directory=str(_onnx_dir)), name="onnx_models")
+_netron_dir = netron_static_dir()
+if _netron_dir is None:
+    _netron_dir = Path(__file__).resolve().parents[1] / "static" / "netron"
+    _netron_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static/netron", StaticFiles(directory=str(_netron_dir), html=True), name="netron")
 
 # Fail import-time if signal modules reference live Kraken execution symbols.
 assert_signals_module_imports()
@@ -170,15 +324,59 @@ def request_id(request: Request) -> str:
 
 
 def kraken() -> KrakenCli:
-    return KrakenCli(
-        binary=settings.kraken_binary,
-        timeout_seconds=settings.kraken_timeout_seconds,
-        allow_trade_commands=settings.trade_commands_enabled,
-    )
+    from backend.app.integrations.paper_factory import build_kraken_cli
+
+    return build_kraken_cli(settings)
 
 
 def paper_router() -> PaperExecutionRouter:
-    return PaperExecutionRouter(cli=kraken())
+    return build_paper_router(settings)
+
+
+def _ledger_mark_targets(state: dict) -> tuple[list[str], list[str]]:
+    """Return (spot_pairs, futures_pairs) needing mark prices from ledger state."""
+    if int(state.get("version", 1)) >= 2:
+        spot = state.get("spot") or {}
+        futures = state.get("futures") or {}
+        return list((spot.get("lots") or {}).keys()), list((futures.get("positions") or {}).keys())
+    return list((state.get("lots") or {}).keys()), []
+
+
+async def _collect_ledger_mark_prices(state: dict) -> dict:
+    from decimal import Decimal, InvalidOperation
+
+    from backend.app.integrations.kraken_futures_public import KrakenFuturesPublicClient
+
+    spot_pairs, fut_pairs = _ledger_mark_targets(state)
+    marks: dict[str, Decimal] = {}
+    for pair in spot_pairs:
+        try:
+            ticker, _ = await crypto_ticker_data(pair)
+            last = ticker.get("last") or ticker.get("price") or ticker.get("close")
+            if isinstance(last, list) and last:
+                last = last[0]
+            if last is None or str(last).strip() in {"", "None", "null"}:
+                continue
+            marks[pair] = Decimal(str(last))
+        except (KrakenCliError, InvalidOperation, ValueError, TypeError):
+            continue
+    if fut_pairs:
+        futures_client = KrakenFuturesPublicClient(timeout_seconds=settings.kraken_timeout_seconds)
+        for pair in fut_pairs:
+            try:
+                marks[pair] = await futures_client.last_price(pair)
+            except KrakenCliError:
+                try:
+                    ticker, _ = await crypto_ticker_data(pair.replace("PF_", "").replace("XBT", "BTC"))
+                    last = ticker.get("last") or ticker.get("price")
+                    if isinstance(last, list) and last:
+                        last = last[0]
+                    if last is None or str(last).strip() in {"", "None", "null"}:
+                        continue
+                    marks[pair] = Decimal(str(last))
+                except (KrakenCliError, InvalidOperation, ValueError, TypeError):
+                    continue
+    return marks
 
 
 def level4_session() -> Level4Session:
@@ -197,10 +395,35 @@ def kraken_public() -> KrakenPublicClient:
     return KrakenPublicClient(timeout_seconds=settings.kraken_timeout_seconds)
 
 
+def _normalize_cli_ticker(payload: dict[str, Any]) -> dict[str, Any]:
+    """Normalize CLI ticker payloads into a flat dict with last/price/close."""
+    entry: dict[str, Any] = payload
+    if "last" not in payload and "price" not in payload and "close" not in payload:
+        nested = next((value for value in payload.values() if isinstance(value, dict)), None)
+        if isinstance(nested, dict):
+            entry = dict(nested)
+    close = entry.get("c")
+    last = entry.get("last") or entry.get("price") or entry.get("close")
+    if last is None and isinstance(close, list) and close:
+        last = close[0]
+    elif last is None:
+        last = close
+    if isinstance(last, list) and last:
+        last = last[0]
+    if last is not None:
+        entry["last"] = last
+        entry["price"] = last
+        entry["close"] = last
+    if "open" not in entry and entry.get("o") is not None:
+        entry["open"] = entry.get("o")
+    return entry
+
+
 async def crypto_ticker_data(symbol: str) -> tuple[dict[str, Any], str]:
     """Prefer CLI; fall back to Kraken public REST (required on Windows uvicorn)."""
     try:
-        return await kraken().ticker(symbol), "kraken-cli"
+        raw = await kraken().ticker(symbol)
+        return _normalize_cli_ticker(raw if isinstance(raw, dict) else {}), "kraken-cli"
     except KrakenCliError:
         data = await kraken_public().ticker(symbol)
         return data, "kraken-public"
@@ -257,16 +480,30 @@ async def trading_autonomy() -> dict:
         "deadman_seconds": settings.kraken_deadman_seconds,
         "guardrails": {
             "max_order_size": str(guardrails.max_order_size),
+            "max_notional": str(guardrails.max_notional),
             "max_open_positions": guardrails.max_open_positions,
             "max_trades_per_hour": guardrails.max_trades_per_hour,
+            "min_trade_interval_seconds": guardrails.min_trade_interval_seconds,
             "pair_allowlist": sorted(guardrails.pair_allowlist),
         },
+        "paper_allow_all_pairs": settings.paper_allow_all_pairs,
+        "paper_max_open_positions": settings.paper_max_open_positions,
+        "live_algo_enabled": settings.kraken_live_algo_enabled,
         "required_for_level4": [
             "KRAKEN_AUTONOMY_LEVEL=4",
             "KRAKEN_LIVE_TRADING_ENABLED=true",
             "trade-only API key (no Withdraw Funds)",
             "dead man's switch armed each session",
+            "KRAKEN_LIVE_ALGO_ENABLED=true only for unattended algo (manual desk OK without it)",
         ],
+        "capital_policy": {
+            "external_replenish": False,
+            "negative_cash": False,
+            "debt_or_leverage": False,
+            "max_notional": str(settings.kraken_max_notional),
+            "note": "System may only trade existing Kraken balances; deposit/withdraw/transfer blocked; no shorts or leverage>1",
+        },
+        "kraken_status": _kraken_status_snapshot(),
     }
 
 
@@ -541,10 +778,140 @@ async def paper_status(request: Request, _user: dict = Depends(require_user)) ->
         raise HTTPException(status_code=503, detail={"code": exc.category, "message": str(exc), "request_id": rid}) from exc
 
 
+@app.get("/api/v1/paper/performance")
+async def paper_performance(request: Request, _user: dict = Depends(require_user)) -> dict:
+    """Paper-only performance snapshot: equity, FIFO PnL, positions, fills."""
+
+    rid = request_id(request)
+    router = paper_router()
+    try:
+        mark_prices = await _collect_ledger_mark_prices(router.ledger.snapshot_state())
+        perf = await router.paper_performance(mark_prices)
+        return {
+            "mode": "paper",
+            "execution": "paper-only",
+            "request_id": rid,
+            "router_source": router.last_source,
+            **perf,
+        }
+    except KrakenCliError as exc:
+        raise HTTPException(status_code=503, detail={"code": exc.category, "message": str(exc), "request_id": rid}) from exc
+
+
+@app.get("/api/v1/positions")
+async def list_positions(request: Request, _user: dict = Depends(require_user)) -> dict:
+    """Open positions: paper ledger lots + Kraken live balances (read-only when live disabled)."""
+
+    from backend.app.integrations.positions import build_positions_snapshot
+
+    rid = request_id(request)
+    router = paper_router()
+    mark_prices = await _collect_ledger_mark_prices(router.ledger.snapshot_state())
+    perf = await router.paper_performance(mark_prices)
+    snapshot = await build_positions_snapshot(
+        paper_positions=perf.get("positions") or [],
+        cli=kraken(),
+        ticker_fn=crypto_ticker_data,
+        live_trading_enabled=settings.kraken_live_trading_enabled,
+        trade_commands_enabled=settings.trade_commands_enabled,
+    )
+    return {
+        "request_id": rid,
+        "execution": "live-autonomous" if settings.trade_commands_enabled else "paper-only",
+        "autonomy_level": int(settings.autonomy),
+        **snapshot,
+    }
+
+
+@app.post("/api/v1/positions/close")
+async def close_position(
+    payload: ClosePositionRequest,
+    request: Request,
+    user: dict = Depends(require_user),
+) -> PaperOrderResponse:
+    """Close (flatten) a paper or live position via market/limit sell."""
+    from decimal import Decimal
+
+    rid = request_id(request)
+    pair = payload.pair.strip().upper().replace("/", "").replace("-", "")
+
+    if payload.mode == "paper":
+        router = paper_router()
+        open_vol = router.ledger.open_volume(pair, market_type=payload.market_type)
+        if open_vol <= 0:
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "no_position", "message": f"no paper position for {pair}", "request_id": rid},
+            )
+        volume = payload.volume or open_vol
+        if volume > open_vol:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "volume_exceeds_position", "message": str(open_vol), "request_id": rid},
+            )
+        order_req = PaperOrderRequest(
+            pair=pair,
+            side="sell",
+            volume=volume,
+            order_type=payload.order_type,
+            price=payload.price,
+            market_type=payload.market_type,
+            idempotency_key=payload.idempotency_key,
+        )
+        return await _place_paper_order(order_req, user, rid)
+
+    # Live close — supervised manual exit (Level 3+) with live flag + trade commands
+    if not settings.kraken_live_trading_enabled or not settings.trade_commands_enabled:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "live_trading_disabled",
+                "message": "Live position close requires KRAKEN_LIVE_TRADING_ENABLED and autonomy >= 3",
+                "request_id": rid,
+            },
+        )
+    if settings.autonomy < AutonomyLevel.SUPERVISED:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "autonomy_too_low", "message": "supervised autonomy (3+) required", "request_id": rid},
+        )
+
+    balance = await kraken().balance()
+    from backend.app.integrations.positions import parse_live_balances
+
+    live_rows = parse_live_balances(balance if isinstance(balance, dict) else None)
+    row = next((r for r in live_rows if r["pair"] == pair), None)
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "no_position", "message": f"no live balance for {pair}", "request_id": rid},
+        )
+    volume = payload.volume or Decimal(str(row["volume"]))
+    guardrails = settings.trading_guardrails()
+    try:
+        normalized = guardrails.check_order(pair=pair, volume=volume, open_positions=0)
+        await kraken().validate_order("sell", normalized, volume, payload.order_type, payload.price)
+        result = await kraken().place_order(
+            "sell", normalized, volume, payload.order_type, payload.price, yes=True
+        )
+    except KrakenCliError as exc:
+        status = 503 if exc.retryable else 422
+        raise HTTPException(
+            status_code=status,
+            detail={"code": exc.category, "message": str(exc), "request_id": rid},
+        ) from exc
+    return PaperOrderResponse(
+        idempotency_key=payload.idempotency_key,
+        status="ACCEPTED",
+        result=result if isinstance(result, dict) else {"raw": result},
+        request_id=rid,
+    )
+
+
 @app.get("/api/v1/trade/positions")
 async def trade_positions(request: Request, user: dict = Depends(require_user)) -> dict:
-    """Phase 3 alias — paper positions/status (no live trading)."""
-    return await paper_status(request, user)
+    """Unified positions snapshot (paper + live)."""
+    return await list_positions(request, user)
 
 
 async def _place_paper_order(payload: PaperOrderRequest, user: dict, rid: str) -> PaperOrderResponse:
@@ -560,7 +927,7 @@ async def _place_paper_order(payload: PaperOrderRequest, user: dict, rid: str) -
                 request_id=rid,
             )
     except HTTPException as exc:
-        detail = exc.detail if isinstance(exc.detail, dict) else {}
+        detail: dict[str, Any] = exc.detail if isinstance(exc.detail, dict) else {}
         if exc.status_code != 503 or detail.get("code") != "database_unavailable":
             raise
     except Exception:
@@ -574,6 +941,8 @@ async def _place_paper_order(payload: PaperOrderRequest, user: dict, rid: str) -
             payload.volume,
             payload.order_type,
             payload.price,
+            market_type=payload.market_type,
+            leverage=payload.leverage,
         )
     except (KrakenCliError, ValueError) as sink_exc:
         raise HTTPException(

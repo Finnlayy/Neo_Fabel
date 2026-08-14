@@ -60,6 +60,15 @@ export const INITIAL_SUB_AGENTS: SubAgentState[] = [
     lastAction: "Awaiting live movers for vector refresh."
   },
   {
+    id: "chronos",
+    name: "Chronos K-Line Agent",
+    status: "STANDBY",
+    efficiency: 97.0,
+    directive:
+      "Context-free OHLCVA language modeling via causal Z-score + Binary Spherical Quantization (coarse/fine). Paper signals only — never auto-executes.",
+    lastAction: "Phase-1 substrate ready — awaiting lookback tokenize."
+  },
+  {
     id: "analytic",
     name: "Analytical Analysis Agent",
     status: "ACTIVE",

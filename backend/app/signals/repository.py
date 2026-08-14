@@ -37,6 +37,15 @@ class SignalRepository:
             select(SignalRoute).where(SignalRoute.public_route_key == public_route_key)
         )
 
+    async def find_enabled_route_by_strategy(self, strategy_id: str) -> SignalRoute | None:
+        """Oldest enabled route for a strategy_id — deterministic engine binding."""
+        return await self.session.scalar(
+            select(SignalRoute)
+            .where(SignalRoute.strategy_id == strategy_id, SignalRoute.enabled.is_(True))
+            .order_by(SignalRoute.created_at.asc())
+            .limit(1)
+        )
+
     async def create_route(self, route: SignalRoute) -> SignalRoute:
         self.session.add(route)
         await self.session.flush()
@@ -273,6 +282,19 @@ class SignalRepository:
             )
         )
         return int(value or 0)
+
+    async def open_exposure_for_route(self, route_id: str) -> Decimal:
+        """Sum buy volumes for events that still count as open paper exposure."""
+        from .policy import OPEN_EXPOSURE_STATUSES
+
+        value = await self.session.scalar(
+            select(func.coalesce(func.sum(SignalEvent.volume), 0)).where(
+                SignalEvent.route_id == route_id,
+                SignalEvent.side == "buy",
+                SignalEvent.status.in_(tuple(OPEN_EXPOSURE_STATUSES)),
+            )
+        )
+        return Decimal(str(value or 0))
 
 
 def new_audit(

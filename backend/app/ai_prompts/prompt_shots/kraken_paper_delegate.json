@@ -1,0 +1,7 @@
+{
+  "id": "kraken_paper_delegate",
+  "scenario": "Validate DCA on paper before any live capital.",
+  "expected": "CONCLUSION",
+  "directives": "adaptive:0.5% paper DCA; analytic:track fill/fee; krakenBroker:skill:kraken-paper-strategy",
+  "kraken": "DELEGATE skill:kraken-paper-strategy paper_ok."
+}

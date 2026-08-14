@@ -72,11 +72,41 @@ async def test_trading_admin_requires_claim_and_recent_google_login(monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_trading_admin_requires_claim_when_live_enabled(monkeypatch):
+    async def fake_require_user(_request: Request):
+        return {"uid": "regular-user", "auth_time": int(time())}
+
+    monkeypatch.setattr(auth_module, "require_user", fake_require_user)
+    settings = auth_module.get_settings()
+    monkeypatch.setattr(settings, "kraken_live_trading_enabled", True)
+
+    with pytest.raises(HTTPException) as caught:
+        await auth_module.require_trading_admin(_request("Bearer token"))
+    assert caught.value.status_code == 403
+    assert caught.value.detail["code"] == "trading_admin_required"
+
+@pytest.mark.asyncio
+async def test_trading_admin_allows_paper_without_claim(monkeypatch):
+    async def fake_require_user(_request: Request):
+        return {"uid": "regular-user", "auth_time": int(time())}
+
+    monkeypatch.setattr(auth_module, "require_user", fake_require_user)
+    settings = auth_module.get_settings()
+    monkeypatch.setattr(settings, "kraken_live_trading_enabled", False)
+
+    user = await auth_module.require_trading_admin(_request("Bearer token"))
+    assert user["uid"] == "regular-user"
+
+
+@pytest.mark.asyncio
 async def test_trading_admin_rejects_regular_firebase_user(monkeypatch):
     async def fake_require_user(_request: Request):
         return {"uid": "regular-user", "auth_time": int(time())}
 
     monkeypatch.setattr(auth_module, "require_user", fake_require_user)
+    settings = auth_module.get_settings()
+    monkeypatch.setattr(settings, "kraken_live_trading_enabled", True)
+
     with pytest.raises(HTTPException) as caught:
         await auth_module.require_trading_admin_recent(_request("Bearer token"))
     assert caught.value.status_code == 403

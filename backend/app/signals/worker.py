@@ -22,6 +22,49 @@ from .safety import assert_signal_paper_only
 logger = logging.getLogger("neo_fabel.signals.worker")
 
 
+def _pattern_bias_from_event(metadata_json: dict | None) -> str | None:
+    if not metadata_json:
+        return None
+    pb = metadata_json.get("pattern_bias")
+    if pb in {"bullish", "bearish", "neutral"}:
+        return pb
+    return None
+
+
+def _pattern_confidence_from_event(metadata_json: dict | None) -> Decimal | None:
+    if not metadata_json:
+        return None
+    raw = metadata_json.get("pattern_confidence")
+    if raw is None:
+        return None
+    try:
+        return Decimal(str(raw))
+    except Exception:  # noqa: BLE001 — metadata must never break worker loop
+        return None
+
+
+def _market_type_from_event(metadata_json: dict | None, *, default: str = "spot") -> str:
+    if not metadata_json:
+        return default
+    mt = metadata_json.get("market_type")
+    if mt in {"spot", "futures"}:
+        return mt
+    return default
+
+
+def _leverage_from_event(metadata_json: dict | None) -> int:
+    if not metadata_json:
+        return 1
+    raw = metadata_json.get("leverage")
+    if raw is None:
+        return 1
+    try:
+        lev = int(raw)
+        return max(1, min(lev, 50))
+    except (TypeError, ValueError):
+        return 1
+
+
 class SignalWorker:
     def __init__(
         self,
@@ -137,12 +180,20 @@ class SignalWorker:
             raw_symbol=event.raw_symbol,
             observed_price=Decimal(str(event.observed_price)) if event.observed_price is not None else None,
             source=event.source,  # type: ignore[arg-type]
+            pattern_bias=_pattern_bias_from_event(event.metadata_json),
+            pattern_confidence=_pattern_confidence_from_event(event.metadata_json),
         )
         if candidate.canonical_hash != event.canonical_hash:
             await self._fail(repo, job, event, "failed_closed", "canonical_hash_mismatch")
             return
 
-        policy = check_route_policy(candidate, route)
+        open_exposure = await repo.open_exposure_for_route(route.id)
+        policy = check_route_policy(
+            candidate,
+            route,
+            allow_all_pairs=bool(getattr(self.settings, "paper_allow_all_pairs", True)),
+            current_open_exposure=open_exposure,
+        )
         if not policy.ok:
             await self._fail(repo, job, event, "rejected_guardrail", policy.reason_code or "policy_rejected")
             return
@@ -201,13 +252,39 @@ class SignalWorker:
                 status = "rejected_advisory" if result.decision == "reject" else "failed_closed"
                 await self._fail(repo, job, event, status, result.reason_code)
                 return
-            # Re-check deterministic policy after approval.
-            policy_again = check_route_policy(candidate, route)
+            # Re-check deterministic policy after approval (including tighter exposure).
+            open_exposure_again = await repo.open_exposure_for_route(route.id)
+            policy_again = check_route_policy(
+                candidate,
+                route,
+                allow_all_pairs=bool(getattr(self.settings, "paper_allow_all_pairs", True)),
+                current_open_exposure=open_exposure_again,
+            )
             if not policy_again.ok:
                 await self._fail(repo, job, event, "rejected_guardrail", policy_again.reason_code or "post_ai_policy")
                 return
             await repo.transition_event(event, status="approved")
             await session.commit()
+
+        if event.source == "fable_engine" and self.settings.fable_engine_dry_run:
+            # Fable dry-run terminal: fully validated + policy-checked, never dispatched.
+            await repo.transition_event(event, status="dry_run_recorded", reason_code="fable_dry_run")
+            await repo.complete_job(job)
+            await repo.add_audit(
+                new_audit(
+                    actor_kind="worker",
+                    actor_subject=self.worker_id,
+                    route_id=route.id,
+                    event_id=event.id,
+                    request_id=event.request_id,
+                    transition="dry_run_recorded",
+                    reason_code="fable_dry_run",
+                    route_version=route.version,
+                )
+            )
+            await session.commit()
+            await self._notify_trade(kind="dry_run", event=event, candidate=candidate, reason_code="fable_dry_run")
+            return
 
         if not self.settings.signal_execution_enabled:
             # Shadow mode: durable receipt + controls, no paper dispatch.
@@ -225,6 +302,12 @@ class SignalWorker:
                 )
             )
             await session.commit()
+            await self._notify_trade(
+                kind="shadow",
+                event=event,
+                candidate=candidate,
+                reason_code="execution_disabled",
+            )
             return
 
         # Commit execution claim before subprocess.
@@ -242,6 +325,11 @@ class SignalWorker:
                 order_type=candidate.order_type,
                 price=candidate.price,
                 request_id=event.request_id,
+                market_type=_market_type_from_event(  # type: ignore[arg-type]
+                    event.metadata_json,
+                    default=self.settings.paper_default_market,
+                ),
+                leverage=_leverage_from_event(event.metadata_json),
             )
         except TimeoutError:
             await repo.transition_event(event, status="execution_unknown", reason_code="dispatch_timeout")
@@ -258,11 +346,23 @@ class SignalWorker:
                 )
             )
             await session.commit()
+            await self._notify_trade(
+                kind="execution_unknown",
+                event=event,
+                candidate=candidate,
+                reason_code="dispatch_timeout",
+            )
             return
         except KrakenCliError as exc:
             await repo.transition_event(event, status="paper_failed", reason_code=exc.category)
             await repo.complete_job(job)
             await session.commit()
+            await self._notify_trade(
+                kind="paper_failed",
+                event=event,
+                candidate=candidate,
+                reason_code=exc.category,
+            )
             return
 
         await repo.transition_event(
@@ -283,6 +383,27 @@ class SignalWorker:
             )
         )
         await session.commit()
+        await self._notify_trade(kind="paper_accepted", event=event, candidate=candidate)
+
+    async def _notify_trade(self, *, kind: str, event, candidate, reason_code: str | None = None) -> None:
+        try:
+            from ..integrations.telegram_trade_notify import notify_trade_signal
+
+            await notify_trade_signal(
+                self.settings,
+                kind=kind,
+                pair=str(candidate.pair),
+                side=str(candidate.side),
+                volume=str(candidate.volume),
+                order_type=str(candidate.order_type),
+                price=str(candidate.price) if candidate.price is not None else None,
+                source=str(event.source) if getattr(event, "source", None) else None,
+                signal_id=str(event.signal_id) if getattr(event, "signal_id", None) else None,
+                reason_code=reason_code,
+                request_id=str(event.request_id) if getattr(event, "request_id", None) else None,
+            )
+        except Exception:  # noqa: BLE001 — notify must never fail the worker
+            logger.debug("trade telegram notify failed", exc_info=True)
 
     async def _fail(self, repo: SignalRepository, job, event, status: str, reason: str) -> None:
         try:

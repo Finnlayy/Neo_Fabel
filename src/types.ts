@@ -1,4 +1,15 @@
-export type MainTab = "dashboard" | "terminal" | "strategy" | "swarm" | "signals" | "academy" | "full";
+export type MainTab =
+  | "dashboard"
+  | "terminal"
+  | "strategy"
+  | "swarm"
+  | "signals"
+  | "academy"
+  | "onnx"
+  | "chronos"
+  | "agency"
+  | "paper"
+  | "positions";
 
 export interface TickerData {
   symbol: string;
@@ -15,6 +26,7 @@ export interface Trade {
   type: "BUY" | "SELL";
   price: number;
   amount: number;
+  positionCost: number;
   pnl: number;
   status: "COMPLETED" | "PENDING" | "HALTED";
 }
@@ -52,14 +64,19 @@ export interface GenerativePlan {
     adaptiveAgent: string;
     rnaSmartelligent: string;
     riskGovernor: string;
+    krakenBroker?: string;
+    predictive?: string;
+    analytic?: string;
+    orchestrator?: string;
   };
   resourceAllocation: { name: string; value: number }[];
   suggestedRules: string[];
 }
 
+/** Compact swarm packet for orchestrate / chat-orchestrator (not full transcripts). */
 export interface AgentStatusPacket {
   id: string;
   status: string;
-  message?: string;
-  data?: any;
+  lastAction: string;
+  directive: string;
 }

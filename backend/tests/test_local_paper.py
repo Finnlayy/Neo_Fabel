@@ -3,33 +3,117 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
 
 from backend.app.integrations.kraken_cli import KrakenCliError
-from backend.app.integrations.local_paper import LocalPaperLedger
+from backend.app.integrations.local_paper import LocalPaperLedger, reset_local_paper_ledger_for_tests
 from backend.app.integrations.paper_router import PaperExecutionRouter
 
 
+async def _mock_price(_market_type: str, pair: str) -> Decimal:
+    prices = {"BTCUSD": Decimal("50000"), "ETHUSD": Decimal("3000")}
+    return prices.get(pair.upper().replace("/", "").replace("-", ""), Decimal("100"))
+
+
+@pytest.fixture
+def isolated_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> LocalPaperLedger:
+    reset_local_paper_ledger_for_tests()
+    monkeypatch.setattr("backend.app.integrations.paper_paths.LEDGER_FILE", tmp_path / "ledger.json")
+    ledger = LocalPaperLedger(_path=tmp_path / "ledger.json")
+    ledger.set_price_resolver(_mock_price)
+    return ledger
+
+
 @pytest.mark.asyncio
-async def test_local_ledger_accepts_market_order() -> None:
-    ledger = LocalPaperLedger()
-    result = await ledger.paper_order("buy", "BTC/USD", Decimal("0.001"), "market", None)
+async def test_local_ledger_accepts_market_order(isolated_ledger: LocalPaperLedger) -> None:
+    result = await isolated_ledger.paper_order("buy", "BTC/USD", Decimal("0.001"), "market", None)
     assert result["ok"] is True
     assert result["source"] == "local-paper-ledger"
-    status = await ledger.paper_status()
+    assert result["market_type"] == "spot"
+    status = await isolated_ledger.paper_status()
     assert len(status["orders"]) == 1
     assert status["orders"][0]["pair"] == "BTCUSD"
+    assert status["position_sizing"] == {"enabled": True, "mode": "half_kelly"}
+    order = result["order"]
+    assert order["requested_volume"] == "0.001"
+    assert order["position_sizing"]["mode"] == "half_kelly"
+    assert Decimal(order["volume"]) == Decimal("0.03812500")
+    assert Decimal(order["volume"]) * Decimal(order["price"]) == Decimal("1906.2500000000")
 
 
 @pytest.mark.asyncio
-async def test_router_falls_back_when_cli_missing() -> None:
+async def test_kelly_sizing_uses_price_to_normalize_notional(tmp_path: Path) -> None:
+    async def _price(_market_type: str, pair: str) -> Decimal:
+        return {"BTCUSD": Decimal("50000"), "ADAUSD": Decimal("0.50")}[pair]
+
+    btc = LocalPaperLedger(_path=tmp_path / "btc.json")
+    btc.set_price_resolver(_price)
+    btc_fill = await btc.paper_order("buy", "BTCUSD", Decimal("0.001"), "market", None)
+
+    ada = LocalPaperLedger(_path=tmp_path / "ada.json")
+    ada.set_price_resolver(_price)
+    ada_fill = await ada.paper_order("buy", "ADAUSD", Decimal("0.001"), "market", None)
+
+    btc_order = btc_fill["order"]
+    ada_order = ada_fill["order"]
+    btc_notional = Decimal(btc_order["volume"]) * Decimal(btc_order["price"])
+    ada_notional = Decimal(ada_order["volume"]) * Decimal(ada_order["price"])
+    assert btc_notional == ada_notional == Decimal("1906.2500000000")
+
+
+@pytest.mark.asyncio
+async def test_spot_sell_keeps_explicit_close_volume(isolated_ledger: LocalPaperLedger) -> None:
+    await isolated_ledger.paper_order("buy", "BTCUSD", Decimal("0.001"), "market", None)
+    before = isolated_ledger.open_volume("BTCUSD")
+    result = await isolated_ledger.paper_order("sell", "BTCUSD", Decimal("0.01"), "market", None)
+    assert result["order"]["volume"] == "0.01"
+    assert isolated_ledger.open_volume("BTCUSD") == before - Decimal("0.01")
+
+
+@pytest.mark.asyncio
+async def test_router_falls_back_when_cli_missing(isolated_ledger: LocalPaperLedger) -> None:
     cli = AsyncMock()
     cli.paper_order = AsyncMock(side_effect=KrakenCliError("config", "kraken executable is not installed"))
     cli.paper_status = AsyncMock(side_effect=KrakenCliError("config", "kraken executable is not installed"))
-    router = PaperExecutionRouter(cli=cli, ledger=LocalPaperLedger())
+    router = PaperExecutionRouter(cli=cli, ledger=isolated_ledger)
     result = await router.paper_order("buy", "ETHUSD", Decimal("0.01"), "market", None)
     assert result["source"] == "local-paper-ledger"
     status = await router.paper_status()
     assert status["source"] == "local-paper-ledger"
+
+
+@pytest.mark.asyncio
+async def test_router_prefer_local_skips_cli(isolated_ledger: LocalPaperLedger) -> None:
+    cli = AsyncMock()
+    cli.paper_order = AsyncMock(return_value={"ok": True, "source": "kraken-cli"})
+    router = PaperExecutionRouter(cli=cli, ledger=isolated_ledger, prefer_local=True)
+    result = await router.paper_order("buy", "BTCUSD", Decimal("0.001"), "market", None)
+    assert result["source"] == "local-paper-ledger"
+    cli.paper_order.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_paper_max_open_positions_allows_twenty_default(isolated_ledger: LocalPaperLedger) -> None:
+    assert isolated_ledger.max_open_positions == 20
+    status = await isolated_ledger.paper_status()
+    assert status["max_open_positions"] == 20
+
+
+def test_kelly_sizing_can_be_explicitly_disabled(tmp_path: Path) -> None:
+    ledger = LocalPaperLedger(kelly_sizing_enabled=False, _path=tmp_path / "ledger.json")
+    assert ledger.kelly_sizing_enabled is False
+
+
+@pytest.mark.asyncio
+async def test_paper_rejects_beyond_max_open_positions(isolated_ledger: LocalPaperLedger) -> None:
+    isolated_ledger.max_open_positions = 2
+    await isolated_ledger.paper_order("buy", "BTCUSD", Decimal("0.001"), "market", None)
+    await isolated_ledger.paper_order("buy", "ETHUSD", Decimal("0.01"), "market", None)
+    with pytest.raises(ValueError, match="max open positions"):
+        await isolated_ledger.paper_order("buy", "SOLUSD", Decimal("0.1"), "market", None)
+    # Adding to an existing position is still allowed
+    await isolated_ledger.paper_order("buy", "BTCUSD", Decimal("0.001"), "market", None)
+    assert isolated_ledger.open_position_count() == 2

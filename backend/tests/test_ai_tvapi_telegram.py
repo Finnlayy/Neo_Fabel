@@ -99,6 +99,8 @@ def test_orchestrate_deterministic_fallback(monkeypatch):
         monkeypatch.setenv("OPENROUTER_API_KEY", "")
         monkeypatch.setenv("GROQ_API_KEY", "")
         monkeypatch.setenv("CEREBRAS_API_KEY", "")
+        monkeypatch.setenv("AIPRIMETECH_API_KEY", "")
+        monkeypatch.setenv("OPENAI_API_KEY", "")
         monkeypatch.setenv("AI_ALLOW_DETERMINISTIC_FALLBACK", "true")
         monkeypatch.setenv("AI_CHAT_ENABLED", "true")
         get_settings.cache_clear()

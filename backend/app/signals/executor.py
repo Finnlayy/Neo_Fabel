@@ -11,6 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..paper_orders import PaperOrderService
 
 
+from backend.app.market.instruments import MarketType
+
+
 class PaperExecutionPort(Protocol):
     async def submit_paper(
         self,
@@ -24,12 +27,15 @@ class PaperExecutionPort(Protocol):
         order_type: Literal["market", "limit"],
         price: Decimal | None,
         request_id: str,
+        market_type: MarketType = "spot",
+        leverage: int = 1,
     ) -> dict[str, Any]: ...
 
 
 @dataclass
 class PaperOrderExecutionAdapter:
     service: PaperOrderService
+    default_market: MarketType = "spot"
 
     async def submit_paper(
         self,
@@ -43,6 +49,8 @@ class PaperOrderExecutionAdapter:
         order_type: Literal["market", "limit"],
         price: Decimal | None,
         request_id: str,
+        market_type: MarketType = "spot",
+        leverage: int = 1,
     ) -> dict[str, Any]:
         return await self.service.place_signal(
             session=session,
@@ -54,6 +62,8 @@ class PaperOrderExecutionAdapter:
             order_type=order_type,
             price=price,
             request_id=request_id,
+            market_type=market_type or self.default_market,
+            leverage=leverage,
         )
 
 
@@ -77,6 +87,8 @@ class FakePaperExecutionPort:
         order_type: Literal["market", "limit"],
         price: Decimal | None,
         request_id: str,
+        market_type: MarketType = "spot",
+        leverage: int = 1,
     ) -> dict[str, Any]:
         call = {
             "user_uid": user_uid,
@@ -87,6 +99,8 @@ class FakePaperExecutionPort:
             "order_type": order_type,
             "price": str(price) if price is not None else None,
             "request_id": request_id,
+            "market_type": market_type,
+            "leverage": leverage,
         }
         self.calls.append(call)
         if self.hang_after_claim:

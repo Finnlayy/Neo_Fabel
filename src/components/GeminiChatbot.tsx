@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { ApiError } from "../api/client";
 import { postChat } from "../api/ai";
+import { toWireMessages } from "../api/chatWire";
+import type { AgentStatusPacket } from "../types";
 
 interface Message {
   role: "user" | "assistant";
@@ -25,22 +27,32 @@ interface Message {
   routeLabel?: string;
   citations?: { title: string; uri: string }[];
   timestamp: string;
+  /** Welcome / system fluff — kept in UI, excluded from Gemini wire payload. */
+  ephemeral?: boolean;
 }
 
-export default function GeminiChatbot() {
+type ChatMode = "assistant" | "orchestrator";
+
+export default function GeminiChatbot({
+  agentStatusPackets = [],
+}: {
+  agentStatusPackets?: AgentStatusPacket[];
+}) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
       content: "Welcome to the Fable 5 Neural Core. I am your CMT & Pine Script co-pilot, powered by adaptive Gemini 3 series routing.\n\nAsk me to construct strategies, explain market traps, or evaluate order blocks in real-time.",
       modelUsed: "gemini-3.5-flash",
       routeLabel: "General Intelligence [Init]",
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      ephemeral: true,
     }
   ]);
 
   const [input, setInput] = useState("");
   const [modelSelection, setModelSelection] = useState<"auto" | "pro-preview" | "flash" | "flash-lite">("auto");
   const [enableSearch, setEnableSearch] = useState(false);
+  const [chatMode, setChatMode] = useState<ChatMode>("assistant");
   const [isLoading, setIsLoading] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -70,16 +82,13 @@ export default function GeminiChatbot() {
     setIsLoading(true);
 
     try {
-      // Map history specifically for the backend structure
-      const backendHistory = updatedHistory.map(m => ({
-        role: m.role,
-        content: m.content
-      }));
-
+      // Wire protocol: sliding window only — do not resend full UI history / welcome.
       const data = await postChat({
-        messages: backendHistory,
+        messages: toWireMessages(updatedHistory),
         modelSelection,
-        enableSearch
+        enableSearch,
+        mode: chatMode,
+        agentStatusPackets: chatMode === "orchestrator" ? agentStatusPackets : [],
       });
       if (data.success) {
         setMessages(prev => [
@@ -126,7 +135,8 @@ export default function GeminiChatbot() {
         content: "Core dialogue ledger reset. Standby for fresh prompt inputs.",
         modelUsed: "gemini-3.1-flash-lite",
         routeLabel: "Low-Latency Core",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        ephemeral: true,
       }
     ]);
   };
@@ -159,6 +169,19 @@ export default function GeminiChatbot() {
 
         {/* Header Actions */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setChatMode((m) => (m === "assistant" ? "orchestrator" : "assistant"))}
+            className={`p-1.5 rounded-lg border text-[10px] font-bold uppercase flex items-center gap-1 transition-all ${
+              chatMode === "orchestrator"
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                : "bg-slate-950/60 border-white/5 text-slate-500 hover:text-slate-300"
+            }`}
+            title="Toggle Master Orchestrator mode (doctrine + prompt shots)"
+          >
+            <Cpu className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{chatMode === "orchestrator" ? "Orchestrator" : "Assistant"}</span>
+          </button>
+
           {/* Grounding Toggle */}
           <button
             onClick={() => setEnableSearch(!enableSearch)}

@@ -67,21 +67,62 @@ export function fetchSubmission(id: string): Promise<SignalSubmission> {
   return apiRequest<SignalSubmission>(`/api/v1/signal-submissions/${id}`);
 }
 
+export interface FableEngineStatus {
+  enabled: boolean;
+  dry_run: boolean;
+  started: boolean;
+  poll_seconds: number;
+  market_rpm: number;
+  onnx_bias: string;
+  strategy_count: number;
+  ticks: number;
+  last_tick_at: string | null;
+  last_error: string | null;
+  dry_run_count: number;
+  candle_source: string;
+  interval: string;
+  note?: string;
+}
+
+export interface FableEngineDryRun {
+  recorded_at: string;
+  terminal: string;
+  strategy_id: string;
+  kind: string;
+  pair: string;
+  side: string;
+  volume: string;
+  reason: string;
+  zone: number | null;
+  price: number | null;
+}
+
+export function fetchEngineStatus(): Promise<FableEngineStatus> {
+  return apiRequest<FableEngineStatus>("/api/v1/signals/engine/status");
+}
+
+export function fetchEngineDryRuns(limit = 50): Promise<FableEngineDryRun[]> {
+  return apiRequest<FableEngineDryRun[]>(`/api/v1/signals/engine/dryruns?limit=${limit}`);
+}
+
 export function pineJsonTemplate(credentialPlaceholder = "tvsec_YOUR_SECRET"): string {
+  // Official TradingView placeholders:
+  // https://www.tradingview.com/support/solutions/43000531021/
+  // strategy.* only work on strategy order-fill alerts (not indicator alerts).
   return JSON.stringify(
     {
       schema_version: 1,
       credential: credentialPlaceholder,
-      signal_id: "{{strategy.order.id}}:{{timenow}}",
+      signal_id: "{{strategy.order.id}}-{{timenow}}",
       occurred_at: "{{timenow}}",
       strategy_id: "YOUR_STRATEGY",
-      pair: "BTCUSD",
-      side: "buy",
-      volume: "0.001",
+      pair: "ADAUSD",
+      side: "{{strategy.order.action}}",
+      volume: "{{strategy.order.contracts}}",
       order_type: "market",
       price: null,
       order_id: "{{strategy.order.id}}",
-      raw_symbol: "{{ticker}}",
+      raw_symbol: "{{exchange}}:{{ticker}}",
       observed_price: "{{close}}",
     },
     null,

@@ -61,6 +61,8 @@ def verify_credential(
     revoked_at: datetime | None,
     expires_at: datetime | None,
 ) -> bool:
+    if not plaintext or not isinstance(plaintext, str):
+        return False
     if revoked_at is not None:
         return False
     if expires_at is not None and expires_at <= datetime.now(UTC):
