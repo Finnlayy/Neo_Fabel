@@ -113,8 +113,7 @@ class TrainingDrillsService:
 
         def _write() -> None:
             with open(DRILL_RESULTS_FILE, "a", encoding="utf-8") as handle:
-                for result in results:
-                    handle.write(result.model_dump_json() + "\n")
+                handle.writelines(result.model_dump_json() + "\n" for result in results)
 
         await asyncio.to_thread(_write)
 

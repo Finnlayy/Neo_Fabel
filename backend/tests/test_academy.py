@@ -6,12 +6,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.academy.agent_defs import NEO_AGENT_NAMES
-from backend.app.academy.blind_patterns import make_pattern_scenario, scan_blind_patterns, BlindCandle
+from backend.app.academy.blind_patterns import BlindCandle, make_pattern_scenario, scan_blind_patterns
 from backend.app.academy.training_drills import training_drills
 from backend.app.academy.training_loop import training_loop
 from backend.app.auth import require_user
 from backend.app.main import app
-
 
 client = TestClient(app)
 

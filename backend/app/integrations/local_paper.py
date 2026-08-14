@@ -37,7 +37,7 @@ class LocalPaperLedger:
         if volume <= 0 or (order_type == "limit" and (price is None or price <= 0)):
             raise ValueError("invalid paper order values")
 
-        fill_price = price if price is not None else Decimal("0")
+        fill_price = price if price is not None else Decimal(0)
         order_id = f"LOCAL-{uuid4().hex[:12].upper()}"
         now = datetime.now(UTC).isoformat()
         row = {

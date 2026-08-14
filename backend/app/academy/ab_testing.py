@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from backend.app.academy.paths import ACADEMY_DATA_DIR, ensure_academy_data_dir
 from backend.app.academy.schemas import ABTest
@@ -67,7 +66,7 @@ class ABTestingService:
                 test.correct_b += 1
         self.save_tests()
 
-    def conclude_test(self, test_id: str) -> Optional[ABTest]:
+    def conclude_test(self, test_id: str) -> ABTest | None:
         test = self._tests.get(test_id)
         if not test:
             return None
@@ -75,7 +74,7 @@ class ABTestingService:
         acc_b = test.correct_b / test.calls_b if test.calls_b > 0 else 0
         test.winner_version = test.variant_a_version if acc_a >= acc_b else test.variant_b_version
         test.status = "concluded"
-        test.concluded_at = datetime.now(timezone.utc).isoformat()
+        test.concluded_at = datetime.now(UTC).isoformat()
         self.save_tests()
         return test
 

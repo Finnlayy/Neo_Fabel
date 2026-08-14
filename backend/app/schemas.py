@@ -72,9 +72,9 @@ class PaperOrderRequest(BaseModel):
 
     pair: str = Field(min_length=2, max_length=20)
     side: Literal["buy", "sell"]
-    volume: Decimal = Field(gt=Decimal("0"), max_digits=24, decimal_places=12)
+    volume: Decimal = Field(gt=Decimal(0), max_digits=24, decimal_places=12)
     order_type: Literal["market", "limit"] = "market"
-    price: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
+    price: Decimal | None = Field(default=None, gt=Decimal(0), max_digits=24, decimal_places=12)
     idempotency_key: UUID
 
     @field_validator("pair")

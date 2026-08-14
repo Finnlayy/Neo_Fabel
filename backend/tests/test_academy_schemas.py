@@ -1,6 +1,8 @@
 import uuid
 from datetime import datetime
+
 from backend.app.academy.schemas import ScoutIdentity
+
 
 def test_scout_identity_default_factories():
     scout1 = ScoutIdentity(name="Scout One", archetype="Analyst")

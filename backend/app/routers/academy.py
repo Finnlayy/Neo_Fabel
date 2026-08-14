@@ -9,10 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from backend.app.academy.ab_testing import ab_testing
 from backend.app.academy.academy_curriculum import academy_curriculum
 from backend.app.academy.agent_registry import agent_registry
+from backend.app.academy.schemas import AgentDeployRequest, DrillEvaluateRequest
 from backend.app.academy.training_drills import training_drills
 from backend.app.academy.training_loop import training_loop
 from backend.app.auth import require_user
-from backend.app.academy.schemas import AgentDeployRequest, DrillEvaluateRequest
 
 router = APIRouter(prefix="/api/v1/academy", tags=["academy"])
 

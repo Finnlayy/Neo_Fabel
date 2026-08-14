@@ -1,7 +1,9 @@
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, UTC
 
 from backend.app.signals.policy import parse_occurred_at
+
 
 def test_parse_occurred_at_with_z_suffix():
     result = parse_occurred_at("2023-10-27T10:00:00Z")

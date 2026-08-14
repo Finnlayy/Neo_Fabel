@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from typing import Optional
 
 from backend.app.academy.agent_defs import NEO_AGENT_NAMES
 from backend.app.academy.paths import ACADEMY_DATA_DIR, ensure_academy_data_dir
@@ -57,7 +56,7 @@ class PromptEvolutionService:
         scout_name: str,
         version_id: str,
         prompt_text: str,
-        parent_version: Optional[str] = None,
+        parent_version: str | None = None,
         change_summary: str = "",
     ) -> PromptVersion:
         pv = PromptVersion(
@@ -71,7 +70,7 @@ class PromptEvolutionService:
         self.save_registry()
         return pv
 
-    def get_version(self, version_id: str) -> Optional[PromptVersion]:
+    def get_version(self, version_id: str) -> PromptVersion | None:
         return self._versions.get(version_id)
 
     def get_all_for_scout(self, scout_name: str) -> list[PromptVersion]:

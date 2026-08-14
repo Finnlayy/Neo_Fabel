@@ -7,7 +7,11 @@ from backend.app.settings import Settings
 from backend.app.signals.domain import LEGAL_TRANSITIONS, assert_transition
 from backend.app.signals.evaluator import FakeSignalEvaluator, normalize_evaluation
 from backend.app.signals.policy import build_candidate, canonical_hash_for, check_route_policy
-from backend.app.signals.safety import SignalSafetyError, assert_signal_paper_only, assert_signals_module_imports
+from backend.app.signals.safety import (
+    SignalSafetyError,
+    assert_signal_paper_only,
+    assert_signals_module_imports,
+)
 from backend.app.signals.schemas import TradingViewWebhookBody
 from backend.app.trading.autonomy import AutonomyLevel
 
@@ -131,9 +135,10 @@ async def test_fake_evaluator_approve_and_normalize_hash_mismatch():
 
 
 def test_route_policy_rejects_pair():
-    from backend.app.models import SignalRoute
     from datetime import UTC, datetime
     from uuid import uuid4
+
+    from backend.app.models import SignalRoute
 
     route = SignalRoute(
         id=str(uuid4()),
@@ -145,7 +150,7 @@ def test_route_policy_rejects_pair():
         enabled=True,
         execution_target="kraken_paper",
         pair_allowlist="ETHUSD",
-        max_volume=Decimal("1"),
+        max_volume=Decimal(1),
         max_notional=None,
         allowed_order_types="market",
         max_event_age_seconds=300,

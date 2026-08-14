@@ -7,8 +7,8 @@ import logging
 
 from ..database import SessionFactory
 from ..integrations.ai_evaluator import build_evaluator
-from ..paper_orders import PaperOrderService
 from ..integrations.kraken_cli import KrakenCli
+from ..paper_orders import PaperOrderService
 from ..settings import get_settings
 from .executor import PaperOrderExecutionAdapter
 from .safety import assert_signal_paper_only, assert_signals_module_imports

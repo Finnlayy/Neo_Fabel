@@ -7,10 +7,10 @@ import argparse
 import json
 import math
 import time
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests
@@ -101,7 +101,7 @@ class Trade:
     pnl: float
 
 
-def bybit_get(path: str, params: Dict[str, object]) -> dict:
+def bybit_get(path: str, params: dict[str, object]) -> dict:
     r = requests.get(f"{BYBIT_BASE_URL}{path}", params=params, timeout=30)
     r.raise_for_status()
     payload = r.json()
@@ -110,19 +110,19 @@ def bybit_get(path: str, params: Dict[str, object]) -> dict:
     return payload["result"]
 
 
-def fetch_1m_klines(symbol: str, bars_target: int) -> List[Candle]:
+def fetch_1m_klines(symbol: str, bars_target: int) -> list[Candle]:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = CACHE_DIR / f"{symbol}_1m_{bars_target}.json"
     if cache_path.exists():
         rows = json.loads(cache_path.read_text(encoding="utf-8"))
         return [Candle(**row) for row in rows]
 
-    bars: List[Candle] = []
+    bars: list[Candle] = []
     end_ms = int(time.time() * 1000)
     tf_ms = 60_000
     while len(bars) < bars_target:
         remaining = bars_target - len(bars)
-        limit = 1000 if remaining > 1000 else remaining
+        limit = min(remaining, 1000)
         result = bybit_get(
             "/v5/market/kline",
             {
@@ -163,7 +163,7 @@ def fetch_1m_klines(symbol: str, bars_target: int) -> List[Candle]:
     return ordered
 
 
-def ema(values: Sequence[float], period: int) -> List[float]:
+def ema(values: Sequence[float], period: int) -> list[float]:
     if not values:
         return []
     alpha = 2.0 / (period + 1.0)
@@ -173,8 +173,8 @@ def ema(values: Sequence[float], period: int) -> List[float]:
     return out
 
 
-def sma(values: Sequence[float], period: int) -> List[float]:
-    out: List[float] = []
+def sma(values: Sequence[float], period: int) -> list[float]:
+    out: list[float] = []
     s = 0.0
     for i, x in enumerate(values):
         s += x
@@ -184,8 +184,8 @@ def sma(values: Sequence[float], period: int) -> List[float]:
     return out
 
 
-def atr(candles: Sequence[Candle], period: int = 14) -> List[float]:
-    trs: List[float] = []
+def atr(candles: Sequence[Candle], period: int = 14) -> list[float]:
+    trs: list[float] = []
     prev = candles[0].c
     for c in candles:
         trs.append(max(c.h - c.l, abs(c.h - prev), abs(c.l - prev)))
@@ -193,7 +193,7 @@ def atr(candles: Sequence[Candle], period: int = 14) -> List[float]:
     return ema(trs, period)
 
 
-def rsi(closes: Sequence[float], length: int) -> List[float]:
+def rsi(closes: Sequence[float], length: int) -> list[float]:
     if len(closes) < 2:
         return [50.0] * len(closes)
     gains = [0.0]
@@ -221,7 +221,7 @@ def rsi(closes: Sequence[float], length: int) -> List[float]:
 
 
 def norm_hhmm(hhmm: int) -> int:
-    h = int(math.floor(hhmm / 100.0))
+    h = math.floor(hhmm / 100.0)
     m = hhmm % 100
     h = max(0, min(23, h))
     m = max(0, min(59, m))
@@ -234,7 +234,7 @@ def in_session(ts_ms: int, start_hhmm: int, end_hhmm: int, tz: str) -> bool:
     try:
         tzinfo = ZoneInfo(tz)
     except ZoneInfoNotFoundError:
-        tzinfo = timezone.utc
+        tzinfo = UTC
     dt = datetime.fromtimestamp(ts_ms / 1000.0, tz=tzinfo)
     now_hhmm = dt.hour * 100 + dt.minute
     regular = start_hhmm <= end_hhmm
@@ -245,11 +245,11 @@ def round_qty(qty: float, step: float) -> float:
     return math.floor(qty / step) * step
 
 
-def cisd_sequence(candles: Sequence[Candle]) -> Tuple[List[int], List[bool], List[bool]]:
+def cisd_sequence(candles: Sequence[Candle]) -> tuple[list[int], list[bool], list[bool]]:
     state = 0
-    states: List[int] = []
-    bull: List[bool] = []
-    bear: List[bool] = []
+    states: list[int] = []
+    bull: list[bool] = []
+    bear: list[bool] = []
     for i, c in enumerate(candles):
         prev = candles[i - 1] if i > 0 else c
         is_bull = c.c > c.o
@@ -257,25 +257,23 @@ def cisd_sequence(candles: Sequence[Candle]) -> Tuple[List[int], List[bool], Lis
         bull_tr = False
         bear_tr = False
         inside = c.h < prev.h and c.l > prev.l
-        if is_bear and state != -1:
-            if c.c < prev.o and not inside:
-                state = -1
-                bear_tr = True
-        if is_bull and state != 1:
-            if c.c > prev.o and not inside:
-                state = 1
-                bull_tr = True
+        if is_bear and state != -1 and c.c < prev.o and not inside:
+            state = -1
+            bear_tr = True
+        if is_bull and state != 1 and c.c > prev.o and not inside:
+            state = 1
+            bull_tr = True
         states.append(state)
         bull.append(bull_tr)
         bear.append(bear_tr)
     return states, bull, bear
 
 
-def aggregate(candles: Sequence[Candle], tf_minutes: int) -> List[Candle]:
+def aggregate(candles: Sequence[Candle], tf_minutes: int) -> list[Candle]:
     bucket_ms = tf_minutes * 60_000
-    grouped: List[Candle] = []
-    current: Optional[int] = None
-    rows: List[Candle] = []
+    grouped: list[Candle] = []
+    current: int | None = None
+    rows: list[Candle] = []
     for c in candles:
         bucket = (c.ts // bucket_ms) * bucket_ms
         if current is None:
@@ -309,12 +307,12 @@ def aggregate(candles: Sequence[Candle], tf_minutes: int) -> List[Candle]:
     return grouped
 
 
-def mtf_state_for_1m(candles_1m: Sequence[Candle], tf_minutes: int) -> Dict[int, int]:
+def mtf_state_for_1m(candles_1m: Sequence[Candle], tf_minutes: int) -> dict[int, int]:
     agg = aggregate(candles_1m, tf_minutes)
     states, _, _ = cisd_sequence(agg)
     by_bucket = {c.ts: s for c, s in zip(agg, states)}
     tf_ms = tf_minutes * 60_000
-    out: Dict[int, int] = {}
+    out: dict[int, int] = {}
     for c in candles_1m:
         bucket = (c.ts // tf_ms) * tf_ms
         prev_bucket = bucket - tf_ms
@@ -334,7 +332,7 @@ def backtest(candles: Sequence[Candle], p: Params) -> dict:
     rsi14 = rsi(closes, p.rsi_len)
     vol_sma = sma(vols, p.vol_period)
 
-    local_state, local_bull_cisd, local_bear_cisd = cisd_sequence(candles)
+    _local_state, local_bull_cisd, local_bear_cisd = cisd_sequence(candles)
     state_h4 = mtf_state_for_1m(candles, p.tf_h4)
     state_h1 = mtf_state_for_1m(candles, p.tf_h1)
     state_m15 = mtf_state_for_1m(candles, p.tf_m15)
@@ -343,17 +341,17 @@ def backtest(candles: Sequence[Candle], p: Params) -> dict:
     start_hhmm = norm_hhmm(p.start_time)
     end_hhmm = norm_hhmm(p.end_time)
 
-    bull_ob: List[Tuple[float, float]] = []
-    bear_ob: List[Tuple[float, float]] = []
-    bull_fvg: List[Tuple[float, float]] = []
-    bear_fvg: List[Tuple[float, float]] = []
+    bull_ob: list[tuple[float, float]] = []
+    bear_ob: list[tuple[float, float]] = []
+    bull_fvg: list[tuple[float, float]] = []
+    bear_fvg: list[tuple[float, float]] = []
 
     equity_cash = 100.0
     equity_peak = closes[0]
     current_dd_pct = 0.0
     daily_start_price = closes[0]
     daily_pnl_pct = 0.0
-    prev_day = datetime.fromtimestamp(candles[0].ts / 1000.0, tz=timezone.utc).date()
+    prev_day = datetime.fromtimestamp(candles[0].ts / 1000.0, tz=UTC).date()
 
     pos_side = 0
     pos_qty = 0.0
@@ -363,13 +361,13 @@ def backtest(candles: Sequence[Candle], p: Params) -> dict:
     trail_price = math.nan
     bars_in_pos = 0
 
-    pending_entry: Optional[Tuple[int, float]] = None
+    pending_entry: tuple[int, float] | None = None
     pending_force_close = False
 
-    trades: List[Trade] = []
+    trades: list[Trade] = []
     last_entry_ts = candles[0].ts
 
-    equity_curve: List[float] = []
+    equity_curve: list[float] = []
 
     for i, c in enumerate(candles):
         # process pending close at next bar open
@@ -416,7 +414,7 @@ def backtest(candles: Sequence[Candle], p: Params) -> dict:
             bars_in_pos += 1
 
         # daily reset
-        current_day = datetime.fromtimestamp(c.ts / 1000.0, tz=timezone.utc).date()
+        current_day = datetime.fromtimestamp(c.ts / 1000.0, tz=UTC).date()
         if current_day != prev_day:
             daily_start_price = c.c
             daily_pnl_pct = 0.0
@@ -516,12 +514,10 @@ def backtest(candles: Sequence[Candle], p: Params) -> dict:
         # trailing update
         if p.use_trail and pos_side == 1 and not math.isnan(trail_price):
             new_trail = c.h - atr14[i] * p.trail_atr
-            if new_trail > trail_price:
-                trail_price = new_trail
+            trail_price = max(trail_price, new_trail)
         if p.use_trail and pos_side == -1 and not math.isnan(trail_price):
             new_trail = c.l + atr14[i] * p.trail_atr
-            if new_trail < trail_price:
-                trail_price = new_trail
+            trail_price = min(trail_price, new_trail)
 
         active_long_stop = max(sl_price, trail_price) if (pos_side == 1 and p.use_trail and not math.isnan(trail_price)) else (sl_price if pos_side == 1 else math.nan)
         active_short_stop = min(sl_price, trail_price) if (pos_side == -1 and p.use_trail and not math.isnan(trail_price)) else (sl_price if pos_side == -1 else math.nan)
@@ -636,8 +632,8 @@ def backtest(candles: Sequence[Candle], p: Params) -> dict:
         "symbol": SYMBOL,
         "timeframe": "1m",
         "bars": len(candles),
-        "date_from": datetime.fromtimestamp(candles[0].ts / 1000.0, tz=timezone.utc).isoformat(),
-        "date_to": datetime.fromtimestamp(candles[-1].ts / 1000.0, tz=timezone.utc).isoformat(),
+        "date_from": datetime.fromtimestamp(candles[0].ts / 1000.0, tz=UTC).isoformat(),
+        "date_to": datetime.fromtimestamp(candles[-1].ts / 1000.0, tz=UTC).isoformat(),
         "initial_equity": 100.0,
         "final_equity": equity_cash,
         "net_profit": net_profit,

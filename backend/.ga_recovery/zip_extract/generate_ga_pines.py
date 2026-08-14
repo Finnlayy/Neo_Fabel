@@ -6,9 +6,10 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any
 
 WORKDIR = Path(__file__).resolve().parent
 DEFAULT_RESULTS = WORKDIR / "ga_forward_results.json"
@@ -24,7 +25,7 @@ DEFAULT_TF_LOW = "3"
 class Candidate:
     symbol: str
     fitness: float
-    params: Dict[str, Any]
+    params: dict[str, Any]
     source: str
 
 
@@ -79,8 +80,8 @@ def extract_template_symbol(template_text: str, fallback: str) -> str:
     return fallback
 
 
-def normalize_candidates(payload: Dict[str, Any], fallback_symbol: str) -> List[Candidate]:
-    candidates: List[Candidate] = []
+def normalize_candidates(payload: dict[str, Any], fallback_symbol: str) -> list[Candidate]:
+    candidates: list[Candidate] = []
 
     if isinstance(payload.get("per_symbol"), dict):
         for symbol, data in payload["per_symbol"].items():
@@ -129,10 +130,10 @@ def normalize_candidates(payload: Dict[str, Any], fallback_symbol: str) -> List[
     raise ValueError("Unsupported GA result schema. Expected top3, top_results, or per_symbol.")
 
 
-def unique_top(candidates: Iterable[Candidate], limit: int) -> List[Candidate]:
+def unique_top(candidates: Iterable[Candidate], limit: int) -> list[Candidate]:
     ranked = sorted(candidates, key=lambda row: row.fitness, reverse=True)
     seen = set()
-    unique: List[Candidate] = []
+    unique: list[Candidate] = []
     for row in ranked:
         key = (sanitize_symbol(row.symbol), json.dumps(row.params, sort_keys=True, default=str))
         if key in seen:
@@ -414,7 +415,7 @@ def apply_candidate(
 
     trend_weight_raw = params.get("w_trend")
     if trend_weight_raw is not None:
-        per_tf_weight = max(1, int(round(float(trend_weight_raw) / 3.0)))
+        per_tf_weight = max(1, round(float(trend_weight_raw) / 3.0))
         updated = replace_input_default(output, "w_trend", str(per_tf_weight), "int")
         if updated != output:
             output = updated
@@ -428,7 +429,7 @@ def apply_candidate(
         applied_keys.add("w_trend")
 
     if "w_news" in params:
-        output = replace_input_default(output, "w_news", str(int(round(float(params["w_news"])))), "int")
+        output = replace_input_default(output, "w_news", str(round(float(params["w_news"]))), "int")
         applied_keys.add("w_news")
 
     weight_patterns = {
@@ -452,7 +453,7 @@ def apply_candidate(
     for key, replacements in weight_patterns.items():
         if key not in params:
             continue
-        value = int(round(float(params[key])))
+        value = round(float(params[key]))
         updated = replace_input_default(output, key, str(value), "int")
         if updated != output:
             output = updated
@@ -496,7 +497,7 @@ def generate_files(
     tf_high: str,
     tf_mid: str,
     tf_low: str,
-) -> List[Path]:
+) -> list[Path]:
     payload = json.loads(results_path.read_text(encoding="utf-8"))
     template_text = template_path.read_text(encoding="utf-8")
     template_symbol = extract_template_symbol(template_text, fallback_symbol)
@@ -505,7 +506,7 @@ def generate_files(
         raise ValueError("No unique candidates found in the GA results.")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    written: List[Path] = []
+    written: list[Path] = []
     for rank, candidate in enumerate(candidates, start=1):
         selected_symbol = target_symbol.strip() or candidate.symbol
         symbol_tag = sanitize_symbol(selected_symbol)

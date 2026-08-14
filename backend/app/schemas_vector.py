@@ -8,7 +8,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-
 MAX_POINT_AUXILIARY_BYTES = 16 * 1024
 
 
@@ -36,7 +35,7 @@ class VectorPointIn(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def bounded_auxiliary_payload(self) -> "VectorPointIn":
+    def bounded_auxiliary_payload(self) -> VectorPointIn:
         encoded = json.dumps(
             {"metadata": self.metadata, "payload": self.payload},
             ensure_ascii=False,

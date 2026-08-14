@@ -153,9 +153,7 @@ def _has_custom_claim(user: dict[str, Any], claim: str) -> bool:
         return True
     raw_claims = user.get("claims")
     claims: dict[str, Any] = raw_claims if isinstance(raw_claims, dict) else {}
-    if claims.get(claim) is True:
-        return True
-    return False
+    return claims.get(claim) is True
 
 
 def _auth_time_recent(user: dict[str, Any], max_age_seconds: int) -> bool:

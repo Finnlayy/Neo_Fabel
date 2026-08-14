@@ -12,8 +12,8 @@ from backend.app.academy.academy_curriculum import academy_curriculum
 from backend.app.academy.agent_defs import NEO_AGENT_NAMES
 from backend.app.academy.agent_registry import agent_registry
 from backend.app.academy.prompt_evolution import prompt_evolution
-from backend.app.academy.training_drills import training_drills
 from backend.app.academy.schemas import DiversityMonitorStats
+from backend.app.academy.training_drills import training_drills
 from backend.app.settings import get_settings
 
 

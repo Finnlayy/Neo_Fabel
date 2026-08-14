@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-
 Bias = Literal["bullish", "bearish", "neutral"]
 Kind = Literal["single", "double", "triple"]
 

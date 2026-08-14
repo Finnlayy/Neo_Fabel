@@ -1,5 +1,6 @@
 from backend.app.signals.auth import display_prefix
 
+
 def test_display_prefix_longer_than_12():
     assert display_prefix("123456789012345") == "123456789012"
 

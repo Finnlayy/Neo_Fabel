@@ -13,9 +13,8 @@ import httpx
 
 from ..settings import Settings
 
-
-BULLISH_RE = re.compile(r"\b(long|buy|bull|breakout|moon|pump)\b", re.I)
-BEARISH_RE = re.compile(r"\b(short|sell|bear|dump|crash|liquidation)\b", re.I)
+BULLISH_RE = re.compile(r"\b(long|buy|bull|breakout|moon|pump)\b", re.IGNORECASE)
+BEARISH_RE = re.compile(r"\b(short|sell|bear|dump|crash|liquidation)\b", re.IGNORECASE)
 
 
 class TelegramNotConfigured(Exception):
@@ -105,8 +104,7 @@ class TelegramBot:
             if not isinstance(update, dict):
                 continue
             update_id = int(update.get("update_id") or 0)
-            if update_id > state.last_update_id:
-                state.last_update_id = update_id
+            state.last_update_id = max(state.last_update_id, update_id)
             signal = _map_update(update)
             if signal is None:
                 continue

@@ -13,12 +13,12 @@ import math
 import os
 import random
 import statistics
-import time
 import sys
+import time
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, List, Sequence, Tuple
 
 import requests
 
@@ -73,7 +73,7 @@ class Stats:
     max_dd: float = 0.0
     max_loss_streak: int = 0
     _streak: int = 0
-    returns: List[float] = None  # type: ignore[assignment]
+    returns: list[float] = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         if self.returns is None:
@@ -98,7 +98,7 @@ def get_json(sess: requests.Session, url: str, params: dict | None = None):
     return r.json()
 
 
-def exchange_symbols(sess: requests.Session) -> List[Tuple[str, float]]:
+def exchange_symbols(sess: requests.Session) -> list[tuple[str, float]]:
     ex = get_json(sess, f"{API}/fapi/v1/exchangeInfo")
     tick = get_json(sess, f"{API}/fapi/v1/ticker/24hr")
     vol = {r["symbol"]: float(r.get("quoteVolume", 0.0)) for r in tick}
@@ -110,12 +110,12 @@ def exchange_symbols(sess: requests.Session) -> List[Tuple[str, float]]:
     return out
 
 
-def fetch_klines(sess: requests.Session, symbol: str, interval: str, limit: int) -> List[Candle]:
+def fetch_klines(sess: requests.Session, symbol: str, interval: str, limit: int) -> list[Candle]:
     data = get_json(sess, f"{API}/fapi/v1/klines", {"symbol": symbol, "interval": interval, "limit": limit})
     return [Candle(int(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5])) for r in data]
 
 
-def resample(candles: List[Candle], factor: int) -> List[Candle]:
+def resample(candles: list[Candle], factor: int) -> list[Candle]:
     if factor == 1:
         return candles[:]
     out = []
@@ -127,7 +127,7 @@ def resample(candles: List[Candle], factor: int) -> List[Candle]:
     return out
 
 
-def ema(xs: Sequence[float], period: int) -> List[float]:
+def ema(xs: Sequence[float], period: int) -> list[float]:
     if not xs:
         return []
     a = 2.0 / (period + 1.0)
@@ -137,7 +137,7 @@ def ema(xs: Sequence[float], period: int) -> List[float]:
     return out
 
 
-def sma(xs: Sequence[float], period: int) -> List[float]:
+def sma(xs: Sequence[float], period: int) -> list[float]:
     out = []
     s = 0.0
     for i, x in enumerate(xs):
@@ -148,7 +148,7 @@ def sma(xs: Sequence[float], period: int) -> List[float]:
     return out
 
 
-def atr(candles: Sequence[Candle], period: int = 14) -> List[float]:
+def atr(candles: Sequence[Candle], period: int = 14) -> list[float]:
     trs = []
     prev = candles[0].c
     for c in candles:
@@ -157,16 +157,16 @@ def atr(candles: Sequence[Candle], period: int = 14) -> List[float]:
     return ema(trs, period)
 
 
-def trend_flags(candles: Sequence[Candle]) -> Tuple[List[bool], List[bool]]:
+def trend_flags(candles: Sequence[Candle]) -> tuple[list[bool], list[bool]]:
     closes = [c.c for c in candles]
     e50 = ema(closes, 50)
     e200 = ema(closes, 200)
-    bull = [c > a and a > b for c, a, b in zip(closes, e50, e200)]
-    bear = [c < a and a < b for c, a, b in zip(closes, e50, e200)]
+    bull = [c > a > b for c, a, b in zip(closes, e50, e200)]
+    bear = [c < a < b for c, a, b in zip(closes, e50, e200)]
     return bull, bear
 
 
-def cisd_flags(candles: Sequence[Candle], lr: int) -> Tuple[List[bool], List[bool]]:
+def cisd_flags(candles: Sequence[Candle], lr: int) -> tuple[list[bool], list[bool]]:
     n = len(candles)
     bull = [False] * n
     bear = [False] * n
@@ -186,7 +186,7 @@ def cisd_flags(candles: Sequence[Candle], lr: int) -> Tuple[List[bool], List[boo
     return bull, bear
 
 
-def build_frame(symbol: str, tf: str, candles: List[Candle], quote_vol: float, cisd_lens: List[int]) -> Dict[str, object]:
+def build_frame(symbol: str, tf: str, candles: list[Candle], quote_vol: float, cisd_lens: list[int]) -> dict[str, object]:
     bull, bear = trend_flags(candles)
     [c.c for c in candles]
     vols = [c.v for c in candles]
@@ -198,7 +198,7 @@ def build_frame(symbol: str, tf: str, candles: List[Candle], quote_vol: float, c
     daily_move = [0.0] * len(candles)
     bull_rev = [False] * len(candles)
     bear_rev = [False] * len(candles)
-    by_day: Dict[str, float] = {}
+    by_day: dict[str, float] = {}
     for c in candles:
         day = time.strftime("%Y-%m-%d", time.gmtime(c.ts / 1000))
         by_day.setdefault(day, c.o)
@@ -249,10 +249,10 @@ def split_index(n: int, ratio: float) -> int:
     return max(100, min(n - 50, int(n * ratio)))
 
 
-def dataset_stats(rows: Dict[str, object], g: Genome, fee_r: float, max_hold: int, split: int) -> Tuple[Stats, Stats]:
+def dataset_stats(rows: dict[str, object], g: Genome, fee_r: float, max_hold: int, split: int) -> tuple[Stats, Stats]:
     def run_segment(start: int, end: int) -> Stats:
         s = Stats()
-        candles: List[Candle] = rows["candles"]  # type: ignore[assignment]
+        candles: list[Candle] = rows["candles"]  # type: ignore[assignment]
         trend_bull = rows["trend_bull"]  # type: ignore[assignment]
         trend_bear = rows["trend_bear"]  # type: ignore[assignment]
         vol_ratio = rows["vol_ratio"]  # type: ignore[assignment]
@@ -347,7 +347,7 @@ def dataset_stats(rows: Dict[str, object], g: Genome, fee_r: float, max_hold: in
     return run_segment(0, split), run_segment(split, len(rows["candles"]))  # type: ignore[arg-type]
 
 
-def bundle(s: Stats) -> Dict[str, float]:
+def bundle(s: Stats) -> dict[str, float]:
     if s.trades == 0:
         return {"trades": 0, "net": -1.0, "pf": 0.0, "wr": 0.0, "dd": 100.0, "sharpe": -5.0, "consistency": 0.0, "streak": float(s.max_loss_streak)}
     net = (s.equity - 100.0) / 100.0 * 100.0
@@ -360,7 +360,7 @@ def bundle(s: Stats) -> Dict[str, float]:
     return {"trades": s.trades, "net": net, "pf": pf, "wr": wr, "dd": s.max_dd, "sharpe": sharpe, "consistency": consistency, "streak": float(s.max_loss_streak)}
 
 
-def fitness(b: Dict[str, float]) -> float:
+def fitness(b: dict[str, float]) -> float:
     if b["trades"] < 10:
         return -100.0
     score = 0.24 * clamp(b["net"] / 100.0, -1.0, 5.0)
@@ -379,7 +379,7 @@ def fitness(b: Dict[str, float]) -> float:
     return score
 
 
-def genome_dict(g: Genome) -> Dict[str, object]:
+def genome_dict(g: Genome) -> dict[str, object]:
     return asdict(g)
 
 
@@ -411,7 +411,7 @@ def crossover(a: Genome, b: Genome, rng: random.Random, threshold: float) -> Gen
             vals.append(x if rng.random() < 0.5 else y)
         elif isinstance(x, int):
             rel = abs(x - y) / max(abs(x), abs(y), 1)
-            vals.append(int(round((x + y) / 2)) if rel <= threshold else (x if rng.random() < 0.5 else y))
+            vals.append(round((x + y) / 2) if rel <= threshold else (x if rng.random() < 0.5 else y))
         else:
             rel = abs(x - y) / max(abs(x) + abs(y), 1e-12)
             vals.append((x + y) / 2.0 if rel <= threshold else (x if rng.random() < 0.5 else y))
@@ -444,7 +444,7 @@ def mutate(g: Genome, rng: random.Random, rate: float, strength: float) -> Genom
         lo, hi = ranges[k]
         span = hi - lo
         if isinstance(v, int):
-            d[k] = int(round(clamp(v + rng.uniform(-span * strength, span * strength), lo, hi)))
+            d[k] = round(clamp(v + rng.uniform(-span * strength, span * strength), lo, hi))
         else:
             d[k] = clamp(v + rng.uniform(-span * strength, span * strength), lo, hi)
     return Genome(**d)  # type: ignore[arg-type]
@@ -452,11 +452,11 @@ def mutate(g: Genome, rng: random.Random, rate: float, strength: float) -> Genom
 
 def eval_genome(
     g: Genome,
-    packs: Dict[str, Dict[str, object]],
-    symbols: List[Tuple[str, float]],
+    packs: dict[str, dict[str, object]],
+    symbols: list[tuple[str, float]],
     train_ratio: float,
     fee_r: float,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     max_hold = {"15m": 96, "30m": 48, "1h": 24}
     results = []
     for symbol, qv in symbols:
@@ -480,7 +480,7 @@ def eval_genome(
     return {"genome": genome_dict(g), "fitness": fitness_score, "train": train_avg, "forward": fwd_avg, "gap": gap_avg}
 
 
-def pretty(result: Dict[str, object]) -> str:
+def pretty(result: dict[str, object]) -> str:
     g = result["genome"]  # type: ignore[assignment]
     return (
         f"fitness={result['fitness']:.4f} train={result['train']:.4f} forward={result['forward']:.4f} gap={result['gap']:.4f} "
@@ -514,7 +514,7 @@ def main() -> int:
     print(f"Universe: {len(symbols)} symbols")
 
     cisd_lens = [3, 4, 5, 6, 7, 8]
-    packs: Dict[str, Dict[str, object]] = {}
+    packs: dict[str, dict[str, object]] = {}
     with ThreadPoolExecutor(max_workers=min(16, max(4, os.cpu_count() or 4))) as ex:
         futs = {}
         for sym, qv in symbols:
@@ -531,7 +531,7 @@ def main() -> int:
         raise SystemExit("No market data loaded.")
 
     pop = [random_genome(rng) for _ in range(args.population)]
-    best: List[Dict[str, object]] = []
+    best: list[dict[str, object]] = []
     for gen in range(args.generations):
         scored = []
         print(f"Generation {gen + 1}/{args.generations}")
@@ -617,7 +617,7 @@ def main() -> int:
     return 0
 
 
-def _build_symbol_pack(sess: requests.Session, sym: str, qv: float, lookback: int, cisd_lens: List[int]) -> Dict[str, Dict[str, object]]:
+def _build_symbol_pack(sess: requests.Session, sym: str, qv: float, lookback: int, cisd_lens: list[int]) -> dict[str, dict[str, object]]:
     candles_15 = fetch_klines(sess, sym, "15m", lookback)
     candles_30 = resample(candles_15, 2)
     candles_1h = resample(candles_15, 4)

@@ -86,5 +86,5 @@ async def telegram_send(payload: TelegramSendRequest, _user: dict = Depends(requ
         return {"ok": True}
     except TelegramNotConfigured as exc:
         raise HTTPException(status_code=503, detail={"code": "telegram_unconfigured", "message": str(exc)}) from exc
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail={"code": "telegram_error", "message": str(exc)}) from exc

@@ -91,7 +91,7 @@ async def orchestrate(payload: OrchestrateRequest, _user: dict = Depends(require
         return _normalize_plan(plan, payload.prompt)
     except AiNotConfigured as exc:
         raise HTTPException(status_code=503, detail={"code": "ai_unconfigured", "message": str(exc)}) from exc
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=502, detail={"code": "ai_provider_error", "message": str(exc)}) from exc
 
 

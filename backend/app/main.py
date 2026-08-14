@@ -8,6 +8,7 @@ from uuid import uuid4
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from .academy.training_loop import training_loop
 from .auth import require_trading_admin, require_trading_admin_recent, require_user
 from .database import SessionFactory
 from .integrations.alpha_vantage import AlphaVantageClient, AlphaVantageError
@@ -17,6 +18,12 @@ from .integrations.kraken_public import KrakenPublicClient, normalize_orderbook_
 from .integrations.paper_router import PaperExecutionRouter
 from .market.stream import get_market_stream_hub
 from .paper_orders import PaperOrderService
+from .routers.academy import router as academy_router
+from .routers.ai import router as ai_router
+from .routers.market_stream import router as market_stream_router
+from .routers.telegram import router as telegram_router
+from .routers.tvapi import router as tvapi_router
+from .routers.vector import router as vector_router
 from .schemas import (
     MarketBatchItem,
     MarketBatchResponse,
@@ -29,18 +36,10 @@ from .schemas import (
     TickerResponse,
 )
 from .settings import get_settings
-from .routers.academy import router as academy_router
-from .routers.ai import router as ai_router
-from .routers.market_stream import router as market_stream_router
-from .routers.telegram import router as telegram_router
-from .routers.tvapi import router as tvapi_router
-from .routers.vector import router as vector_router
-from .academy.training_loop import training_loop
 from .signals.mcp_server import mcp_router
 from .signals.router import router as signal_router
 from .signals.safety import assert_signals_module_imports
 from .trading.session import Level4Session
-
 
 settings = get_settings()
 COMMON_SYMBOLS = {
@@ -67,7 +66,7 @@ async def lifespan(_app: FastAPI):
 
 def _series_key(payload: dict) -> str | None:
     for key in payload:
-        if key.startswith("Time Series") or key.startswith("Crypto Intraday"):
+        if key.startswith(("Time Series", "Crypto Intraday")):
             return key
     return None
 
@@ -94,8 +93,8 @@ def _bars(payload: dict) -> list[dict[str, str]]:
 
 
 def _aggregate_four_hour(payload: dict) -> dict:
-    from decimal import Decimal, InvalidOperation
     from datetime import datetime
+    from decimal import Decimal, InvalidOperation
 
     source = _bars(payload)
     groups: dict[str, list[dict[str, str]]] = {}

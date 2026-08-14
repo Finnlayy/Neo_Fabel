@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Literal
 
-
 PAIR_RE = re.compile(r"^[A-Z0-9]+(?:[/-][A-Z0-9]+)?$")
 ORDER_TYPES = {"market", "limit"}
 
@@ -63,7 +62,7 @@ class KrakenCli:
                 "config",
                 "kraken CLI subprocess could not be started; use public REST fallback",
             ) from exc
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             process.kill()
             await process.wait()
             raise KrakenCliError("network", "kraken command timed out", retryable=True) from exc

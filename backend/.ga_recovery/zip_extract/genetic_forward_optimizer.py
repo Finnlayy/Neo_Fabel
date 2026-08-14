@@ -8,10 +8,10 @@ import math
 import random
 import statistics
 import time
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
 
 import requests
 
@@ -67,7 +67,7 @@ class ParameterSet:
     use_shorts: bool
     risk_fraction: float
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return asdict(self)
 
 
@@ -97,15 +97,15 @@ class DatasetScore:
 class CandidateResult:
     params: ParameterSet
     fitness: float
-    universe_metrics: Dict[str, float]
-    top_datasets: List[DatasetScore]
+    universe_metrics: dict[str, float]
+    top_datasets: list[DatasetScore]
 
 
 class BybitClient:
     def __init__(self) -> None:
         self.session = requests.Session()
 
-    def _get(self, path: str, params: Dict[str, object]) -> dict:
+    def _get(self, path: str, params: dict[str, object]) -> dict:
         response = self.session.get(f"{BYBIT_BASE_URL}{path}", params=params, timeout=30)
         response.raise_for_status()
         payload = response.json()
@@ -113,7 +113,7 @@ class BybitClient:
             raise RuntimeError(f"Bybit error: {payload}")
         return payload["result"]
 
-    def fetch_linear_universe(self) -> List[str]:
+    def fetch_linear_universe(self) -> list[str]:
         instruments = self._get("/v5/market/instruments-info", {"category": "linear", "limit": 1000})["list"]
         tradable = {
             row["symbol"]: row
@@ -121,7 +121,7 @@ class BybitClient:
             if row.get("status") == "Trading" and row.get("quoteCoin") == "USDT"
         }
         tickers = self._get("/v5/market/tickers", {"category": "linear"})["list"]
-        ranked: List[Tuple[str, float]] = []
+        ranked: list[tuple[str, float]] = []
         for ticker in tickers:
             symbol = ticker["symbol"]
             if symbol not in tradable:
@@ -135,18 +135,18 @@ class BybitClient:
             symbols.append("HYPEUSDT")
         return symbols
 
-    def fetch_15m_klines(self, symbol: str, bars_target: int = RAW_BARS_TARGET) -> List[Candle]:
+    def fetch_15m_klines(self, symbol: str, bars_target: int = RAW_BARS_TARGET) -> list[Candle]:
         CACHE_DIR.mkdir(exist_ok=True)
         cache_path = CACHE_DIR / f"{symbol}_15m_{bars_target}.json"
         if cache_path.exists():
             return [Candle(**row) for row in json.loads(cache_path.read_text(encoding="utf-8"))]
 
-        bars: List[Candle] = []
+        bars: list[Candle] = []
         end_ms = int(time.time() * 1000)
         tf_ms = RAW_INTERVAL_MINUTES * 60 * 1000
         while len(bars) < bars_target:
             remaining = bars_target - len(bars)
-            limit = 1000 if remaining > 1000 else remaining
+            limit = min(remaining, 1000)
             result = self._get(
                 "/v5/market/kline",
                 {
@@ -178,7 +178,7 @@ class BybitClient:
             if len(chunk) < limit:
                 break
 
-        deduped: Dict[int, Candle] = {candle.timestamp: candle for candle in bars}
+        deduped: dict[int, Candle] = {candle.timestamp: candle for candle in bars}
         ordered = [deduped[key] for key in sorted(deduped)]
         cache_path.write_text(
             json.dumps([asdict(candle) for candle in ordered], ensure_ascii=True, indent=2),
@@ -187,13 +187,13 @@ class BybitClient:
         return ordered
 
 
-def aggregate_candles(raw_candles: Sequence[Candle], timeframe_minutes: int) -> List[Candle]:
+def aggregate_candles(raw_candles: Sequence[Candle], timeframe_minutes: int) -> list[Candle]:
     if timeframe_minutes == RAW_INTERVAL_MINUTES:
         return list(raw_candles)
     bucket_ms = timeframe_minutes * 60 * 1000
-    grouped: List[Candle] = []
-    current_bucket: Optional[int] = None
-    bucket_rows: List[Candle] = []
+    grouped: list[Candle] = []
+    current_bucket: int | None = None
+    bucket_rows: list[Candle] = []
     for candle in raw_candles:
         bucket = (candle.timestamp // bucket_ms) * bucket_ms
         if current_bucket is None:
@@ -227,18 +227,18 @@ def aggregate_candles(raw_candles: Sequence[Candle], timeframe_minutes: int) -> 
     return grouped
 
 
-def ema(values: Sequence[float], length: int) -> List[Optional[float]]:
+def ema(values: Sequence[float], length: int) -> list[float | None]:
     alpha = 2.0 / (length + 1.0)
-    result: List[Optional[float]] = [None] * len(values)
-    current: Optional[float] = None
+    result: list[float | None] = [None] * len(values)
+    current: float | None = None
     for idx, value in enumerate(values):
         current = value if current is None else (alpha * value + (1 - alpha) * current)
         result[idx] = current
     return result
 
 
-def sma(values: Sequence[float], length: int) -> List[Optional[float]]:
-    result: List[Optional[float]] = [None] * len(values)
+def sma(values: Sequence[float], length: int) -> list[float | None]:
+    result: list[float | None] = [None] * len(values)
     window_sum = 0.0
     for idx, value in enumerate(values):
         window_sum += value
@@ -249,8 +249,8 @@ def sma(values: Sequence[float], length: int) -> List[Optional[float]]:
     return result
 
 
-def atr(candles: Sequence[Candle], length: int = 14) -> List[Optional[float]]:
-    tr_values: List[float] = []
+def atr(candles: Sequence[Candle], length: int = 14) -> list[float | None]:
+    tr_values: list[float] = []
     for idx, candle in enumerate(candles):
         if idx == 0:
             tr_values.append(candle.high - candle.low)
@@ -260,9 +260,9 @@ def atr(candles: Sequence[Candle], length: int = 14) -> List[Optional[float]]:
     return sma(tr_values, length)
 
 
-def compute_pivots(candles: Sequence[Candle], left: int = 5, right: int = 5) -> Tuple[List[Optional[float]], List[Optional[float]]]:
-    ph: List[Optional[float]] = [None] * len(candles)
-    pl: List[Optional[float]] = [None] * len(candles)
+def compute_pivots(candles: Sequence[Candle], left: int = 5, right: int = 5) -> tuple[list[float | None], list[float | None]]:
+    ph: list[float | None] = [None] * len(candles)
+    pl: list[float | None] = [None] * len(candles)
     for idx in range(left + right, len(candles)):
         pivot_idx = idx - right
         window = candles[pivot_idx - left : pivot_idx + right + 1]
@@ -275,11 +275,11 @@ def compute_pivots(candles: Sequence[Candle], left: int = 5, right: int = 5) -> 
     return ph, pl
 
 
-def build_trend_lookup(candles: Sequence[Candle]) -> Dict[int, Tuple[bool, bool]]:
+def build_trend_lookup(candles: Sequence[Candle]) -> dict[int, tuple[bool, bool]]:
     closes = [row.close for row in candles]
     ema50 = ema(closes, 50)
     ema200 = ema(closes, 200)
-    lookup: Dict[int, Tuple[bool, bool]] = {}
+    lookup: dict[int, tuple[bool, bool]] = {}
     for idx, candle in enumerate(candles):
         fast = ema50[idx]
         slow = ema200[idx]
@@ -290,22 +290,22 @@ def build_trend_lookup(candles: Sequence[Candle]) -> Dict[int, Tuple[bool, bool]
     return lookup
 
 
-def previous_daily_open_lookup(candles: Sequence[Candle]) -> Dict[int, float]:
-    day_open: Dict[int, float] = {}
+def previous_daily_open_lookup(candles: Sequence[Candle]) -> dict[int, float]:
+    day_open: dict[int, float] = {}
     for candle in candles:
         day_bucket = candle.timestamp // 86_400_000
         day_open.setdefault(day_bucket, candle.open)
-    lookup: Dict[int, float] = {}
+    lookup: dict[int, float] = {}
     for candle in candles:
         day_bucket = candle.timestamp // 86_400_000
         lookup[candle.timestamp] = day_open.get(day_bucket - 1, day_open.get(day_bucket, candle.open))
     return lookup
 
 
-def build_closed_state_lookup(candles: Sequence[Candle], trends: Dict[int, Tuple[bool, bool]], shift_bars: int = 1) -> Dict[int, Tuple[bool, bool]]:
+def build_closed_state_lookup(candles: Sequence[Candle], trends: dict[int, tuple[bool, bool]], shift_bars: int = 1) -> dict[int, tuple[bool, bool]]:
     ordered = sorted(candles, key=lambda row: row.timestamp)
     timestamps = [row.timestamp for row in ordered]
-    shifted: Dict[int, Tuple[bool, bool]] = {}
+    shifted: dict[int, tuple[bool, bool]] = {}
     for idx, timestamp in enumerate(timestamps):
         ref_idx = idx - shift_bars
         shifted[timestamp] = trends[timestamps[ref_idx]] if ref_idx >= 0 else (False, False)
@@ -313,7 +313,7 @@ def build_closed_state_lookup(candles: Sequence[Candle], trends: Dict[int, Tuple
 
 
 def session_allows(session_mode: int, timestamp_ms: int) -> bool:
-    dt = datetime.fromtimestamp(timestamp_ms / 1000, tz=timezone.utc)
+    dt = datetime.fromtimestamp(timestamp_ms / 1000, tz=UTC)
     hour = dt.hour
     if session_mode == 0:
         return True
@@ -329,11 +329,11 @@ def normalize_score(value: float, scale: float) -> float:
 
 
 class StrategyEvaluator:
-    def __init__(self, raw_by_symbol: Dict[str, List[Candle]]) -> None:
+    def __init__(self, raw_by_symbol: dict[str, list[Candle]]) -> None:
         self.raw_by_symbol = raw_by_symbol
-        self.dataset_cache: Dict[Tuple[str, int], Dict[str, object]] = {}
+        self.dataset_cache: dict[tuple[str, int], dict[str, object]] = {}
 
-    def _prepare_dataset(self, symbol: str, timeframe: int) -> Dict[str, object]:
+    def _prepare_dataset(self, symbol: str, timeframe: int) -> dict[str, object]:
         key = (symbol, timeframe)
         if key in self.dataset_cache:
             return self.dataset_cache[key]
@@ -357,7 +357,7 @@ class StrategyEvaluator:
         self.dataset_cache[key] = dataset
         return dataset
 
-    def _trend_state(self, states: Dict[int, Tuple[bool, bool]], candle_ts: int) -> Tuple[bool, bool]:
+    def _trend_state(self, states: dict[int, tuple[bool, bool]], candle_ts: int) -> tuple[bool, bool]:
         latest = None
         for timestamp in states:
             if timestamp <= candle_ts and (latest is None or timestamp > latest):
@@ -366,13 +366,13 @@ class StrategyEvaluator:
 
     def evaluate_dataset(self, symbol: str, timeframe: int, params: ParameterSet) -> DatasetScore:
         data = self._prepare_dataset(symbol, timeframe)
-        candles: List[Candle] = data["candles"]  # type: ignore[assignment]
+        candles: list[Candle] = data["candles"]  # type: ignore[assignment]
         if len(candles) < 500:
             metrics = FoldMetrics(0.0, 1.0, 0.0, -1.0, -1.0, -1.0, 0, 0.0, 1, -1.0)
             return DatasetScore(symbol, timeframe, -1.0, metrics)
 
-        fold_scores: List[float] = []
-        fold_metrics: List[FoldMetrics] = []
+        fold_scores: list[float] = []
+        fold_metrics: list[FoldMetrics] = []
         for start_frac, end_frac in FORWARD_FOLDS:
             start_idx = int(len(candles) * start_frac)
             end_idx = int(len(candles) * end_frac)
@@ -400,29 +400,29 @@ class StrategyEvaluator:
         )
         return DatasetScore(symbol, timeframe, statistics.mean(fold_scores), summary)
 
-    def _simulate_segment(self, data: Dict[str, object], params: ParameterSet, start_idx: int, end_idx: int) -> FoldMetrics:
-        candles: List[Candle] = data["candles"]  # type: ignore[assignment]
-        atr_values: List[Optional[float]] = data["atr"]  # type: ignore[assignment]
-        vol_ma: List[Optional[float]] = data["vol_ma"]  # type: ignore[assignment]
-        pivot_highs: List[Optional[float]] = data["pivot_highs"]  # type: ignore[assignment]
-        pivot_lows: List[Optional[float]] = data["pivot_lows"]  # type: ignore[assignment]
-        prev_day_open: Dict[int, float] = data["prev_day_open"]  # type: ignore[assignment]
-        h15_states: Dict[int, Tuple[bool, bool]] = data["h15_states"]  # type: ignore[assignment]
-        h60_states: Dict[int, Tuple[bool, bool]] = data["h60_states"]  # type: ignore[assignment]
-        h240_states: Dict[int, Tuple[bool, bool]] = data["h240_states"]  # type: ignore[assignment]
+    def _simulate_segment(self, data: dict[str, object], params: ParameterSet, start_idx: int, end_idx: int) -> FoldMetrics:
+        candles: list[Candle] = data["candles"]  # type: ignore[assignment]
+        atr_values: list[float | None] = data["atr"]  # type: ignore[assignment]
+        vol_ma: list[float | None] = data["vol_ma"]  # type: ignore[assignment]
+        pivot_highs: list[float | None] = data["pivot_highs"]  # type: ignore[assignment]
+        pivot_lows: list[float | None] = data["pivot_lows"]  # type: ignore[assignment]
+        prev_day_open: dict[int, float] = data["prev_day_open"]  # type: ignore[assignment]
+        h15_states: dict[int, tuple[bool, bool]] = data["h15_states"]  # type: ignore[assignment]
+        h60_states: dict[int, tuple[bool, bool]] = data["h60_states"]  # type: ignore[assignment]
+        h240_states: dict[int, tuple[bool, bool]] = data["h240_states"]  # type: ignore[assignment]
 
         begin = max(2, start_idx - WARMUP_BARS)
         equity = 1.0
-        equity_curve: List[float] = []
-        trade_returns: List[float] = []
-        daily_returns: Dict[int, float] = {}
+        equity_curve: list[float] = []
+        trade_returns: list[float] = []
+        daily_returns: dict[int, float] = {}
 
         position = 0
         entry_price = 0.0
         active_sl = 0.0
         active_tp = 0.0
-        last_ph: Optional[float] = None
-        last_pl: Optional[float] = None
+        last_ph: float | None = None
+        last_pl: float | None = None
 
         for idx in range(begin, end_idx):
             candle = candles[idx]
@@ -572,7 +572,7 @@ class StrategyEvaluator:
 
 
 class GeneticOptimizer:
-    def __init__(self, evaluator: StrategyEvaluator, datasets: List[Tuple[str, int]], seed: int = SEED) -> None:
+    def __init__(self, evaluator: StrategyEvaluator, datasets: list[tuple[str, int]], seed: int = SEED) -> None:
         self.evaluator = evaluator
         self.datasets = datasets
         self.rng = random.Random(seed)
@@ -607,7 +607,7 @@ class GeneticOptimizer:
         for key, (low, high) in bounds.items():
             if self.rng.random() < MUTATION_RATE:
                 if isinstance(low, int):
-                    span = max(1, int(round((high - low) * MUTATION_STRENGTH)))
+                    span = max(1, round((high - low) * MUTATION_STRENGTH))
                     shifted = int(values[key]) + self.rng.randint(-span, span)  # type: ignore[arg-type]
                     values[key] = max(low, min(high, shifted))
                 else:
@@ -619,7 +619,7 @@ class GeneticOptimizer:
         return ParameterSet(**values)  # type: ignore[arg-type]
 
     def crossover(self, left: ParameterSet, right: ParameterSet) -> ParameterSet:
-        child: Dict[str, object] = {}
+        child: dict[str, object] = {}
         bounds = {
             "min_conf": (68, 90),
             "sl_atr_mul": (1.0, 2.4),
@@ -642,7 +642,7 @@ class GeneticOptimizer:
                 if distance < CROSS_THRESHOLD:
                     child[key] = lval if self.rng.random() < 0.65 else rval
                 else:
-                    child[key] = int(round((int(lval) + int(rval)) / 2))
+                    child[key] = round((int(lval) + int(rval)) / 2)
             else:
                 denom = high - low
                 distance = abs(float(lval) - float(rval)) / denom
@@ -654,7 +654,7 @@ class GeneticOptimizer:
         child["use_shorts"] = left.use_shorts if self.rng.random() < 0.5 else right.use_shorts
         return ParameterSet(**child)  # type: ignore[arg-type]
 
-    def evaluate_candidate(self, params: ParameterSet, dataset_batch: Sequence[Tuple[str, int]]) -> CandidateResult:
+    def evaluate_candidate(self, params: ParameterSet, dataset_batch: Sequence[tuple[str, int]]) -> CandidateResult:
         dataset_scores = [self.evaluator.evaluate_dataset(symbol, timeframe, params) for symbol, timeframe in dataset_batch]
         valid_scores = [row.score for row in dataset_scores if row.score > -1]
         if not valid_scores:
@@ -680,15 +680,15 @@ class GeneticOptimizer:
         }
         return CandidateResult(params, fitness, metrics, sorted(dataset_scores, key=lambda row: row.score, reverse=True)[:5])
 
-    def generation_batch(self, generation: int) -> List[Tuple[str, int]]:
+    def generation_batch(self, generation: int) -> list[tuple[str, int]]:
         if generation % REFRESH_EVERY == 0:
             self.rng.shuffle(self.datasets)
         return self.datasets[: min(FULL_BATCH_SIZE, len(self.datasets))]
 
-    def optimize(self) -> Tuple[List[CandidateResult], List[Dict[str, object]]]:
+    def optimize(self) -> tuple[list[CandidateResult], list[dict[str, object]]]:
         population = [self.random_params() for _ in range(POPULATION_SIZE)]
-        history: List[Dict[str, object]] = []
-        elites: List[CandidateResult] = []
+        history: list[dict[str, object]] = []
+        elites: list[CandidateResult] = []
         for generation in range(1, GENERATIONS + 1):
             batch = self.generation_batch(generation)
             results = [self.evaluate_candidate(candidate, batch) for candidate in population]
@@ -708,7 +708,7 @@ class GeneticOptimizer:
                 next_population.append(self.mutate(self.crossover(parent_a, parent_b)))
             population = next_population
 
-        unique_candidates: List[ParameterSet] = []
+        unique_candidates: list[ParameterSet] = []
         seen = set()
         for elite in elites:
             key = tuple(elite.params.to_dict().items())
@@ -724,11 +724,11 @@ class GeneticOptimizer:
         return final_results[:3], history
 
 
-def write_report(path: Path, top_results: Sequence[CandidateResult], symbols: Sequence[str], datasets: Sequence[Tuple[str, int]], history: Sequence[Dict[str, object]]) -> None:
+def write_report(path: Path, top_results: Sequence[CandidateResult], symbols: Sequence[str], datasets: Sequence[tuple[str, int]], history: Sequence[dict[str, object]]) -> None:
     lines = [
         "# Genetic Forward Optimization Report",
         "",
-        f"- Erstellt: `{datetime.now(timezone.utc).isoformat()}`",
+        f"- Erstellt: `{datetime.now(UTC).isoformat()}`",
         "- Datenquelle: `Bybit linear USDT perpetuals`",
         f"- Universum: `{len(symbols)} Symbole / {len(datasets)} Datasets`",
         "- Timeframes: `15m`, `30m`, `1h`",
@@ -791,12 +791,12 @@ def main() -> int:
     optimizer = GeneticOptimizer(evaluator, datasets)
     top_results, history = optimizer.optimize()
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     report_path = RESULTS_DIR / f"genetic_forward_optimization_report_{timestamp}.md"
     json_path = RESULTS_DIR / f"genetic_forward_optimization_report_{timestamp}.json"
     write_report(report_path, top_results, list(raw_by_symbol), datasets, history)
     json_path.write_text(json.dumps({
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "symbols": list(raw_by_symbol),
         "datasets": [{"symbol": symbol, "timeframe": timeframe} for symbol, timeframe in datasets],
         "top_results": [

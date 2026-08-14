@@ -51,7 +51,7 @@ class SignalWorker:
             if not processed:
                 try:
                     await asyncio.wait_for(self._stop.wait(), timeout=self.settings.signal_worker_poll_seconds)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     pass
 
     async def poll_once(self) -> bool:

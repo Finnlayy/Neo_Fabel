@@ -1,5 +1,7 @@
 import pytest
+
 from backend.app.academy.blind_patterns import normalize_ohlc
+
 
 def test_normalize_ohlc_bullish():
     # open=100, high=120, low=90, close=110
