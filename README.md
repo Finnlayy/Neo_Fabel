@@ -412,16 +412,27 @@ manual pasted-token login is disabled. For Docker builds, Compose forwards the
 public `VITE_FIREBASE_*` values as build arguments because Vite embeds them at
 build time. Never pass service-account JSON or private keys to the web image.
 
-For a local Docker API, keep the service-account JSON outside the repository and
-start Compose with the read-only Firebase credential overlay:
+For a local Docker API, prefer **Application Default Credentials (ADC)** over a
+service-account key. Sign in once on the host with an account that has access to
+this Firebase project, then mount only the generated ADC file read-only into the
+API container:
 
 ```powershell
-$env:FIREBASE_CREDENTIALS_HOST_PATH = "C:\secure\firebase-service-account.json"
-docker compose -f docker-compose.yml -f docker-compose.firebase.yml up --build
+gcloud auth application-default login
+$env:FIREBASE_CREDENTIALS_HOST_PATH = "$env:APPDATA\gcloud\application_default_credentials.json"
+docker compose --env-file .env.local -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.firebase.yml up --build api postgres
 ```
 
+The credential file remains outside the repository. The `firebase` Compose
+overlay exposes it only as `/run/secrets/firebase-service-account.json` inside
+the API container and sets `GOOGLE_APPLICATION_CREDENTIALS` to that in-container
+path. The backend recognizes both this local ADC file and a legacy
+service-account JSON. Never pass either file to the Vite web build.
+
 On managed Google infrastructure, omit the overlay and use deployment-native
-Application Default Credentials instead.
+Application Default Credentials instead. If your organization blocks service
+account key creation, use ADC or Workload Identity rather than weakening the
+organization policy.
 
 Grant Signal Routes administrators the custom claim `signal_admin: true`. Grant
 live safety-control operators `trading_admin: true`. After changing claims, the

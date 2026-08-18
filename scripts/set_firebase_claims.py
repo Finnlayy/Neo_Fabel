@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Grant Firebase custom claims for Neo Fabel operators.
 
-Usage (from repo root, with GOOGLE_APPLICATION_CREDENTIALS or
-FIREBASE_CREDENTIALS_PATH set):
+Usage (from repo root, with GOOGLE_APPLICATION_CREDENTIALS set to an ADC
+or service-account JSON file, or with FIREBASE_CREDENTIALS_PATH set):
 
   python scripts/set_firebase_claims.py --uid <FIREBASE_UID> --signal-admin
   python scripts/set_firebase_claims.py --email you@example.com --signal-admin --trading-admin
@@ -51,7 +51,8 @@ def main() -> int:
         parser.error("pass --signal-admin and/or --trading-admin (or --show)")
 
     project_id = os.environ.get("FIREBASE_PROJECT_ID") or os.environ.get("VITE_FIREBASE_PROJECT_ID")
-    cred_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") or os.environ.get("FIREBASE_CREDENTIALS_PATH")
+    google_application_credentials = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    legacy_credentials_path = os.environ.get("FIREBASE_CREDENTIALS_PATH")
     if not project_id:
         print("FIREBASE_PROJECT_ID is required", file=sys.stderr)
         return 2
@@ -68,10 +69,15 @@ def main() -> int:
         firebase_admin.get_app(app_name)
     except ValueError:
         options = {"projectId": project_id}
-        if cred_path and Path(cred_path).is_file():
-            firebase_admin.initialize_app(credentials.Certificate(cred_path), options, name=app_name)
+        # Let the Google ADC resolver handle GOOGLE_APPLICATION_CREDENTIALS so
+        # an ADC file from `gcloud auth application-default login` works just
+        # as well as a service-account key without exposing one in the repo.
+        if google_application_credentials:
+            firebase_admin.initialize_app(credentials.ApplicationDefault(), options, name=app_name)
+        elif legacy_credentials_path and Path(legacy_credentials_path).is_file():
+            firebase_admin.initialize_app(credentials.Certificate(legacy_credentials_path), options, name=app_name)
         else:
-            firebase_admin.initialize_app(options=options, name=app_name)
+            firebase_admin.initialize_app(credentials.ApplicationDefault(), options, name=app_name)
 
     if args.email and not args.uid:
         user_rec = auth.get_user_by_email(args.email, app=firebase_admin.get_app(app_name))

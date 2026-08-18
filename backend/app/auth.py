@@ -1,3 +1,4 @@
+import os
 from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Any
@@ -52,16 +53,29 @@ def _firebase_auth():
     try:
         firebase_app = firebase_admin.get_app(app_name)
     except ValueError:
-        if settings.firebase_credentials_path:
-            credential = credentials.Certificate(settings.firebase_credentials_path)
+        options = {"projectId": settings.firebase_project_id}
+        # GOOGLE_APPLICATION_CREDENTIALS can point either to a service-account
+        # JSON file or to the local ADC file created by
+        # `gcloud auth application-default login`. Let Google's ADC resolver
+        # select the credential type instead of assuming every JSON file is a
+        # service-account key.
+        if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
             firebase_app = firebase_admin.initialize_app(
-                credential,
-                {"projectId": settings.firebase_project_id},
+                credentials.ApplicationDefault(),
+                options,
+                name=app_name,
+            )
+        elif settings.firebase_credentials_path:
+            # Backward-compatible alias for a legacy service-account file.
+            firebase_app = firebase_admin.initialize_app(
+                credentials.Certificate(settings.firebase_credentials_path),
+                options,
                 name=app_name,
             )
         else:
             firebase_app = firebase_admin.initialize_app(
-                options={"projectId": settings.firebase_project_id},
+                credentials.ApplicationDefault(),
+                options,
                 name=app_name,
             )
     return auth, firebase_app
@@ -98,7 +112,7 @@ async def _verify_firebase_token(token: str) -> dict[str, Any]:
             )
         firebase_auth, firebase_app = firebase_context
         settings = get_settings()
-        check_revoked = bool(settings.firebase_credentials_path)
+        check_revoked = bool(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") or settings.firebase_credentials_path)
         user = await run_in_threadpool(
             firebase_auth.verify_id_token,
             token,

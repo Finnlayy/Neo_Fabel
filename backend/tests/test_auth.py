@@ -1,4 +1,6 @@
+import sys
 from time import time
+from types import ModuleType, SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -10,6 +12,39 @@ from backend.app import auth as auth_module
 def _request(authorization: str | None = None) -> Request:
     headers = [] if authorization is None else [(b"authorization", authorization.encode("ascii"))]
     return Request({"type": "http", "method": "GET", "path": "/", "headers": headers})
+
+
+def test_firebase_auth_uses_adc_for_google_application_credentials(monkeypatch):
+    app = object()
+    calls: list[tuple[object, dict[str, str], str]] = []
+    application_default = object()
+    fake_firebase_admin = ModuleType("firebase_admin")
+    fake_firebase_admin.auth = SimpleNamespace()
+    fake_firebase_admin.credentials = SimpleNamespace(ApplicationDefault=lambda: application_default)
+    fake_firebase_admin.get_app = lambda _name: (_ for _ in ()).throw(ValueError("missing app"))
+
+    def initialize_app(credential, options, name):
+        calls.append((credential, options, name))
+        return app
+
+    fake_firebase_admin.initialize_app = initialize_app
+    monkeypatch.setitem(sys.modules, "firebase_admin", fake_firebase_admin)
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/run/secrets/application_default_credentials.json")
+    monkeypatch.setattr(
+        auth_module,
+        "get_settings",
+        lambda: SimpleNamespace(firebase_project_id="tv-trading-f3be0", firebase_credentials_path=None),
+    )
+    auth_module._firebase_auth.cache_clear()
+
+    try:
+        returned_auth, returned_app = auth_module._firebase_auth()
+    finally:
+        auth_module._firebase_auth.cache_clear()
+
+    assert returned_auth is fake_firebase_admin.auth
+    assert returned_app is app
+    assert calls == [(application_default, {"projectId": "tv-trading-f3be0"}, "neo-fabel-api")]
 
 
 @pytest.mark.asyncio
