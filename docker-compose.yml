@@ -71,11 +71,22 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_healthy
+      academy-data-init:
+        condition: service_completed_successfully
     read_only: true
     tmpfs:
       - /tmp
     volumes:
       - academy-data:/app/backend/data/academy
+
+  # Initialize the only writable API data volume before the unprivileged API starts.
+  academy-data-init:
+    image: busybox:1.36
+    user: "0:0"
+    command: ["sh", "-c", "mkdir -p /data && chown -R 10001:10001 /data"]
+    restart: "no"
+    volumes:
+      - academy-data:/data
 
   # Rust fable-mcp sidecar — health HTTP for compose; MCP stdio is for Cursor clients
   # (use release binary or `docker compose exec fable-mcp fable-mcp --stdio`).
