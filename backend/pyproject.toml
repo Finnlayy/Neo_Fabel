@@ -59,5 +59,10 @@ chronos = [
 line-length = 110
 target-version = "py311"
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI uses these calls as declarative request/dependency metadata, not as
+# stateful Python defaults. Keep B008 active for every other function call.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Body", "fastapi.Query", "fastapi.File"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
