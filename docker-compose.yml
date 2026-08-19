@@ -74,6 +74,8 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    volumes:
+      - academy-data:/app/backend/data/academy
 
   # Rust fable-mcp sidecar — health HTTP for compose; MCP stdio is for Cursor clients
   # (use release binary or `docker compose exec fable-mcp fable-mcp --stdio`).
@@ -149,3 +151,4 @@ services:
 volumes:
   postgres-data:
   qdrant-data:
+  academy-data:
