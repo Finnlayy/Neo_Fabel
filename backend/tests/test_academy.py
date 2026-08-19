@@ -18,6 +18,7 @@ from backend.app.academy.training_drills import training_drills
 from backend.app.academy.training_loop import training_loop
 from backend.app.auth import require_user
 from backend.app.main import app
+from backend.app.settings import get_settings
 
 client = TestClient(app)
 
@@ -160,11 +161,29 @@ async def test_pattern_drill_for_rna() -> None:
     assert result.is_correct is True
 
 
-def test_academy_status_loopback_dev_bypass() -> None:
-    # AUTH_DEV_BYPASS allows loopback TestClient without Bearer.
-    res = client.get("/api/v1/academy/status")
-    assert res.status_code == 200
-    assert res.json()["paper_only"] is True
+def test_academy_status_loopback_dev_bypass(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The loopback bypass is available only in an explicitly isolated dev configuration."""
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("AUTH_DEV_BYPASS", "true")
+    get_settings.cache_clear()
+    try:
+        res = client.get("/api/v1/academy/status")
+        assert res.status_code == 200
+        assert res.json()["paper_only"] is True
+    finally:
+        get_settings.cache_clear()
+
+
+def test_academy_status_rejects_loopback_without_dev_bypass(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Production must never accept an unauthenticated loopback request."""
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("AUTH_DEV_BYPASS", "false")
+    get_settings.cache_clear()
+    try:
+        res = client.get("/api/v1/academy/status")
+        assert res.status_code == 401
+    finally:
+        get_settings.cache_clear()
 
 
 def test_agency_roster(authenticated_user: None) -> None:

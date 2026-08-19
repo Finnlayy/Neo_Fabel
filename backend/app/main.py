@@ -289,8 +289,8 @@ _onnx_dir = ensure_onnx_data_dir()
 if onnx_deps_available():
     try:
         ensure_seed_models()
-    except Exception:  # noqa: BLE001 — seed best-effort at import
-        pass
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
+        logger.warning("ONNX seed models unavailable at startup: %s", exc)
 app.mount("/static/onnx", StaticFiles(directory=str(_onnx_dir)), name="onnx_models")
 _netron_dir = netron_static_dir()
 if _netron_dir is None:
@@ -928,9 +928,6 @@ async def _place_paper_order(payload: PaperOrderRequest, user: dict, rid: str) -
         detail: dict[str, Any] = exc.detail if isinstance(exc.detail, dict) else {}
         if exc.status_code != 503 or detail.get("code") != "database_unavailable":
             raise
-    except Exception:
-        # Connection refused / asyncpg / engine errors when Postgres is down.
-        pass
 
     try:
         result = await router.paper_order(

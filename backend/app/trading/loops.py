@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from backend.app.settings import Settings, get_settings
@@ -53,7 +53,7 @@ async def _estimate_live_equity_usd(cli: Any) -> float:
     """Mark the authenticated Kraken balance in USD for drawdown monitoring."""
     payload = await cli.balance()
     if not isinstance(payload, dict):
-        raise ValueError("Kraken balance returned no object")
+        raise TypeError("Kraken balance returned no object")
     nested = payload.get("result") or payload.get("balances")
     balances = (
         nested
@@ -68,7 +68,7 @@ async def _estimate_live_equity_usd(cli: Any) -> float:
     for raw_asset, raw_volume in balances.items():
         try:
             volume = Decimal(str(raw_volume or "0"))
-        except Exception:  # noqa: BLE001
+        except (InvalidOperation, ValueError):
             continue
         if volume <= 0:
             continue
@@ -193,7 +193,7 @@ class TradingLoopsService:
                 await engine.run_forever(force=True)
             except Exception as exc:
                 self._paper_last_error = str(exc)
-                logger.exception("paper loop failed: %s", exc)
+                logger.exception("paper loop failed")
             finally:
                 self._paper_running = False
                 self._paper_task = None

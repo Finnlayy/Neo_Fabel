@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 from typing import Any
 
@@ -24,6 +25,7 @@ from backend.app.academy.paths import ACADEMY_DATA_DIR, ensure_academy_data_dir
 from backend.app.academy.schemas import CareerEntry, DrillResult, SyntheticDrill
 
 DRILL_RESULTS_FILE = ACADEMY_DATA_DIR / "drill_results.jsonl"
+logger = logging.getLogger(__name__)
 
 # Compact teamwork scenarios — packets + skill routing + shot grading.
 _TEAMWORK_SCENARIOS: tuple[dict[str, Any], ...] = (
@@ -265,8 +267,8 @@ class TrainingDrillsService:
             sync_identity_progress(
                 drill.scout_target, is_correct=is_correct, confidence=float(confidence)
             )
-        except Exception:  # noqa: BLE001
-            pass
+        except (ImportError, AttributeError, TypeError, ValueError) as exc:
+            logger.warning("academy identity progress sync skipped: %s", exc)
 
         await agent_registry.log_career_event(
             CareerEntry(
@@ -308,8 +310,8 @@ class TrainingDrillsService:
                         "roster": drill.scenario_data.get("packets") or [],
                     }
                 )
-            except Exception:  # noqa: BLE001 — logging must not fail drill scoring
-                pass
+            except (OSError, TypeError, ValueError) as exc:
+                logger.warning("academy prompt-shot event logging skipped: %s", exc)
 
         if persist:
             await self.write_results([result])

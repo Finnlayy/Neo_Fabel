@@ -175,7 +175,7 @@ class FableEngine:
                         logger.debug("feedback cycle skipped: %s", fb_exc)
             except Exception as exc:
                 self.last_error = str(exc)
-                logger.exception("FableEngine tick failed: %s", exc)
+                logger.exception("FableEngine tick failed")
             try:
                 await asyncio.wait_for(self._stop.wait(), timeout=self.engine.poll_seconds)
             except TimeoutError:

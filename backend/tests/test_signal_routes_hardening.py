@@ -174,14 +174,16 @@ async def test_mcp_submit_uses_same_service_accept_path():
     cred = SimpleNamespace(id="c1", last_used_at=None)
     expected = SignalReceipt(submission_id=uuid4(), request_id="rid-mcp")
 
-    with patch.object(service, "_resolve_mcp_bearer", new=AsyncMock(return_value=(cred, route))):
-        with patch.object(service, "_accept", new=AsyncMock(return_value=expected)) as accept:
-            receipt = await service.submit_mcp(
-                AsyncMock(),
-                bearer="mcptok_test_token_value_xxxx",
-                args=_mcp_args(),
-                request_id="rid-mcp",
-            )
+    with (
+        patch.object(service, "_resolve_mcp_bearer", new=AsyncMock(return_value=(cred, route))),
+        patch.object(service, "_accept", new=AsyncMock(return_value=expected)) as accept,
+    ):
+        receipt = await service.submit_mcp(
+            AsyncMock(),
+            bearer="mcptok_test_token_value_xxxx",
+            args=_mcp_args(),
+            request_id="rid-mcp",
+        )
 
     assert receipt is expected
     accept.assert_awaited_once()
@@ -252,14 +254,16 @@ async def test_mcp_rejects_oversized_content_length():
         "server": ("test", 80),
     }
     request = Request(scope)
-    with patch("backend.app.signals.mcp_server.get_settings", return_value=settings):
-        with pytest.raises(HTTPException) as exc:
-            await submit_trading_signal(
-                _mcp_args(),
-                request,
-                session=AsyncMock(),
-                authorization="Bearer mcptok_ok",
-            )
+    with (
+        patch("backend.app.signals.mcp_server.get_settings", return_value=settings),
+        pytest.raises(HTTPException) as exc,
+    ):
+        await submit_trading_signal(
+            _mcp_args(),
+            request,
+            session=AsyncMock(),
+            authorization="Bearer mcptok_ok",
+        )
     assert exc.value.status_code == 413
     assert exc.value.detail["code"] == "body_too_large"
 
@@ -290,14 +294,16 @@ async def test_tradingview_webhook_rejects_oversized_body():
     request = Request(scope, receive)
     response = MagicMock()
 
-    with patch("backend.app.signals.router.get_settings", return_value=settings):
-        with pytest.raises(HTTPException) as exc:
-            await tradingview_webhook(
-                "pk",
-                request,
-                response,
-                session=AsyncMock(),
-            )
+    with (
+        patch("backend.app.signals.router.get_settings", return_value=settings),
+        pytest.raises(HTTPException) as exc,
+    ):
+        await tradingview_webhook(
+            "pk",
+            request,
+            response,
+            session=AsyncMock(),
+        )
     assert exc.value.status_code == 413
     assert exc.value.detail["code"] == "body_too_large"
 
@@ -319,13 +325,15 @@ async def test_mcp_blank_bearer_auth_failed():
         "server": ("test", 80),
     }
     request = Request(scope)
-    with patch("backend.app.signals.mcp_server.get_settings", return_value=settings):
-        with pytest.raises(HTTPException) as exc:
-            await submit_trading_signal(
-                _mcp_args(),
-                request,
-                session=AsyncMock(),
-                authorization="Bearer   ",
-            )
+    with (
+        patch("backend.app.signals.mcp_server.get_settings", return_value=settings),
+        pytest.raises(HTTPException) as exc,
+    ):
+        await submit_trading_signal(
+            _mcp_args(),
+            request,
+            session=AsyncMock(),
+            authorization="Bearer   ",
+        )
     assert exc.value.status_code == 401
     assert exc.value.detail["code"] == "auth_failed"

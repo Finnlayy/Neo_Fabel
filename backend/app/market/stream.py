@@ -95,8 +95,8 @@ class MarketStreamHub:
         for client in clients:
             try:
                 await client.close()
-            except Exception:  # noqa: BLE001
-                pass
+            except (WebSocketDisconnect, RuntimeError) as exc:
+                logger.debug("websocket client close skipped during shutdown: %s", exc)
 
     async def register(self, websocket: WebSocket) -> None:
         await websocket.accept()

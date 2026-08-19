@@ -347,6 +347,7 @@ async def test_submit_tradingview_wrong_credential_auth_failed():
     )
     repo = MagicMock()
     repo.get_route_by_public_key = AsyncMock(return_value=route)
+    repo.get_active_credential_by_digest = AsyncMock(return_value=None)
     repo.active_credentials = AsyncMock(return_value=[cred])
 
     body = TradingViewWebhookBody.model_validate(

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from backend.app.academy.agent_defs import NEO_AGENT_NAMES
 from backend.app.academy.paths import ACADEMY_DATA_DIR, ensure_academy_data_dir
 from backend.app.academy.schemas import PromptVersion
 
 PROMPT_REGISTRY_FILE = ACADEMY_DATA_DIR / "prompt_registry.json"
+logger = logging.getLogger(__name__)
 
 
 class PromptEvolutionService:
@@ -51,8 +53,8 @@ class PromptEvolutionService:
                 doctrine = load_doctrine().strip()
                 if doctrine:
                     return doctrine[:4000]
-            except Exception:  # noqa: BLE001
-                pass
+            except (OSError, UnicodeError) as exc:
+                logger.warning("academy doctrine unavailable; using static prompt: %s", exc)
         if scout_name == "chronos":
             return (
                 "You are Chronos, Neo Fabel's K-line language agent (Kronos-inspired). "

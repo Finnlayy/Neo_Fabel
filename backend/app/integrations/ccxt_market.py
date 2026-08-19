@@ -7,11 +7,15 @@ and never exposes order/trade methods.
 from __future__ import annotations
 
 import asyncio
+import logging
+import math
 from typing import Any
 
 import ccxt.async_support as ccxt
 
 from .kraken_cli import KrakenCliError
+
+logger = logging.getLogger(__name__)
 
 # Display base → human name (matches frontend market.ts).
 SYMBOL_NAMES: dict[str, str] = {
@@ -121,8 +125,8 @@ class CcxtMarketClient:
     async def close(self) -> None:
         try:
             await self._exchange.close()
-        except Exception:  # noqa: BLE001 — best-effort shutdown
-            pass
+        except ccxt.BaseError as exc:
+            logger.debug("ccxt market client close failed during shutdown: %s", exc)
 
     async def fetch_tickers(self, symbols: list[str]) -> dict[str, dict[str, Any]]:
         """Return CCXT unified ticker dicts keyed by CCXT symbol."""
@@ -217,6 +221,6 @@ def _num(value: Any) -> float | None:
         number = float(value)
     except (TypeError, ValueError):
         return None
-    if number != number:  # NaN
+    if math.isnan(number):
         return None
     return number

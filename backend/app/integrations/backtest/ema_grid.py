@@ -145,9 +145,10 @@ def optimize_ema_cross(
             "isDisqualified": metrics["trades"] < min_trades,
         }
         results.append(row)
-        if not row["isDisqualified"]:
-            if best is None or metrics["fitness"] > best["result"]["fitness"]:
-                best = row
+        if not row["isDisqualified"] and (
+            best is None or metrics["fitness"] > best["result"]["fitness"]
+        ):
+            best = row
         if tested >= limit:
             break
 

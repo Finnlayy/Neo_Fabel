@@ -148,16 +148,16 @@ def fetch_klines_ccxt(
                 perp = f"{unified}:USDT"
                 if perp in markets:
                     unified = perp
-            except Exception:  # noqa: BLE001
-                pass
+            except ccxt.BaseError as exc:
+                logger.debug("GA market metadata unavailable for %s: %s", unified, exc)
         raw = ex.fetch_ohlcv(unified, timeframe=timeframe, limit=limit)
         return [Candle(int(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5])) for r in raw]
     finally:
         if hasattr(ex, "close"):
             try:
                 ex.close()
-            except Exception:  # noqa: BLE001
-                pass
+            except ccxt.BaseError as exc:
+                logger.debug("GA CCXT client close failed: %s", exc)
 
 
 def load_universe_packs(

@@ -9,6 +9,7 @@ Modes:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict, dataclass
 from decimal import Decimal
 from typing import Any, Literal
@@ -30,6 +31,8 @@ SIZING_MODES: tuple[PositionSizingMode, ...] = (
     "ai_chronos",
     "manual",
 )
+
+logger = logging.getLogger(__name__)
 
 _MODE_ALIASES: dict[str, PositionSizingMode] = {
     "dynamic_kelly": "dynamic_kelly",
@@ -174,8 +177,8 @@ def resolve_ai_chronos_confidence() -> float:
                     conf = agent.get("confidence_level")
                 if conf is not None:
                     return max(0.05, min(0.95, float(conf)))
-    except Exception:  # noqa: BLE001
-        pass
+    except (ImportError, AttributeError, TypeError, ValueError) as exc:
+        logger.debug("AI/Chronos confidence unavailable; using neutral fallback: %s", exc)
     return 0.55
 
 
@@ -262,9 +265,8 @@ def compute_notional_eur(
     if cap > 0:
         notional = min(notional, cap)
     if notional > 0 and notional < policy.min_notional_eur and mode != "manual":
-        # Skip dust unless user explicitly set a tiny manual size
-        if notional < policy.min_notional_eur:
-            detail["below_min_notional"] = True
+        # Skip dust unless user explicitly set a tiny manual size.
+        detail["below_min_notional"] = True
     detail["notional_eur"] = notional
     detail["capital_eur"] = capital
     detail["max_margin_eur"] = cap

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,6 +18,8 @@ from backend.app.chronos.pipeline import tokenize_ohlcva, tokenize_result_to_dic
 from backend.app.chronos.plot_prediction import build_prediction_charts
 from backend.app.chronos.predictor import ChronosPredictor
 from backend.app.chronos.vectorbt_eval import simple_momentum_backtest_summary, vectorbt_available
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/chronos", tags=["chronos"])
 
@@ -252,8 +255,9 @@ async def chronos_predict(
                     "agreement": agreement,
                     "score": score,
                 }
-            except Exception:
+            except (KeyError, TypeError, ValueError) as exc:
                 # Best-effort only; forecasting charts must remain functional.
+                logger.debug("chronos pattern confluence unavailable: %s", exc)
                 payload["pattern_confluence"] = None
     payload["charts"] = {}
     if matplotlib_available():

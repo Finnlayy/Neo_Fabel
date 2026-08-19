@@ -135,6 +135,5 @@ def make_pattern_scenario(bias: Bias) -> tuple[list[dict], str]:
         candles = [BlindCandle(dir=0, body=0.05, upper=0.4, lower=0.4)]
         expected = "REJECT"
 
-    hits = scan_blind_patterns(candles)
-    top = hits[0].name if hits else "unknown"
-    return [candle_dict(c) for c in candles], expected if top else expected
+    scan_blind_patterns(candles)
+    return [candle_dict(c) for c in candles], expected

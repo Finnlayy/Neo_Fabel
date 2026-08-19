@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 import re
 from typing import Any
@@ -227,5 +228,5 @@ def decode_image_size_hint(image: str) -> int:
     raw, _ = _strip_data_url(image)
     try:
         return len(base64.b64decode(raw, validate=False))
-    except Exception:
+    except (binascii.Error, ValueError):
         return len(image)

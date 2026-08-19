@@ -13,6 +13,7 @@ Market tools always (catalog): get_ohlcv, search_symbols, …
 from __future__ import annotations
 
 import json
+import logging
 import math
 import re
 import time
@@ -23,6 +24,7 @@ import httpx
 from backend.app.settings import Settings, get_settings
 
 DEFAULT_MCP_URL = "https://tvremix.xyz/api/mcp/v1"
+logger = logging.getLogger(__name__)
 
 # Prefer session/active first, then saved library.
 _LIST_TOOLS = (
@@ -123,8 +125,8 @@ class TvremixClient:
                     headers=self._headers(),
                     json={"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
                 )
-        except Exception:  # noqa: BLE001
-            pass
+        except httpx.HTTPError as exc:
+            logger.debug("tvremix initialized notification failed: %s", exc)
 
     async def list_tools(self) -> list[str]:
         await self.initialize()

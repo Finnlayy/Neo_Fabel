@@ -178,9 +178,13 @@ def check_route_policy(
         if part.strip()
     }
     # Paper (or explicit *) may trade any symbol; live keep routes tight.
-    if not allow_all_pairs and "*" not in allowlist and "ALL" not in allowlist:
-        if candidate.pair not in allowlist:
-            return PolicyResult(False, "pair_not_allowed")
+    if (
+        not allow_all_pairs
+        and "*" not in allowlist
+        and "ALL" not in allowlist
+        and candidate.pair not in allowlist
+    ):
+        return PolicyResult(False, "pair_not_allowed")
     allowed_types = {part.strip().lower() for part in route.allowed_order_types.split(",") if part.strip()}
     if candidate.order_type not in allowed_types:
         return PolicyResult(False, "order_type_not_allowed")

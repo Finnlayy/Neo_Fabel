@@ -12,6 +12,7 @@ from typing import Any
 
 from ..settings import Settings
 from .gemini_client import GeminiClient
+from .kraken_cli import KrakenCliError
 from .kraken_public import KrakenPublicClient
 from .paper_factory import build_paper_router
 from .telegram_bot import (
@@ -116,7 +117,8 @@ async def _fetch_market_lines(settings: Settings) -> str:
             price = float(last)
             label = symbol.replace("USD", "/USD")
             lines.append(f"• <b>{label}:</b> ${price:,.2f}")
-        except Exception:  # noqa: BLE001
+        except (KrakenCliError, TypeError, ValueError) as exc:
+            logger.debug("telegram market line unavailable for %s: %s", symbol, exc)
             continue
     if not lines:
         return "• <i>Market feed temporarily unavailable.</i>"
@@ -318,8 +320,8 @@ async def run_daemon_poll(settings: Settings) -> None:
             logger.warning("telegram 409 conflict — clearing webhook and resetting poll offset")
             try:
                 await bot.delete_webhook(drop_pending=True)
-            except Exception:  # noqa: BLE001
-                pass
+            except RuntimeError as webhook_exc:
+                logger.debug("telegram webhook cleanup failed after 409: %s", webhook_exc)
             state.status = "ACTIVE"
             state.current_interval_ms = 5000
             return
@@ -438,8 +440,8 @@ async def _handle_callback_query(bot: TelegramBot, settings: Settings, callback:
     if cq_id:
         try:
             await bot.answer_callback_query(cq_id, text=note[:180])
-        except Exception:  # noqa: BLE001
-            pass
+        except RuntimeError as callback_exc:
+            logger.debug("telegram callback acknowledgement failed: %s", callback_exc)
     if chat_id is not None:
         try:
             await bot.send_message_to(

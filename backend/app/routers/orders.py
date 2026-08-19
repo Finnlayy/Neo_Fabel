@@ -90,8 +90,6 @@ async def _place_paper(payload: PlaceOrderRequest, user: dict[str, Any], rid: st
         detail: dict[str, Any] = exc.detail if isinstance(exc.detail, dict) else {}
         if exc.status_code != 503 or detail.get("code") != "database_unavailable":
             raise
-    except Exception:
-        pass
 
     try:
         raw = await sink.paper_order(
@@ -230,7 +228,7 @@ async def place_order(
                 payload.pair,
                 payload.volume,
                 order_type=payload.order_type,
-                price=_as_decimal(price) if not isinstance(price, str) else _as_decimal(price),
+                price=_as_decimal(price),
                 stop_price=_as_decimal(price2),
                 reduce_only=True,
                 yes=True,

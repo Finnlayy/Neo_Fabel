@@ -450,9 +450,10 @@ def optimize_ltm(
             continue
         row = {"params": params, "result": metrics, "isDisqualified": metrics["trades"] < min_trades}
         results.append(row)
-        if not row["isDisqualified"]:
-            if best is None or metrics["fitness"] > best["result"]["fitness"]:
-                best = row
+        if not row["isDisqualified"] and (
+            best is None or metrics["fitness"] > best["result"]["fitness"]
+        ):
+            best = row
         if tested >= limit:
             break
     if best is None and results:

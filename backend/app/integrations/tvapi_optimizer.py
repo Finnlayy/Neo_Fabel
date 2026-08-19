@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+import ccxt.async_support as ccxt
 
 from backend.app.integrations.backtest.ema_grid import run_candle_optimize, synthetic_candles
 from backend.app.integrations.tvremix_client import (
@@ -12,6 +15,8 @@ from backend.app.integrations.tvremix_client import (
     scripts_to_strategies,
 )
 from backend.app.settings import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def _probe_strategies(symbol: str) -> list[dict[str, Any]]:
@@ -369,8 +374,8 @@ async def fetch_optimize_candles(symbol: str, timeframe: str, *, limit: int = 30
             )
             if len(bars) >= 30:
                 return bars, "tvremix-ohlcv"
-        except Exception:  # noqa: BLE001
-            pass
+        except TvremixError as exc:
+            logger.debug("tvremix OHLCV unavailable; trying CCXT: %s", exc)
 
     ccxt_client = None
     try:
@@ -381,14 +386,14 @@ async def fetch_optimize_candles(symbol: str, timeframe: str, *, limit: int = 30
         candles = _bars_from_ccxt(raw)
         if len(candles) >= 30:
             return candles, "ccxt-ohlcv"
-    except Exception:  # noqa: BLE001
-        pass
+    except (ccxt.BaseError, ValueError) as exc:
+        logger.debug("CCXT OHLCV unavailable; using synthetic candles: %s", exc)
     finally:
         if ccxt_client is not None:
             try:
                 await ccxt_client.close()
-            except Exception:  # noqa: BLE001
-                pass
+            except ccxt.BaseError as exc:
+                logger.debug("CCXT client close failed after candle fetch: %s", exc)
 
     return synthetic_candles(symbol, n=limit), "synthetic-ohlcv"
 

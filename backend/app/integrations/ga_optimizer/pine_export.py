@@ -77,7 +77,7 @@ def pine_bool(value: bool) -> str:
 
 def validate_symbol_text(symbol: str) -> str:
     if not isinstance(symbol, str):
-        raise ValueError("Symbol must be a text value.")
+        raise TypeError("Symbol must be a text value.")
     clean = symbol.strip()
     if not clean:
         raise ValueError("Symbol must not be empty.")

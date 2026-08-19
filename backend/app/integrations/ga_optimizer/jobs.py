@@ -110,7 +110,8 @@ class GaJobRegistry:
                 if job_path.exists():
                     try:
                         rows.append(json.loads(job_path.read_text(encoding="utf-8")))
-                    except Exception:  # noqa: BLE001
+                    except (OSError, json.JSONDecodeError) as exc:
+                        logger.warning("skipping unreadable GA job file %s: %s", job_path, exc)
                         continue
         rows.sort(key=lambda r: str(r.get("createdAt") or ""), reverse=True)
         return rows[:limit]
@@ -219,7 +220,7 @@ class GaJobRegistry:
                 if path.exists():
                     payload = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
-            raise ValueError("Provide results payload or a completed runId")
+            raise TypeError("Provide results payload or a completed runId")
 
         out_run = run_id or uuid4().hex[:12]
         out_dir = self._run_dir(out_run, settings) / "pines"

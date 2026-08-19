@@ -37,10 +37,9 @@ def assert_signal_paper_only(settings: Settings) -> None:
         raise SignalSafetyError("signal worker refuses live trading flag")
     if settings.trade_commands_enabled:
         raise SignalSafetyError("signal worker refuses trade commands")
-    if settings.autonomy not in {AutonomyLevel.READ_ONLY, AutonomyLevel.PAPER}:
-        # Allow level 1–2 only; paper is level 2.
-        if int(settings.autonomy) > int(AutonomyLevel.PAPER):
-            raise SignalSafetyError("signal worker requires autonomy <= paper (2)")
+    # Allow level 1–2 only; paper is level 2.
+    if int(settings.autonomy) > int(AutonomyLevel.PAPER):
+        raise SignalSafetyError("signal worker requires autonomy <= paper (2)")
     if settings.signal_execution_enabled and settings.autonomy != AutonomyLevel.PAPER:
         raise SignalSafetyError("signal execution requires autonomy level paper (2)")
 
@@ -50,10 +49,13 @@ def assert_fable_engine_start_safe(settings: Settings, *, dry_run: bool) -> None
 
     Dry-run (UI paper loop) may run in a process that also has live env flags
     for the Positions desk — it only records intents and never places orders.
-    Non-dry-run still requires a fully paper-only composition.
+    A non-dry-run engine requires a fully paper-only composition regardless of
+    the broader signal-worker autonomy gate.
     """
     if dry_run:
         return
+    if int(settings.autonomy) > int(AutonomyLevel.PAPER):
+        raise SignalSafetyError("non-dry-run FableEngine requires paper autonomy")
     assert_signal_paper_only(settings)
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -87,8 +88,11 @@ class PaperOrderService:
             await session.commit()
         except HTTPException:
             raise
-        except SQLAlchemyError as exc:
-            await session.rollback()
+        except (OSError, SQLAlchemyError) as exc:
+            # asyncpg can surface a refused database connection directly as
+            # OSError before SQLAlchemy has a chance to wrap it.
+            with suppress(OSError, SQLAlchemyError):
+                await session.rollback()
             raise HTTPException(
                 status_code=503,
                 detail={

@@ -112,9 +112,12 @@ class SignalSubmissionService:
         if payload.enabled is True:
             if not self.settings.signal_routes_enabled:
                 raise HTTPException(status_code=503, detail={"code": "signal_routes_disabled", "message": "global gate off"})
-            if route.mode == "advisory" and payload.mode != "bypass_ai":
-                if not (self.settings.ai_advisory_enabled or self.settings.advisory_provider == "fake"):
-                    raise HTTPException(status_code=503, detail={"code": "advisory_unavailable", "message": "AI advisory unavailable"})
+            if (
+                route.mode == "advisory"
+                and payload.mode != "bypass_ai"
+                and not (self.settings.ai_advisory_enabled or self.settings.advisory_provider == "fake")
+            ):
+                raise HTTPException(status_code=503, detail={"code": "advisory_unavailable", "message": "AI advisory unavailable"})
         updated = await repo.optimistic_update_route(
             route,
             expected_version=payload.expected_version,
@@ -587,11 +590,13 @@ class SignalSubmissionService:
         expected_digest_v1 = digest_credential(plaintext, self.settings, pepper_version="v1")
         credential = await repo.get_active_credential_by_digest(route.id, kind, expected_digest_v1)
 
-        if credential is not None:
-            # Inline the expires_at and revoked_at check to skip verify_credential overhead entirely
-            if credential.revoked_at is None:
-                if credential.expires_at is None or credential.expires_at > datetime.now(UTC):
-                    return credential
+        # Inline the expires_at and revoked_at check to skip verify_credential overhead entirely.
+        if (
+            credential is not None
+            and credential.revoked_at is None
+            and (credential.expires_at is None or credential.expires_at > datetime.now(UTC))
+        ):
+            return credential
 
         # Fallback for other pepper versions or if not found
         for credential in await repo.active_credentials(route.id, kind):
@@ -614,13 +619,15 @@ class SignalSubmissionService:
         expected_digest_v1 = digest_credential(bearer, self.settings, pepper_version="v1")
         credential = await repo.get_active_mcp_credential_by_digest(expected_digest_v1)
 
-        if credential is not None:
-            # Inline the expires_at and revoked_at check to skip verify_credential overhead entirely
-            if credential.revoked_at is None:
-                if credential.expires_at is None or credential.expires_at > datetime.now(UTC):
-                    route = await repo.get_route(credential.route_id)
-                    if route is not None:
-                        return credential, route
+        # Inline the expires_at and revoked_at check to skip verify_credential overhead entirely.
+        if (
+            credential is not None
+            and credential.revoked_at is None
+            and (credential.expires_at is None or credential.expires_at > datetime.now(UTC))
+        ):
+            route = await repo.get_route(credential.route_id)
+            if route is not None:
+                return credential, route
 
         # Fallback to scanning if not found (e.g., different pepper version)
         from sqlalchemy import select

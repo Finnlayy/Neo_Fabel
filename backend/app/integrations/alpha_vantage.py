@@ -77,7 +77,8 @@ class AlphaVantageClient:
             async with semaphore:
                 try:
                     return symbol, await self.equity_quote(symbol)
-                except Exception as exc:  # Preserve per-symbol failures.
+                except AlphaVantageError as exc:
+                    # Preserve expected per-symbol provider failures in the batch response.
                     return symbol, exc
 
         return list(await asyncio.gather(*(fetch(symbol) for symbol in symbols)))
@@ -138,7 +139,8 @@ class AlphaVantageClient:
             async with semaphore:
                 try:
                     return pair, await self.forex_quote(pair)
-                except Exception as exc:  # Preserve per-symbol failures in a batch response.
+                except AlphaVantageError as exc:
+                    # Preserve expected per-pair provider failures in the batch response.
                     return pair, exc
 
         return list(await asyncio.gather(*(fetch(pair) for pair in pairs)))

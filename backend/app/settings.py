@@ -411,13 +411,11 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    # Operator vault (App Settings) overlays env before pydantic reads it.
-    try:
-        from backend.app.integrations.secrets_store import apply_secrets_to_environ
+    # Operator vault (App Settings) overlays env before pydantic reads it. The
+    # vault reader itself handles a missing or malformed local store safely.
+    from backend.app.integrations.secrets_store import apply_secrets_to_environ
 
-        apply_secrets_to_environ(overwrite_existing=True)
-    except Exception:  # noqa: BLE001 — settings must still boot if vault missing/corrupt
-        pass
+    apply_secrets_to_environ(overwrite_existing=True)
     return Settings()
 
 

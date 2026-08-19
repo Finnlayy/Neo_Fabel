@@ -106,10 +106,12 @@ async def test_webhook_unknown_route_auth_failed_when_ingress_enabled():
     repo = MagicMock()
     repo.get_route_by_public_key = AsyncMock(return_value=None)
 
-    with patch("backend.app.signals.router.get_settings", return_value=settings):
-        with patch("backend.app.signals.service.SignalRepository", lambda _s: repo):
-            with pytest.raises(Exception) as exc:
-                await tradingview_webhook("no-such-route", request, response, session=session)
+    with (
+        patch("backend.app.signals.router.get_settings", return_value=settings),
+        patch("backend.app.signals.service.SignalRepository", lambda _s: repo),
+        pytest.raises(Exception) as exc,
+    ):
+        await tradingview_webhook("no-such-route", request, response, session=session)
 
     err = exc.value
     assert getattr(err, "status_code", None) == 401
