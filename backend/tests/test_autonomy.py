@@ -1,6 +1,6 @@
 import pytest
 
-from app.trading.autonomy import AutonomyLevel, require_autonomy
+from backend.app.trading.autonomy import AutonomyLevel, require_autonomy
 
 
 def test_require_autonomy_success() -> None:

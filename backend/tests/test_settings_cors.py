@@ -1,6 +1,6 @@
 import pytest
 
-from app.settings import Settings
+from backend.app.settings import Settings
 
 
 def test_cors_origins_valid():
