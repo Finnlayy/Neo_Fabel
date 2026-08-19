@@ -31,7 +31,7 @@ class StrategyState:
     grid_inventory: dict[int, int] = field(default_factory=dict)  # zone -> units held
     dca_steps_filled: set[int] = field(default_factory=set)
     dca_entry_avg: float | None = None
-    dca_units: Decimal = Decimal("0")
+    dca_units: Decimal = Decimal(0)
     adaptive_zones: list[tuple[float, float]] | None = None
 
 
@@ -211,7 +211,7 @@ class DcaStrategy:
                         meta={"entry_avg": state.dca_entry_avg, "tp": tp},
                     )
                 )
-                state.dca_units = Decimal("0")
+                state.dca_units = Decimal(0)
                 state.dca_entry_avg = None
                 state.dca_steps_filled.clear()
 

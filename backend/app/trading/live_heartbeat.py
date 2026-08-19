@@ -73,7 +73,11 @@ async def send_live_heartbeat(
     text = format_heartbeat_text(session, kind=kind, open_trades=open_trades)
 
     try:
-        from backend.app.integrations.telegram_bot import TelegramBot, TelegramNotConfigured, push_local_signal
+        from backend.app.integrations.telegram_bot import (
+            TelegramBot,
+            TelegramNotConfigured,
+            push_local_signal,
+        )
 
         bot = TelegramBot(cfg)
         if not bot.configured:

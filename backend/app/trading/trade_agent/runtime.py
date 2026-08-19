@@ -110,7 +110,7 @@ class TradeAgentRuntime:
             if job_id == "check_positions":
                 return await jobs.check_positions_snapshot()
             return {"ok": False, "error": f"unknown_job:{job_id}"}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("trade agent job %s failed", job_id)
             return {"ok": False, "job": job_id, "error": str(exc)}
 
@@ -140,7 +140,7 @@ class TradeAgentRuntime:
                 await asyncio.sleep(20)
         except asyncio.CancelledError:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._last_error = str(exc)
             logger.exception("trade agent scheduler crashed")
         finally:
@@ -155,7 +155,7 @@ class TradeAgentRuntime:
                 await asyncio.sleep(interval)
         except asyncio.CancelledError:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._last_error = str(exc)
             logger.exception("trade agent watchdog crashed")
 

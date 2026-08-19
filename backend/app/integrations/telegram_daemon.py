@@ -10,7 +10,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-
 from ..settings import Settings
 from .gemini_client import GeminiClient
 from .kraken_public import KrakenPublicClient
@@ -52,9 +51,9 @@ def _chat_authorized(settings: Settings, chat_id: int | str | None) -> bool:
     return str(chat_id).strip() in allowed
 _stop_event: asyncio.Event | None = None
 
-_TRADE_RE = re.compile(r"^/trade(?:@\w+)?\s+(\w+)\s+(\w+)\s+([\d.]+)", re.I)
+_TRADE_RE = re.compile(r"^/trade(?:@\w+)?\s+(\w+)\s+(\w+)\s+([\d.]+)", re.IGNORECASE)
 # Matches secrets.token_urlsafe(16+) proposal IDs (base64url), not only hex.
-_APPROVE_RE = re.compile(r"^/(approve|reject)(?:@\w+)?\s+([A-Za-z0-9_-]{16,64})\b", re.I)
+_APPROVE_RE = re.compile(r"^/(approve|reject)(?:@\w+)?\s+([A-Za-z0-9_-]{16,64})\b", re.IGNORECASE)
 
 
 def wake_up_daemon() -> None:
@@ -288,7 +287,7 @@ async def _handle_incoming_message(
         reply = await build_auto_reply(settings, text, from_name, chat_id=chat_id)
         try:
             await bot.send_message_to(chat_id, reply, parse_mode="HTML")
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("telegram auto-reply failed for chat %s", chat_id)
 
 
@@ -336,8 +335,7 @@ async def run_daemon_poll(settings: Settings) -> None:
         if not isinstance(update, dict):
             continue
         update_id = int(update.get("update_id") or 0)
-        if update_id > state.last_update_id:
-            state.last_update_id = update_id
+        state.last_update_id = max(state.last_update_id, update_id)
 
         callback = update.get("callback_query")
         if isinstance(callback, dict):
@@ -449,7 +447,7 @@ async def _handle_callback_query(bot: TelegramBot, settings: Settings, callback:
                 f"🔐 Trade <code>{proposal_id}</code>: {note}",
                 parse_mode="HTML",
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("callback reply failed")
 
 
@@ -465,7 +463,7 @@ async def _daemon_loop(settings: Settings, stop_event: asyncio.Event) -> None:
     try:
         await bot.delete_webhook(drop_pending=True)
         await bot.ensure_username()
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("telegram daemon startup cleanup failed")
 
     while not stop_event.is_set():
@@ -473,7 +471,7 @@ async def _daemon_loop(settings: Settings, stop_event: asyncio.Event) -> None:
             state.wake_requested = False
         try:
             await run_daemon_poll(settings)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("telegram daemon poll error")
 
         interval_sec = max(state.current_interval_ms, 1000) / 1000.0

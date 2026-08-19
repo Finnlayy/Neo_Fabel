@@ -27,7 +27,7 @@ def _positions_from_lots(lots: dict[str, list[dict[str, Any]]], mark_prices: dic
                 "pair": pair,
                 "market_type": "spot",
                 "volume": format(vol, "f"),
-                "avg_entry": format(cost / vol if vol else Decimal("0"), "f"),
+                "avg_entry": format(cost / vol if vol else Decimal(0), "f"),
                 "mark_price": format(mark, "f"),
                 "market_value_usd": format(market_value, "f"),
                 "cost_basis_usd": format(cost, "f"),
@@ -63,7 +63,7 @@ def _equity_curve(
         if side == "buy":
             cash -= vol * price + fee
             rows = open_lots.setdefault(pair, [])
-            unit_cost = (vol * price + fee) / vol if vol else Decimal("0")
+            unit_cost = (vol * price + fee) / vol if vol else Decimal(0)
             rows.append({"volume": format(vol, "f"), "unit_cost": format(unit_cost, "f")})
         else:
             cash += vol * price - fee
@@ -80,10 +80,10 @@ def _equity_curve(
                 else:
                     lot["volume"] = format(lot_vol, "f")
 
-        position_value = Decimal("0")
+        position_value = Decimal(0)
         for p, p_rows in open_lots.items():
             p_vol = sum(_d(r.get("volume")) for r in p_rows)
-            mark = mark_prices.get(p, price if p == pair else Decimal("0"))
+            mark = mark_prices.get(p, price if p == pair else Decimal(0))
             position_value += p_vol * mark
 
         equity = cash + position_value
@@ -100,16 +100,14 @@ def _equity_curve(
 
 
 def _max_drawdown(curve: list[dict[str, Any]]) -> Decimal:
-    peak = Decimal("0")
-    max_dd = Decimal("0")
+    peak = Decimal(0)
+    max_dd = Decimal(0)
     for point in curve:
         eq = _d(point.get("equity_usd"))
-        if eq > peak:
-            peak = eq
+        peak = max(peak, eq)
         if peak > 0:
             dd = (peak - eq) / peak
-            if dd > max_dd:
-                max_dd = dd
+            max_dd = max(max_dd, dd)
     return max_dd
 
 
@@ -123,10 +121,10 @@ def _by_symbol(fills: list[dict[str, Any]]) -> list[dict[str, Any]]:
             {
                 "pair": pair,
                 "fills": 0,
-                "buy_volume": Decimal("0"),
-                "sell_volume": Decimal("0"),
-                "realized_pnl_usd": Decimal("0"),
-                "fees_usd": Decimal("0"),
+                "buy_volume": Decimal(0),
+                "sell_volume": Decimal(0),
+                "realized_pnl_usd": Decimal(0),
+                "fees_usd": Decimal(0),
             },
         )
         bucket["fills"] += 1
@@ -166,7 +164,7 @@ def _futures_positions(
         entry = _d(pos.get("entry_price"))
         side = str(pos.get("side") or "long").lower()
         mark = mark_prices.get(pair, entry)
-        sign = Decimal("1") if side == "long" else Decimal("-1")
+        sign = Decimal(1) if side == "long" else Decimal(-1)
         notional = contracts * mark
         cost = contracts * entry
         unrealized = (mark - entry) * contracts * sign

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from backend.app.chronos.deps import require_vectorbt
 from backend.app.chronos.frame import bars_to_dataframe

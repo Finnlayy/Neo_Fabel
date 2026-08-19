@@ -36,20 +36,20 @@ class TradingViewWebhookBody(BaseModel):
     strategy_id: str = Field(min_length=1, max_length=64)
     pair: str = Field(min_length=2, max_length=20)
     side: Literal["buy", "sell"]
-    volume: Decimal = Field(gt=Decimal("0"), max_digits=24, decimal_places=12)
+    volume: Decimal = Field(gt=Decimal(0), max_digits=24, decimal_places=12)
     order_type: Literal["market", "limit"]
-    price: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
+    price: Decimal | None = Field(default=None, gt=Decimal(0), max_digits=24, decimal_places=12)
     order_id: str | None = Field(default=None, max_length=64)
     raw_symbol: str | None = Field(default=None, max_length=64)
-    observed_price: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
+    observed_price: Decimal | None = Field(default=None, gt=Decimal(0), max_digits=24, decimal_places=12)
     pattern_bias: Literal["bullish", "bearish", "neutral"] | None = Field(
         default=None,
         description="Optional blind-pattern bias from RNA.",
     )
     pattern_confidence: Decimal | None = Field(
         default=None,
-        gt=Decimal("0"),
-        le=Decimal("100"),
+        gt=Decimal(0),
+        le=Decimal(100),
         max_digits=6,
         decimal_places=2,
         description="Optional blind-pattern confidence from RNA (0..100).",
@@ -103,8 +103,8 @@ class SignalRouteCreate(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     strategy_id: str = Field(min_length=1, max_length=64)
     pair_allowlist: str = Field(default="ADAUSD,XRPUSD,ADAEUR,XRPEUR", max_length=512)
-    max_volume: Decimal = Field(default=Decimal("0.01"), gt=Decimal("0"), max_digits=24, decimal_places=12)
-    max_notional: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
+    max_volume: Decimal = Field(default=Decimal("0.01"), gt=Decimal(0), max_digits=24, decimal_places=12)
+    max_notional: Decimal | None = Field(default=None, gt=Decimal(0), max_digits=24, decimal_places=12)
     allowed_order_types: str = Field(default="market,limit", max_length=64)
     max_event_age_seconds: int = Field(default=300, ge=1, le=3600)
     max_rate_per_minute: int = Field(default=10, ge=1, le=1000)
@@ -119,8 +119,8 @@ class SignalRoutePatch(BaseModel):
     mode: Literal["bypass_ai", "advisory"] | None = None
     enabled: bool | None = None
     pair_allowlist: str | None = Field(default=None, max_length=512)
-    max_volume: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
-    max_notional: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
+    max_volume: Decimal | None = Field(default=None, gt=Decimal(0), max_digits=24, decimal_places=12)
+    max_notional: Decimal | None = Field(default=None, gt=Decimal(0), max_digits=24, decimal_places=12)
     allowed_order_types: str | None = Field(default=None, max_length=64)
     max_event_age_seconds: int | None = Field(default=None, ge=1, le=3600)
     max_rate_per_minute: int | None = Field(default=None, ge=1, le=1000)
@@ -163,7 +163,7 @@ class RnaContextUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     bias: Literal["bullish", "bearish", "neutral"]
-    confidence: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
+    confidence: Decimal = Field(ge=Decimal(0), le=Decimal(100))
     symbol: str | None = Field(default=None, max_length=20)
 
     @field_validator("confidence", mode="before")

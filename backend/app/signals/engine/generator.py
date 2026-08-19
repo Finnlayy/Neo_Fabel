@@ -173,12 +173,12 @@ class FableEngine:
                         await feedback_engine.run_cycle(reason=f"engine_tick_{self.ticks}")
                     except Exception as fb_exc:  # noqa: BLE001
                         logger.debug("feedback cycle skipped: %s", fb_exc)
-            except Exception as exc:  # noqa: BLE001 — loop must survive tick errors
+            except Exception as exc:
                 self.last_error = str(exc)
                 logger.exception("FableEngine tick failed: %s", exc)
             try:
                 await asyncio.wait_for(self._stop.wait(), timeout=self.engine.poll_seconds)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
         self._started = False
 
@@ -230,7 +230,7 @@ class FableEngine:
             if state.dca_units > 0 and intent.price is not None:
                 prev_units = state.dca_units - vol
                 if prev_units <= 0:
-                    state.dca_units = Decimal("0")
+                    state.dca_units = Decimal(0)
                     state.dca_entry_avg = None
                 else:
                     avg = Decimal(str(state.dca_entry_avg or intent.price))

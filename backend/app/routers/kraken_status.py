@@ -86,7 +86,7 @@ async def refresh_kraken_status(
     rid = _request_id(request)
     try:
         catalog = await refresh_from_statuspage()
-    except Exception as exc:  # noqa: BLE001 — surface upstream failures
+    except Exception as exc:
         raise HTTPException(
             status_code=502,
             detail={"code": "status_refresh_failed", "message": str(exc), "request_id": rid},

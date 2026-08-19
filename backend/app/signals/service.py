@@ -624,6 +624,7 @@ class SignalSubmissionService:
 
         # Fallback to scanning if not found (e.g., different pepper version)
         from sqlalchemy import select
+
         from ..models import SignalRouteCredential as Cred
 
         result = await repo.session.scalars(

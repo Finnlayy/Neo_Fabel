@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import base64
 import io
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 FEATURE_ORDER = ("open", "high", "low", "close", "volume", "amount")
 

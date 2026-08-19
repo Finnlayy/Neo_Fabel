@@ -72,9 +72,9 @@ class PaperOrderRequest(BaseModel):
 
     pair: str = Field(min_length=2, max_length=20)
     side: Literal["buy", "sell"]
-    volume: Decimal = Field(gt=Decimal("0"), max_digits=24, decimal_places=12)
+    volume: Decimal = Field(gt=Decimal(0), max_digits=24, decimal_places=12)
     order_type: Literal["market", "limit"] = "market"
-    price: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
+    price: Decimal | None = Field(default=None, gt=Decimal(0), max_digits=24, decimal_places=12)
     market_type: Literal["spot", "futures"] = "spot"
     leverage: int = Field(default=1, ge=1, le=50)
     idempotency_key: UUID
@@ -109,9 +109,9 @@ class ClosePositionRequest(BaseModel):
     pair: str = Field(min_length=2, max_length=20)
     mode: Literal["paper", "live"]
     market_type: Literal["spot", "futures"] = "spot"
-    volume: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
+    volume: Decimal | None = Field(default=None, gt=Decimal(0), max_digits=24, decimal_places=12)
     order_type: Literal["market", "limit"] = "market"
-    price: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
+    price: Decimal | None = Field(default=None, gt=Decimal(0), max_digits=24, decimal_places=12)
     idempotency_key: UUID
 
     @field_validator("pair")
@@ -142,7 +142,7 @@ class PlaceOrderRequest(BaseModel):
     market_type: Literal["spot", "futures"] = "spot"
     pair: str = Field(min_length=2, max_length=32)
     side: Literal["buy", "sell"]
-    volume: Decimal = Field(gt=Decimal("0"), max_digits=24, decimal_places=12)
+    volume: Decimal = Field(gt=Decimal(0), max_digits=24, decimal_places=12)
     order_type: KrakenOrderType = "market"
     # Decimal or trailing offset string (e.g. "+500") for trailing-stop types.
     price: Decimal | str | None = None
@@ -194,7 +194,7 @@ class AmendOrderRequest(BaseModel):
     market_type: Literal["spot", "futures"] = "spot"
     order_id: str = Field(min_length=1, max_length=128)
     price: Decimal | None = Field(default=None, max_digits=24, decimal_places=12)
-    volume: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=24, decimal_places=12)
+    volume: Decimal | None = Field(default=None, gt=Decimal(0), max_digits=24, decimal_places=12)
     # Cancel+replace fallback fields (spot when amend unavailable)
     pair: str | None = None
     side: Literal["buy", "sell"] | None = None

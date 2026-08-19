@@ -7,12 +7,12 @@ import asyncio
 from sqlalchemy import text
 
 from backend.app.database import SessionFactory
+from backend.app.integrations.ai_evaluator import build_evaluator
 from backend.app.integrations.local_paper import get_local_paper_ledger
 from backend.app.integrations.paper_factory import build_paper_router
 from backend.app.paper_orders import PaperOrderService
 from backend.app.settings import get_settings
 from backend.app.signals.engine.generator import FableEngine
-from backend.app.integrations.ai_evaluator import build_evaluator
 from backend.app.signals.executor import PaperOrderExecutionAdapter
 from backend.app.signals.worker import SignalWorker
 

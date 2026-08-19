@@ -133,7 +133,7 @@ async def fetch_candles(
 
 
 async def _fetch_tvremix(pair: str, *, settings: Settings, count: int) -> list[dict[str, Any]]:
-    from backend.app.integrations.tvremix_client import get_tvremix_client, _to_tv_symbol
+    from backend.app.integrations.tvremix_client import _to_tv_symbol, get_tvremix_client
 
     interval = normalize_interval(settings.fable_engine_interval)
     client = get_tvremix_client(settings)

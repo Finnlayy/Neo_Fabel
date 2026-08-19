@@ -195,7 +195,7 @@ def check_route_policy(
     exposure = check_open_exposure(
         candidate,
         route,
-        current_open_exposure=current_open_exposure if current_open_exposure is not None else Decimal("0"),
+        current_open_exposure=current_open_exposure if current_open_exposure is not None else Decimal(0),
     )
     if not exposure.ok:
         return exposure

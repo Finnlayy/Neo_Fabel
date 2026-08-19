@@ -37,28 +37,28 @@ def test_cash_balance_reads_zusd():
 
 def test_cash_balance_counts_zeur():
     assert cash_balance_quote({"ZEUR": "4.00", "ADA": "1"}) == Decimal("4.00")
-    assert cash_balance_quote({"ZEUR": "2", "ZUSD": "1"}) == Decimal("3")
+    assert cash_balance_quote({"ZEUR": "2", "ZUSD": "1"}) == Decimal(3)
 
 
 def test_max_notional_blocks_oversized_buy():
     with pytest.raises(GuardrailViolation) as exc:
         assert_max_notional(
-            volume=Decimal("10"),
+            volume=Decimal(10),
             price=Decimal("0.5"),
-            max_notional=Decimal("2"),
+            max_notional=Decimal(2),
         )
     assert exc.value.code == "max_notional"
 
 
 def test_buy_rejected_when_insufficient_cash():
     with pytest.raises(GuardrailViolation) as exc:
-        assert_buy_affordable(cash=Decimal("4"), volume=Decimal("10"), price=Decimal("1"))
+        assert_buy_affordable(cash=Decimal(4), volume=Decimal(10), price=Decimal(1))
     assert exc.value.code == "insufficient_cash"
 
 
 def test_sell_rejected_when_short():
     with pytest.raises(GuardrailViolation) as exc:
-        assert_sell_covered(held=Decimal("1"), volume=Decimal("2"))
+        assert_sell_covered(held=Decimal(1), volume=Decimal(2))
     assert exc.value.code == "insufficient_inventory"
 
 
@@ -75,7 +75,7 @@ def test_live_order_capital_buy_ok():
     assert_live_order_capital(
         side="buy",
         pair="ADAUSD",
-        volume=Decimal("2"),
+        volume=Decimal(2),
         price=Decimal("0.5"),
         balance_payload={"ZUSD": "4.00"},
         leverage=1,

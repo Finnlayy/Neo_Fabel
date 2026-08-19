@@ -33,11 +33,11 @@ def isolated_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> LocalPap
     monkeypatch.setattr("backend.app.integrations.paper_paths.LEDGER_FILE", tmp_path / "ledger.json")
 
     async def _price(market_type: str, pair: str) -> Decimal:
-        prices = {"BTCUSD": Decimal("50000"), "ETHUSD": Decimal("3000")}
-        return prices.get(pair.upper(), Decimal("100"))
+        prices = {"BTCUSD": Decimal(50000), "ETHUSD": Decimal(3000)}
+        return prices.get(pair.upper(), Decimal(100))
 
     isolated = LocalPaperLedger(
-        starting_balance_usd=Decimal("10000"),
+        starting_balance_usd=Decimal(10000),
         kelly_sizing_enabled=False,
         _path=tmp_path / "ledger.json",
     )
@@ -49,24 +49,24 @@ def isolated_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> LocalPap
 async def test_fifo_realized_pnl_on_sell(isolated_ledger: LocalPaperLedger) -> None:
     buy = await isolated_ledger.paper_order("buy", "BTCUSD", Decimal("0.01"), "market", None)
     assert buy["ok"] is True
-    sell = await isolated_ledger.paper_order("sell", "BTCUSD", Decimal("0.01"), "limit", Decimal("52000"))
+    sell = await isolated_ledger.paper_order("sell", "BTCUSD", Decimal("0.01"), "limit", Decimal(52000))
     assert sell["ok"] is True
     order = sell["order"]
     realized = Decimal(str(order["realized_pnl"]))
     # Proceeds 520 - fee; cost ~500 + buy fee; should be positive
     assert realized > 0
     fee = Decimal(str(order["fee"]))
-    assert fee == Decimal("52000") * Decimal("0.01") * Decimal("0")  # limit = maker 0%
+    assert fee == Decimal(52000) * Decimal("0.01") * Decimal(0)  # limit = maker 0%
 
 
 @pytest.mark.asyncio
 async def test_persistence_roundtrip(isolated_ledger: LocalPaperLedger) -> None:
-    await isolated_ledger.paper_order("buy", "ETHUSD", Decimal("1"), "market", None)
-    assert isolated_ledger._path.exists()  # noqa: SLF001
+    await isolated_ledger.paper_order("buy", "ETHUSD", Decimal(1), "market", None)
+    assert isolated_ledger._path.exists()
 
     reloaded = LocalPaperLedger(
-        starting_balance_usd=Decimal("10000"),
-        _path=isolated_ledger._path,  # noqa: SLF001
+        starting_balance_usd=Decimal(10000),
+        _path=isolated_ledger._path,
     )
     assert len(reloaded.snapshot_state().get("spot", {}).get("fills") or []) == 1
 
@@ -75,7 +75,7 @@ async def test_persistence_roundtrip(isolated_ledger: LocalPaperLedger) -> None:
 async def test_insufficient_balance_rejected(isolated_ledger: LocalPaperLedger) -> None:
     isolated_ledger.kelly_sizing_enabled = False
     with pytest.raises(ValueError, match="insufficient USD"):
-        await isolated_ledger.paper_order("buy", "BTCUSD", Decimal("1"), "market", None)
+        await isolated_ledger.paper_order("buy", "BTCUSD", Decimal(1), "market", None)
 
 
 def test_performance_snapshot_metrics() -> None:
@@ -104,9 +104,9 @@ def test_performance_snapshot_metrics() -> None:
             },
         ],
     }
-    perf = build_performance_snapshot(state=state, mark_prices={"BTCUSD": Decimal("50500")})
+    perf = build_performance_snapshot(state=state, mark_prices={"BTCUSD": Decimal(50500)})
     assert perf["fill_count"] == 2
-    assert Decimal(perf["realized_pnl_usd"]) == Decimal("45")
+    assert Decimal(perf["realized_pnl_usd"]) == Decimal(45)
     assert perf["win_rate"] == 1.0
     assert len(perf["positions"]) == 1
     assert len(perf["equity_curve"]) >= 2
@@ -120,7 +120,7 @@ async def test_paper_performance_api(authenticated_user, monkeypatch: pytest.Mon
     monkeypatch.setattr("backend.app.integrations.paper_paths.ledger_path", lambda: ledger_file)
 
     async def _price(_market_type: str, pair: str) -> Decimal:
-        return Decimal("50000")
+        return Decimal(50000)
 
     from backend.app.integrations.local_paper import get_local_paper_ledger
 

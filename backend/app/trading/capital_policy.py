@@ -37,7 +37,7 @@ def _d(value: Any) -> Decimal:
     try:
         return Decimal(str(value or "0"))
     except (InvalidOperation, TypeError, ValueError):
-        return Decimal("0")
+        return Decimal(0)
 
 
 def assert_args_forbid_external_capital(args: list[str]) -> None:
@@ -68,7 +68,7 @@ def cash_balance_quote(balance_payload: dict[str, Any] | None) -> Decimal:
         for key in CASH_KEYS:
             if key in src:
                 merged[key] = _d(src.get(key))
-    return sum(merged.values(), Decimal("0"))
+    return sum(merged.values(), Decimal(0))
 
 
 # Back-compat alias used by older call sites / tests.
@@ -77,20 +77,19 @@ cash_balance_usd = cash_balance_quote
 
 def asset_balance(balance_payload: dict[str, Any] | None, asset: str) -> Decimal:
     if not balance_payload or not isinstance(balance_payload, dict):
-        return Decimal("0")
+        return Decimal(0)
     want = asset.strip().upper()
     aliases = {want, want.lstrip("X"), f"X{want}" if not want.startswith("X") else want}
     if want == "BTC":
         aliases |= {"XBT", "XXBT"}
     if want == "XBT":
         aliases |= {"BTC", "XXBT"}
-    best = Decimal("0")
+    best = Decimal(0)
     for src in _iter_balance_maps(balance_payload):
         for key, value in src.items():
             if str(key).upper() in aliases:
                 vol = _d(value)
-                if vol > best:
-                    best = vol
+                best = max(best, vol)
     return best
 
 
@@ -170,7 +169,7 @@ def assert_buy_affordable(
             )
         return
     cost = volume * price
-    cost_with_fee = cost * (Decimal("1") + fee_buffer)
+    cost_with_fee = cost * (Decimal(1) + fee_buffer)
     if cost_with_fee > cash:
         raise GuardrailViolation(
             "insufficient_cash",

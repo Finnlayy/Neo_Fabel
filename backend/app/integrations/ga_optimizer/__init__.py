@@ -7,8 +7,8 @@ from .pine_export import export_pines_from_payload, normalize_candidates
 
 __all__ = [
     "Genome",
-    "fitness",
-    "run_ga_optimize",
     "export_pines_from_payload",
+    "fitness",
     "normalize_candidates",
+    "run_ga_optimize",
 ]

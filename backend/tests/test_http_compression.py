@@ -7,7 +7,6 @@ from starlette.middleware.gzip import GZipMiddleware
 
 from backend.app.main import app
 
-
 client = TestClient(app)
 
 

@@ -97,7 +97,7 @@ async def test_live_start_runs_when_gates_ok():
         kraken_live_algo_enabled=True,
         kraken_deadman_seconds=60,
         kraken_pair_allowlist="ADAUSD,XRPUSD,ADAEUR,XRPEUR",
-        kraken_max_notional=Decimal("50"),
+        kraken_max_notional=Decimal(50),
         kraken_max_open_positions=5,
     )
     session = Level4Session(settings, cli=MagicMock())
@@ -168,7 +168,7 @@ async def test_live_start_manual_sizing_ok():
         kraken_live_algo_enabled=True,
         kraken_deadman_seconds=60,
         kraken_pair_allowlist="ADAUSD,XRPUSD",
-        kraken_max_notional=Decimal("50"),
+        kraken_max_notional=Decimal(50),
         kraken_max_open_positions=5,
     )
     session = Level4Session(settings, cli=MagicMock())
@@ -221,7 +221,7 @@ async def test_live_start_rejects_symbol_outside_env_allowlist():
 def test_apply_session_limits_tightens_guardrails():
     settings = Settings(
         kraken_pair_allowlist="ADAUSD,XRPUSD,ADAEUR",
-        kraken_max_notional=Decimal("50"),
+        kraken_max_notional=Decimal(50),
         kraken_max_open_positions=5,
     )
     session = Level4Session(settings, cli=MagicMock())
@@ -231,7 +231,7 @@ def test_apply_session_limits_tightens_guardrails():
         symbols=["xrpusd", "adausd"],
     )
     assert isinstance(rails, TradingGuardrails)
-    assert rails.max_notional == Decimal("10")
+    assert rails.max_notional == Decimal(10)
     assert rails.max_open_positions == 2
     assert rails.pair_allowlist == frozenset({"XRPUSD", "ADAUSD"})
 

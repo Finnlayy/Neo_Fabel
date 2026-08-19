@@ -21,4 +21,4 @@ def build_evaluator(settings: Settings) -> SignalEvaluator:
     )
 
 
-__all__ = ["build_evaluator", "EvaluationResult", "SignalEvaluator"]
+__all__ = ["EvaluationResult", "SignalEvaluator", "build_evaluator"]

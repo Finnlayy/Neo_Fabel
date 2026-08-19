@@ -189,7 +189,7 @@ async def test_mcp_submit_uses_same_service_accept_path():
     assert kwargs["source"] == "mcp"
     assert kwargs["signal_id"] == "mcp-sig-1"
     assert kwargs["pair"] == "ADAUSD"
-    assert kwargs["volume"] == Decimal("1")
+    assert kwargs["volume"] == Decimal(1)
     assert kwargs["credential"] is cred
     assert kwargs["route"] is route
 
@@ -216,18 +216,17 @@ async def test_mcp_http_adapter_delegates_to_submit_mcp():
     }
     request = Request(scope)
 
-    with patch("backend.app.signals.mcp_server.get_settings", return_value=settings):
-        with patch.object(
-            SignalSubmissionService,
-            "submit_mcp",
-            new=AsyncMock(return_value=expected),
-        ) as submit_mcp:
-            receipt = await submit_trading_signal(
-                args,
-                request,
-                session=session,
-                authorization="Bearer mcptok_ok",
-            )
+    with patch("backend.app.signals.mcp_server.get_settings", return_value=settings), patch.object(
+        SignalSubmissionService,
+        "submit_mcp",
+        new=AsyncMock(return_value=expected),
+    ) as submit_mcp:
+        receipt = await submit_trading_signal(
+            args,
+            request,
+            session=session,
+            authorization="Bearer mcptok_ok",
+        )
 
     assert receipt is expected
     submit_mcp.assert_awaited_once()

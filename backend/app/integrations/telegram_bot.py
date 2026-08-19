@@ -15,11 +15,11 @@ from ..settings import Settings
 
 BULLISH_RE = re.compile(
     r"\b(long|buy|bull|breakout|moon|pump|up)\b|🟢",
-    re.I,
+    re.IGNORECASE,
 )
 BEARISH_RE = re.compile(
     r"\b(short|sell|bear|dump|crash|liquidation|down)\b|🔴",
-    re.I,
+    re.IGNORECASE,
 )
 ACTIONABLE_ASSETS = ("BTC", "ETH", "SOL", "MATIC", "AVAX", "XRP", "DOT", "ADA", "POL")
 

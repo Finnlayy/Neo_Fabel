@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from decimal import Decimal, InvalidOperation
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from backend.app.integrations.kraken_cli import KrakenCli, KrakenCliError
 
@@ -32,7 +33,7 @@ def _d(value: Any) -> Decimal:
     try:
         return Decimal(str(value or "0"))
     except InvalidOperation:
-        return Decimal("0")
+        return Decimal(0)
 
 
 def asset_to_pair(asset: str) -> str:
@@ -148,7 +149,7 @@ async def enrich_with_marks(
                 last = last[0]
             mark = _d(last)
         except KrakenCliError:
-            mark = Decimal("0")
+            mark = Decimal(0)
         copy["mark_price"] = format(mark, "f") if mark > 0 else None
         if mark > 0 and vol > 0:
             mv = vol * mark

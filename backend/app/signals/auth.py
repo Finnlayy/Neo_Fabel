@@ -10,7 +10,6 @@ from datetime import UTC, datetime
 
 from ..settings import Settings
 
-
 TV_PREFIX = "tvsec_"
 MCP_PREFIX = "mcptok_"
 
@@ -34,7 +33,7 @@ def generate_credential(kind: str) -> str:
 
 def digest_credential(plaintext: str, settings: Settings, *, pepper_version: str = "v1") -> str:
     pepper = settings.signal_credential_pepper or "dev-only-insecure-pepper"
-    material = f"{pepper_version}:{pepper}".encode("utf-8")
+    material = f"{pepper_version}:{pepper}".encode()
     return hmac.new(material, plaintext.encode("utf-8"), hashlib.sha256).hexdigest()
 
 

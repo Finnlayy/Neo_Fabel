@@ -161,7 +161,11 @@ async def send_system_heartbeat(
 
 async def _send_and_mirror(cfg: Settings, text: str, *, channel: str) -> dict[str, Any] | None:
     try:
-        from backend.app.integrations.telegram_bot import TelegramBot, TelegramNotConfigured, push_local_signal
+        from backend.app.integrations.telegram_bot import (
+            TelegramBot,
+            TelegramNotConfigured,
+            push_local_signal,
+        )
 
         bot = TelegramBot(cfg)
         if not bot.configured:
@@ -218,7 +222,7 @@ async def stop_system_heartbeat(settings: Settings | None = None) -> None:
             pass
     try:
         await send_system_heartbeat(cfg, kind="stopped")
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.debug("system heartbeat stop notify failed", exc_info=True)
 
 

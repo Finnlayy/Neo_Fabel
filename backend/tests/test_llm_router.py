@@ -8,7 +8,11 @@ import httpx
 import pytest
 
 from backend.app.integrations.gemini_client import AiNotConfigured
-from backend.app.integrations.llm_router import LlmRouter, ProviderTransientError, reset_llm_router_rotate_for_tests
+from backend.app.integrations.llm_router import (
+    LlmRouter,
+    ProviderTransientError,
+    reset_llm_router_rotate_for_tests,
+)
 from backend.app.settings import Settings, get_settings
 
 

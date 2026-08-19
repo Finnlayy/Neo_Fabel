@@ -13,7 +13,6 @@ from backend.app.main import app
 from backend.app.routers import vector as vector_router
 from backend.app.settings import get_settings
 
-
 client = TestClient(app)
 
 

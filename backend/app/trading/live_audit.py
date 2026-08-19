@@ -25,6 +25,5 @@ def log_live_event(event: str, **fields: Any) -> None:
         **{k: v for k, v in fields.items() if v is not None},
     }
     line = json.dumps(record, default=str)
-    with _LOCK:
-        with audit_path().open("a", encoding="utf-8") as fh:
-            fh.write(line + "\n")
+    with _LOCK, audit_path().open("a", encoding="utf-8") as fh:
+        fh.write(line + "\n")

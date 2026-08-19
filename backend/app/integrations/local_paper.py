@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Awaitable, Callable, Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 from backend.app.integrations.paper_paths import ledger_path
@@ -76,9 +77,9 @@ def _migrate_v1(data: dict[str, Any], starting_spot: Decimal, starting_futures: 
 class LocalPaperLedger:
     """Thread-safe disk-backed paper book with separate spot cash and futures margin."""
 
-    starting_balance_usd: Decimal = Decimal("10000")
-    starting_margin_usd: Decimal = Decimal("10000")
-    maker_fee_rate: Decimal = Decimal("0")
+    starting_balance_usd: Decimal = Decimal(10000)
+    starting_margin_usd: Decimal = Decimal(10000)
+    maker_fee_rate: Decimal = Decimal(0)
     taker_fee_rate: Decimal = Decimal("0.0005")
     fee_model: str = "kraken_pro_tier5"
     max_open_positions: int = 20
@@ -209,7 +210,7 @@ class LocalPaperLedger:
     ) -> Decimal:
         lots: list[dict[str, Any]] = list((book.get("lots") or {}).get(pair) or [])
         remaining = sell_volume
-        realized = Decimal("0")
+        realized = Decimal(0)
 
         while remaining > 0 and lots:
             lot = lots[0]
@@ -260,7 +261,7 @@ class LocalPaperLedger:
             volume, sizing_detail = self._kelly_volume(bankroll=cash, price=fill_price)
         notional = volume * fill_price
         fee = notional * fee_rate
-        realized_pnl = Decimal("0")
+        realized_pnl = Decimal(0)
 
         if side == "buy":
             cost = notional + fee
@@ -328,10 +329,10 @@ class LocalPaperLedger:
         }
         contracts = _d(pos.get("contracts"))
         entry = _d(pos.get("entry_price"))
-        side_sign = Decimal("1") if side == "buy" else Decimal("-1")
+        side_sign = Decimal(1) if side == "buy" else Decimal(-1)
         delta = volume * side_sign
         new_contracts = contracts + delta
-        realized_pnl = Decimal("0")
+        realized_pnl = Decimal(0)
 
         if contracts == 0:
             required_margin = notional / Decimal(lev) + fee
@@ -369,7 +370,7 @@ class LocalPaperLedger:
                 realized_pnl = (fill_price - entry) * close_vol - fee
             else:
                 realized_pnl = (entry - fill_price) * close_vol - fee
-            released = _d(pos.get("initial_margin")) * (close_vol / abs(contracts)) if contracts else Decimal("0")
+            released = _d(pos.get("initial_margin")) * (close_vol / abs(contracts)) if contracts else Decimal(0)
             margin += released + realized_pnl
 
             remaining = abs(contracts) - close_vol
@@ -588,10 +589,10 @@ class LocalPaperLedger:
         if inst.market_type == "futures":
             pos = (self._futures.get("positions") or {}).get(inst.symbol)
             if not pos:
-                return Decimal("0")
+                return Decimal(0)
             return _d(pos.get("contracts"))
         rows = (self._spot.get("lots") or {}).get(inst.symbol) or []
-        return sum((_d(r.get("volume")) for r in rows), start=Decimal("0"))
+        return sum((_d(r.get("volume")) for r in rows), start=Decimal(0))
 
 
 _LEDGER: LocalPaperLedger | None = None
@@ -610,9 +611,9 @@ def get_local_paper_ledger(
     global _LEDGER
     if _LEDGER is None:
         _LEDGER = LocalPaperLedger(
-            starting_balance_usd=starting_balance_usd or Decimal("10000"),
-            starting_margin_usd=starting_margin_usd or Decimal("10000"),
-            maker_fee_rate=maker_fee_rate if maker_fee_rate is not None else Decimal("0"),
+            starting_balance_usd=starting_balance_usd or Decimal(10000),
+            starting_margin_usd=starting_margin_usd or Decimal(10000),
+            maker_fee_rate=maker_fee_rate if maker_fee_rate is not None else Decimal(0),
             taker_fee_rate=taker_fee_rate if taker_fee_rate is not None else Decimal("0.0005"),
             max_open_positions=int(max_open_positions) if max_open_positions is not None else 20,
             kelly_sizing_enabled=True if kelly_sizing_enabled is None else bool(kelly_sizing_enabled),

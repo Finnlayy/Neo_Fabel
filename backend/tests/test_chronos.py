@@ -13,7 +13,6 @@ from backend.app.chronos.normalize import ChronosNormalizer
 from backend.app.chronos.pipeline import tokenize_ohlcva
 from backend.app.main import app
 
-
 client = TestClient(app)
 
 

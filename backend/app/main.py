@@ -3,28 +3,46 @@ import logging
 import re
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Literal, cast
 from uuid import uuid4
-
-from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 
-from .http_static_cache import StaticCacheMiddleware
-
+from .academy.training_loop import training_loop
 from .auth import require_trading_admin, require_trading_admin_recent, require_user
 from .database import SessionFactory
+from .http_static_cache import StaticCacheMiddleware
 from .integrations.alpha_vantage import AlphaVantageClient, AlphaVantageError
 from .integrations.ccxt_market import CcxtMarketClient, compact_pair, to_ccxt_symbol
 from .integrations.kraken_cli import KrakenCli, KrakenCliError
 from .integrations.kraken_public import KrakenPublicClient, normalize_orderbook_levels
+from .integrations.onnx.paths import ensure_onnx_data_dir
+from .integrations.onnx.runtime import ensure_seed_models, netron_static_dir, onnx_deps_available
 from .integrations.paper_factory import build_paper_router
 from .integrations.paper_router import PaperExecutionRouter
 from .market.stream import get_market_stream_hub
 from .paper_orders import PaperOrderService
+from .routers.academy import router as academy_router
+from .routers.ai import router as ai_router
+from .routers.chronos import router as chronos_router
+from .routers.ga import router as ga_router
+from .routers.integrations_settings import router as integrations_settings_router
+from .routers.kraken_status import router as kraken_status_router
+from .routers.loops import router as loops_router
+from .routers.market_stream import router as market_stream_router
+from .routers.mcp_paper import router as mcp_paper_router
+from .routers.onnx import router as onnx_router
+from .routers.orchestrator import router as orchestrator_router
+from .routers.orders import router as orders_router
+from .routers.telegram import router as telegram_router
+from .routers.trade_agent import router as trade_agent_router
+from .routers.tvapi import router as tvapi_router
+from .routers.tvremix import router as tvremix_router
+from .routers.vector import router as vector_router
 from .schemas import (
     ClosePositionRequest,
     MarketBatchItem,
@@ -38,26 +56,6 @@ from .schemas import (
     TickerResponse,
 )
 from .settings import get_settings
-from .routers.academy import router as academy_router
-from .routers.ai import router as ai_router
-from .routers.chronos import router as chronos_router
-from .routers.market_stream import router as market_stream_router
-from .routers.onnx import router as onnx_router
-from .routers.telegram import router as telegram_router
-from .routers.tvapi import router as tvapi_router
-from .routers.vector import router as vector_router
-from .routers.ga import router as ga_router
-from .routers.loops import router as loops_router
-from .routers.trade_agent import router as trade_agent_router
-from .routers.kraken_status import router as kraken_status_router
-from .routers.orders import router as orders_router
-from .routers.integrations_settings import router as integrations_settings_router
-from .routers.tvremix import router as tvremix_router
-from .routers.mcp_paper import router as mcp_paper_router
-from .routers.orchestrator import router as orchestrator_router
-from .integrations.onnx.paths import ensure_onnx_data_dir
-from .integrations.onnx.runtime import ensure_seed_models, netron_static_dir, onnx_deps_available
-from .academy.training_loop import training_loop
 from .signals.mcp_server import mcp_router
 from .signals.router import router as signal_router
 from .signals.safety import assert_signals_module_imports
@@ -114,7 +112,7 @@ async def lifespan(_app: FastAPI):
 
         try:
             write_opencode_config(settings)
-        except Exception:  # noqa: BLE001 — optional local tooling must not block API start
+        except Exception:
             logger.exception("opencode config write failed")
     if settings.signal_routes_enabled and settings.fable_engine_enabled:
         from .database import SessionFactory
@@ -122,14 +120,14 @@ async def lifespan(_app: FastAPI):
 
         try:
             await ensure_fable_routes(SessionFactory, settings)
-        except Exception:  # noqa: BLE001 — bootstrap must not block API start
+        except Exception:
             logger.exception("fable route bootstrap failed")
     if settings.training_loop_auto_start and settings.training_loop_enabled:
         await training_loop.start()
     if settings.trade_agent_auto_start and settings.trade_agent_enabled:
         try:
             await trade_agent.start(settings)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("trade agent auto-start failed")
     engine_task: asyncio.Task | None = None
     if settings.fable_engine_enabled:
@@ -143,13 +141,13 @@ async def lifespan(_app: FastAPI):
 
         try:
             await start_telegram_daemon(settings)
-        except Exception:  # noqa: BLE001 — optional feed must not block API start
+        except Exception:
             logger.exception("telegram daemon start failed")
     try:
         from .integrations.telegram_trade_notify import start_system_heartbeat
 
         await start_system_heartbeat(settings)
-    except Exception:  # noqa: BLE001 — optional notify must not block API start
+    except Exception:
         logger.exception("telegram system heartbeat start failed")
     try:
         yield
@@ -158,14 +156,14 @@ async def lifespan(_app: FastAPI):
             from .integrations.telegram_trade_notify import stop_system_heartbeat
 
             await stop_system_heartbeat(settings)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("telegram system heartbeat stop failed")
         if settings.telegram_daemon_enabled:
             from .integrations.telegram_daemon import stop_telegram_daemon
 
             try:
                 await stop_telegram_daemon()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.exception("telegram daemon stop failed")
         if engine_task is not None:
             from .signals.engine.generator import get_fable_engine
@@ -182,11 +180,11 @@ async def lifespan(_app: FastAPI):
         training_loop.stop_now()
         try:
             await trade_agent.stop()
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("trade agent shutdown failed")
         try:
             await trading_loops.shutdown()
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("trading loops shutdown failed")
         await hub.stop()
 
@@ -220,8 +218,8 @@ def _bars(payload: dict) -> list[dict[str, str]]:
 
 
 def _aggregate_four_hour(payload: dict) -> dict:
-    from decimal import Decimal, InvalidOperation
     from datetime import datetime
+    from decimal import Decimal, InvalidOperation
 
     source = _bars(payload)
     groups: dict[str, list[dict[str, str]]] = {}

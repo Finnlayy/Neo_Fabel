@@ -14,8 +14,8 @@ from backend.app.academy.chronos_drills import chronos_auto_decision
 from backend.app.academy.drill_market import resolve_academy_source
 from backend.app.academy.drill_scenarios import resolve_risk_policy_expected
 from backend.app.academy.prompt_shot_optimizer import prompt_shot_optimizer
-from backend.app.academy.training_drills import training_drills
 from backend.app.academy.schemas import DiversityMonitorStats
+from backend.app.academy.training_drills import training_drills
 from backend.app.settings import get_settings
 
 

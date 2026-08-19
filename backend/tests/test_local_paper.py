@@ -14,8 +14,8 @@ from backend.app.integrations.paper_router import PaperExecutionRouter
 
 
 async def _mock_price(_market_type: str, pair: str) -> Decimal:
-    prices = {"BTCUSD": Decimal("50000"), "ETHUSD": Decimal("3000")}
-    return prices.get(pair.upper().replace("/", "").replace("-", ""), Decimal("100"))
+    prices = {"BTCUSD": Decimal(50000), "ETHUSD": Decimal(3000)}
+    return prices.get(pair.upper().replace("/", "").replace("-", ""), Decimal(100))
 
 
 @pytest.fixture
@@ -47,7 +47,7 @@ async def test_local_ledger_accepts_market_order(isolated_ledger: LocalPaperLedg
 @pytest.mark.asyncio
 async def test_kelly_sizing_uses_price_to_normalize_notional(tmp_path: Path) -> None:
     async def _price(_market_type: str, pair: str) -> Decimal:
-        return {"BTCUSD": Decimal("50000"), "ADAUSD": Decimal("0.50")}[pair]
+        return {"BTCUSD": Decimal(50000), "ADAUSD": Decimal("0.50")}[pair]
 
     btc = LocalPaperLedger(_path=tmp_path / "btc.json")
     btc.set_price_resolver(_price)

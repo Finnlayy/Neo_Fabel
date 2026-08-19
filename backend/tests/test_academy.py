@@ -19,7 +19,6 @@ from backend.app.academy.training_loop import training_loop
 from backend.app.auth import require_user
 from backend.app.main import app
 
-
 client = TestClient(app)
 
 

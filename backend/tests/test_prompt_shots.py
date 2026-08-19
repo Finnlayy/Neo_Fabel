@@ -27,7 +27,7 @@ def test_doctrine_and_index_present() -> None:
     assert "MASTER ORCHESTRATOR" in doctrine or "Master Orchestrator" in doctrine
     assert "paper_ok" in index
     assert "live_gated" in index
-    skill_ids = set(re.findall(r"(?:kraken|recipe)-[a-z0-9-]+", index, flags=re.I))
+    skill_ids = set(re.findall(r"(?:kraken|recipe)-[a-z0-9-]+", index, flags=re.IGNORECASE))
     assert len(skill_ids) >= 40
     # Never embed full plugin SKILL.md dump markers.
     assert "```yaml" not in index

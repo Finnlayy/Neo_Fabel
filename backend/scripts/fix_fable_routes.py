@@ -1,5 +1,7 @@
 import asyncio
+
 from sqlalchemy import text
+
 from backend.app.database import SessionFactory
 
 

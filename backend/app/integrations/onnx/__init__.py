@@ -4,4 +4,4 @@ from __future__ import annotations
 
 from backend.app.integrations.onnx.runtime import ensure_seed_models, onnx_deps_available
 
-__all__ = ["onnx_deps_available", "ensure_seed_models"]
+__all__ = ["ensure_seed_models", "onnx_deps_available"]

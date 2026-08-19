@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from backend.app.chronos.charts import _fig_to_png_b64, _require_mpl, _style_axes, matplotlib_available
 

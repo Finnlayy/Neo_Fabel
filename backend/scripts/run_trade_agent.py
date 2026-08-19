@@ -18,8 +18,8 @@ import sys
 
 
 async def _main(argv: list[str]) -> int:
-    from backend.app.trading.trade_agent import jobs, trade_agent
     from backend.app.settings import get_settings
+    from backend.app.trading.trade_agent import jobs, trade_agent
 
     cmd = (argv[1] if len(argv) > 1 else "status").lower().replace("_", "-")
     settings = get_settings()

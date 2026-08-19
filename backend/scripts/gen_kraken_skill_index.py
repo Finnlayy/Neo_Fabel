@@ -82,11 +82,11 @@ def gate(name: str) -> str:
 
 
 def description(text: str) -> str:
-    m = re.search(r"^description:\s*[\"']?(.*?)[\"']?\s*$", text, re.M)
+    m = re.search(r"^description:\s*[\"']?(.*?)[\"']?\s*$", text, re.MULTILINE)
     if m:
         desc = m.group(1).strip().strip('"').strip("'")
     else:
-        m2 = re.search(r"^description:\s*>-?\s*\n((?:\s+.+\n)+)", text, re.M)
+        m2 = re.search(r"^description:\s*>-?\s*\n((?:\s+.+\n)+)", text, re.MULTILINE)
         desc = " ".join(m2.group(1).split()) if m2 else "Kraken CLI skill"
     if len(desc) > 90:
         desc = desc[:87] + "..."

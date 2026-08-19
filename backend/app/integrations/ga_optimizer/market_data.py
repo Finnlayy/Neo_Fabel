@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, List, Sequence, Tuple
+from typing import Any
 
 import httpx
 
@@ -17,8 +18,8 @@ BINANCE_FAPI = "https://fapi.binance.com"
 CISD_LENS = [3, 4, 5, 6, 7, 8]
 
 
-def candles_from_rows(rows: Sequence[dict[str, Any] | list[Any]]) -> List[Candle]:
-    out: List[Candle] = []
+def candles_from_rows(rows: Sequence[dict[str, Any] | list[Any]]) -> list[Candle]:
+    out: list[Candle] = []
     for row in rows:
         if isinstance(row, dict):
             ts = int(row.get("timestamp") or row.get("ts") or row.get("t") or 0)
@@ -43,7 +44,7 @@ def candles_from_rows(rows: Sequence[dict[str, Any] | list[Any]]) -> List[Candle
     return out
 
 
-def load_cache_candles(cache_dir: Path, symbol: str, lookback_bars: int) -> List[Candle] | None:
+def load_cache_candles(cache_dir: Path, symbol: str, lookback_bars: int) -> list[Candle] | None:
     """Load {SYMBOL}_15m.json or {SYMBOL}_15m_*.json from cache_dir."""
     sym = symbol.upper().replace("/", "").replace("-", "")
     candidates = [
@@ -70,7 +71,7 @@ def load_cache_candles(cache_dir: Path, symbol: str, lookback_bars: int) -> List
     return None
 
 
-def list_cache_symbols(cache_dir: Path) -> List[str]:
+def list_cache_symbols(cache_dir: Path) -> list[str]:
     if not cache_dir.exists():
         return []
     symbols: list[str] = []
@@ -85,7 +86,7 @@ def list_cache_symbols(cache_dir: Path) -> List[str]:
 
 def fetch_klines_binance(
     symbol: str, interval: str, limit: int, *, timeout: float = 30.0
-) -> List[Candle]:
+) -> list[Candle]:
     params: dict[str, str | int] = {
         "symbol": symbol.upper(),
         "interval": interval,
@@ -98,7 +99,7 @@ def fetch_klines_binance(
     return candles_from_rows(data)
 
 
-def exchange_symbols_binance(*, max_symbols: int, timeout: float = 30.0) -> List[Tuple[str, float]]:
+def exchange_symbols_binance(*, max_symbols: int, timeout: float = 30.0) -> list[tuple[str, float]]:
     with httpx.Client(timeout=timeout) as client:
         ex = client.get(f"{BINANCE_FAPI}/fapi/v1/exchangeInfo")
         ex.raise_for_status()
@@ -107,7 +108,7 @@ def exchange_symbols_binance(*, max_symbols: int, timeout: float = 30.0) -> List
         ex_data = ex.json()
         tick_data = tick.json()
     vol = {r["symbol"]: float(r.get("quoteVolume", 0.0)) for r in tick_data}
-    out: List[Tuple[str, float]] = []
+    out: list[tuple[str, float]] = []
     for s in ex_data["symbols"]:
         if (
             s.get("status") == "TRADING"
@@ -124,7 +125,7 @@ def exchange_symbols_binance(*, max_symbols: int, timeout: float = 30.0) -> List
 
 def fetch_klines_ccxt(
     symbol: str, timeframe: str, limit: int, *, exchange_id: str = "binanceusdm"
-) -> List[Candle]:
+) -> list[Candle]:
     """Optional ccxt path (sync). Symbol like ETHUSDT → ETH/USDT:USDT when needed."""
     import ccxt  # local import — optional path
 
@@ -199,7 +200,7 @@ def load_universe_packs(
     packs: MarketPacks = {}
     loaded: list[tuple[str, float]] = []
     for sym, qv in selected:
-        candles: List[Candle] | None = None
+        candles: list[Candle] | None = None
         # Always prefer local cache when present (offline-friendly).
         candles = load_cache_candles(cache_dir, sym, lookback_bars)
         if candles is None:

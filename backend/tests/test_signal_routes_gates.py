@@ -33,7 +33,6 @@ from backend.app.signals.schemas import SignalRouteCreate, TradingViewWebhookBod
 from backend.app.signals.service import SignalSubmissionService
 from backend.app.signals.worker import SignalWorker
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -73,7 +72,7 @@ def _route(**overrides):
         enabled=True,
         execution_target="kraken_paper",
         pair_allowlist="ADAUSD,XRPUSD",
-        max_volume=Decimal("10"),
+        max_volume=Decimal(10),
         max_notional=None,
         allowed_order_types="market",
         max_event_age_seconds=300,
@@ -97,7 +96,7 @@ def _candidate(**overrides):
         strategy_id="S",
         pair="ADAUSD",
         side="buy",
-        volume=Decimal("1"),
+        volume=Decimal(1),
         order_type="market",
         price=None,
         order_id=None,
@@ -154,7 +153,7 @@ def _mock_repo():
     repo.add_evaluation = AsyncMock()
     repo.backlog_for_route = AsyncMock(return_value=0)
     repo.count_recent_events = AsyncMock(return_value=0)
-    repo.open_exposure_for_route = AsyncMock(return_value=Decimal("0"))
+    repo.open_exposure_for_route = AsyncMock(return_value=Decimal(0))
     return repo
 
 
@@ -409,7 +408,7 @@ async def test_accept_duplicate_replays_without_new_job():
         strategy_id="S",
         pair="ADAUSD",
         side="buy",
-        volume=Decimal("1"),
+        volume=Decimal(1),
         order_type="market",
         price=None,
         order_id=None,
@@ -450,7 +449,7 @@ async def test_accept_same_signal_id_changed_payload_conflicts():
             strategy_id="S",
             pair="ADAUSD",
             side="buy",
-            volume=Decimal("1"),
+            volume=Decimal(1),
             order_type="market",
             price=None,
             order_id=None,
@@ -479,8 +478,8 @@ def test_effective_mode_advisory_is_more_restrictive():
 def test_policy_reject_paths_product_pairs():
     route = _route(
         pair_allowlist="ADAUSD,XRPUSD",
-        max_volume=Decimal("1"),
-        max_notional=Decimal("100"),
+        max_volume=Decimal(1),
+        max_notional=Decimal(100),
         allowed_order_types="market",
         strategy_id="S",
     )
@@ -493,46 +492,46 @@ def test_policy_reject_paths_product_pairs():
         == "order_type_not_allowed"
     )
     assert (
-        check_route_policy(_candidate(volume=Decimal("5")), route).reason_code == "volume_cap_exceeded"
+        check_route_policy(_candidate(volume=Decimal(5)), route).reason_code == "volume_cap_exceeded"
     )
     assert (
         check_route_policy(_candidate(strategy_id="OTHER"), route).reason_code == "strategy_mismatch"
     )
     notional = check_route_policy(
-        _candidate(volume=Decimal("1"), observed_price=Decimal("200")),
+        _candidate(volume=Decimal(1), observed_price=Decimal(200)),
         route,
     )
     assert notional.reason_code == "notional_cap_exceeded"
 
 
 def test_open_exposure_cap_rejects_when_projected_exceeds():
-    route = _route(max_open_exposure=Decimal("5"), max_volume=Decimal("10"))
+    route = _route(max_open_exposure=Decimal(5), max_volume=Decimal(10))
     ok = check_open_exposure(
-        _candidate(side="buy", volume=Decimal("2")),
+        _candidate(side="buy", volume=Decimal(2)),
         route,
-        current_open_exposure=Decimal("2"),
+        current_open_exposure=Decimal(2),
     )
     assert ok.ok is True
 
     blocked = check_route_policy(
-        _candidate(side="buy", volume=Decimal("4")),
+        _candidate(side="buy", volume=Decimal(4)),
         route,
-        current_open_exposure=Decimal("2"),
+        current_open_exposure=Decimal(2),
     )
     assert blocked.ok is False
     assert blocked.reason_code == "open_exposure_cap_exceeded"
 
     # None cap = uncapped; sells never consume the buy exposure budget.
-    uncapped = _route(max_open_exposure=None, max_volume=Decimal("10"))
+    uncapped = _route(max_open_exposure=None, max_volume=Decimal(10))
     assert check_open_exposure(
-        _candidate(side="buy", volume=Decimal("100")),
+        _candidate(side="buy", volume=Decimal(100)),
         uncapped,
-        current_open_exposure=Decimal("999"),
+        current_open_exposure=Decimal(999),
     ).ok is True
     assert check_open_exposure(
-        _candidate(side="sell", volume=Decimal("100")),
+        _candidate(side="sell", volume=Decimal(100)),
         route,
-        current_open_exposure=Decimal("5"),
+        current_open_exposure=Decimal(5),
     ).ok is True
 
 
@@ -676,7 +675,7 @@ async def test_worker_policy_reject_skips_evaluator_and_executor():
         evaluator=evaluator,  # type: ignore[arg-type]
     )
     route = _route(mode="bypass_ai", pair_allowlist="XRPUSD", max_volume=Decimal("0.1"))
-    candidate = _candidate(pair="ADAUSD", volume=Decimal("1"))
+    candidate = _candidate(pair="ADAUSD", volume=Decimal(1))
     event = _event_for(candidate, route, mode_snapshot="bypass_ai")
     job = _job(event, route)
     repo = _mock_repo()
@@ -697,12 +696,12 @@ async def test_worker_rejects_open_exposure_cap():
         executor=executor,
         evaluator=_CountingEvaluator(),  # type: ignore[arg-type]
     )
-    route = _route(mode="bypass_ai", max_open_exposure=Decimal("1"), max_volume=Decimal("10"))
-    candidate = _candidate(volume=Decimal("1"))
+    route = _route(mode="bypass_ai", max_open_exposure=Decimal(1), max_volume=Decimal(10))
+    candidate = _candidate(volume=Decimal(1))
     event = _event_for(candidate, route, mode_snapshot="bypass_ai")
     job = _job(event, route)
     repo = _mock_repo()
-    repo.open_exposure_for_route = AsyncMock(return_value=Decimal("1"))
+    repo.open_exposure_for_route = AsyncMock(return_value=Decimal(1))
 
     await worker._run_pipeline(repo, job, event, route)
 

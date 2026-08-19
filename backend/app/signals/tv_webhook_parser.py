@@ -95,8 +95,7 @@ def normalize_kraken_pair(raw: str) -> str:
 
     # PERP / futures suffixes → spot compact (spot-only pipeline).
     for suffix in ("PERP", "USDT.P", "USD.P"):
-        if text.endswith(suffix):
-            text = text[: -len(suffix)]
+        text = text.removesuffix(suffix)
 
     # Prefer known quote endings (longest first).
     quotes = sorted({*_QUOTE_ALIASES.keys(), "USD", "EUR", "GBP", "JPY", "CAD", "CHF", "AUD"}, key=len, reverse=True)

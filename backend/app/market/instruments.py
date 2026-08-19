@@ -43,7 +43,7 @@ class Instrument:
     symbol: str
     canonical_id: str
     quote: str = "USD"
-    contract_size: Decimal = Decimal("1")
+    contract_size: Decimal = Decimal(1)
 
     def price_key(self) -> str:
         """Key for mark-price maps (includes market type)."""
@@ -99,5 +99,5 @@ def resolve_instrument(
         market_type="futures",
         symbol=symbol,
         canonical_id=f"futures:{symbol}",
-        contract_size=Decimal("1"),
+        contract_size=Decimal(1),
     )

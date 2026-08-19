@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from backend.app.settings import Settings
 from backend.app.trading.position_sizing import (
     compute_notional_eur,
     kelly_fraction,
@@ -14,7 +15,6 @@ from backend.app.trading.position_sizing import (
     validate_sizing_policy,
     volume_from_notional,
 )
-from backend.app.settings import Settings
 from backend.app.trading.session import Level4Session
 from backend.app.trading.session_policy import validate_session_risk_policy
 
@@ -79,7 +79,7 @@ def test_kelly_math_basic():
 
 
 def test_volume_from_notional():
-    vol = volume_from_notional(notional_eur=10, price=Decimal("2"))
+    vol = volume_from_notional(notional_eur=10, price=Decimal(2))
     assert vol == Decimal("5.00000000")
 
 
@@ -91,8 +91,8 @@ async def test_live_entry_uses_dynamic_kelly_instead_of_requested_volume(
         kraken_autonomy_level=4,
         kraken_live_trading_enabled=True,
         kraken_pair_allowlist="ADAUSD",
-        kraken_max_order_size=Decimal("100"),
-        kraken_max_notional=Decimal("1000"),
+        kraken_max_order_size=Decimal(100),
+        kraken_max_notional=Decimal(1000),
         kraken_min_trade_interval_seconds=0,
     )
     cli = MagicMock()
@@ -126,7 +126,7 @@ async def test_live_entry_uses_dynamic_kelly_instead_of_requested_volume(
     result = await session.execute_order(
         "buy",
         "ADAUSD",
-        Decimal("999"),
+        Decimal(999),
         "market",
         None,
         confidence_pct=75,

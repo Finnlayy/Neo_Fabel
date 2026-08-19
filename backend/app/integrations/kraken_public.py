@@ -8,7 +8,6 @@ import httpx
 
 from .kraken_cli import KrakenCliError
 
-
 # App uses BTCUSD-style symbols; Kraken public API prefers XBT for bitcoin.
 PAIR_ALIASES = {
     "BTCUSD": "XBTUSD",

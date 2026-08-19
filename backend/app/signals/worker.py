@@ -94,7 +94,7 @@ class SignalWorker:
             if not processed:
                 try:
                     await asyncio.wait_for(self._stop.wait(), timeout=self.settings.signal_worker_poll_seconds)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     pass
 
     async def poll_once(self) -> bool:
@@ -402,7 +402,7 @@ class SignalWorker:
                 reason_code=reason_code,
                 request_id=str(event.request_id) if getattr(event, "request_id", None) else None,
             )
-        except Exception:  # noqa: BLE001 — notify must never fail the worker
+        except Exception:
             logger.debug("trade telegram notify failed", exc_info=True)
 
     async def _fail(self, repo: SignalRepository, job, event, status: str, reason: str) -> None:

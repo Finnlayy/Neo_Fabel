@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any
 
 from backend.app.chronos.bsq import BinarySphericalQuantizer
 from backend.app.chronos.normalize import ChronosNormalizer, NormalizeResult

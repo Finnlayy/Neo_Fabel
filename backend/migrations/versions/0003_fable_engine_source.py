@@ -10,7 +10,6 @@ delete them first (research data only).
 
 from alembic import op
 
-
 revision = "0003_fable_engine_source"
 down_revision = "0002_signal_routes"
 branch_labels = None

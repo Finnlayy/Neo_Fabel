@@ -7,9 +7,9 @@ own continuous latents.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from math import exp, log, sqrt
-from typing import Sequence
 
 LATENT_DIM = 20
 COARSE_BITS = 10

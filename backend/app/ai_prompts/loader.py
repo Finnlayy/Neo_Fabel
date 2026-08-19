@@ -160,4 +160,4 @@ def build_orchestrator_system(
 
 
 def skill_names_in_text(text: str) -> list[str]:
-    return re.findall(r"(?:skill:\s*)?((?:kraken|recipe)-[a-z0-9-]+)", text or "", flags=re.I)
+    return re.findall(r"(?:skill:\s*)?((?:kraken|recipe)-[a-z0-9-]+)", text or "", flags=re.IGNORECASE)

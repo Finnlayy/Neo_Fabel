@@ -10,13 +10,14 @@ import math
 import random
 import statistics
 import time
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
-from typing import Any, Callable, Dict, List, Sequence, Tuple, cast
+from typing import Any, cast
 
 ProgressCallback = Callable[[dict[str, Any]], None]
-Frame = Dict[str, object]
-SymbolPack = Dict[str, Frame]
-MarketPacks = Dict[str, SymbolPack]
+Frame = dict[str, object]
+SymbolPack = dict[str, Frame]
+MarketPacks = dict[str, SymbolPack]
 
 
 @dataclass(frozen=True)
@@ -60,7 +61,7 @@ class Stats:
     max_dd: float = 0.0
     max_loss_streak: int = 0
     _streak: int = 0
-    returns: List[float] | None = None
+    returns: list[float] | None = None
 
     def __post_init__(self) -> None:
         if self.returns is None:
@@ -79,10 +80,10 @@ def qstdev(xs: Sequence[float]) -> float:
     return statistics.pstdev(xs) if len(xs) > 1 else 0.0
 
 
-def resample(candles: List[Candle], factor: int) -> List[Candle]:
+def resample(candles: list[Candle], factor: int) -> list[Candle]:
     if factor == 1:
         return candles[:]
-    out: List[Candle] = []
+    out: list[Candle] = []
     for i in range(0, len(candles), factor):
         chunk = candles[i : i + factor]
         if len(chunk) < factor:
@@ -100,7 +101,7 @@ def resample(candles: List[Candle], factor: int) -> List[Candle]:
     return out
 
 
-def ema(xs: Sequence[float], period: int) -> List[float]:
+def ema(xs: Sequence[float], period: int) -> list[float]:
     if not xs:
         return []
     a = 2.0 / (period + 1.0)
@@ -110,8 +111,8 @@ def ema(xs: Sequence[float], period: int) -> List[float]:
     return out
 
 
-def sma(xs: Sequence[float], period: int) -> List[float]:
-    out: List[float] = []
+def sma(xs: Sequence[float], period: int) -> list[float]:
+    out: list[float] = []
     s = 0.0
     for i, x in enumerate(xs):
         s += x
@@ -121,8 +122,8 @@ def sma(xs: Sequence[float], period: int) -> List[float]:
     return out
 
 
-def atr(candles: Sequence[Candle], period: int = 14) -> List[float]:
-    trs: List[float] = []
+def atr(candles: Sequence[Candle], period: int = 14) -> list[float]:
+    trs: list[float] = []
     prev = candles[0].c
     for c in candles:
         trs.append(max(c.h - c.low, abs(c.h - prev), abs(c.low - prev)))
@@ -130,16 +131,16 @@ def atr(candles: Sequence[Candle], period: int = 14) -> List[float]:
     return ema(trs, period)
 
 
-def trend_flags(candles: Sequence[Candle]) -> Tuple[List[bool], List[bool]]:
+def trend_flags(candles: Sequence[Candle]) -> tuple[list[bool], list[bool]]:
     closes = [c.c for c in candles]
     e50 = ema(closes, 50)
     e200 = ema(closes, 200)
-    bull = [c > a and a > b for c, a, b in zip(closes, e50, e200)]
-    bear = [c < a and a < b for c, a, b in zip(closes, e50, e200)]
+    bull = [c > a > b for c, a, b in zip(closes, e50, e200)]
+    bear = [c < a < b for c, a, b in zip(closes, e50, e200)]
     return bull, bear
 
 
-def cisd_flags(candles: Sequence[Candle], lr: int) -> Tuple[List[bool], List[bool]]:
+def cisd_flags(candles: Sequence[Candle], lr: int) -> tuple[list[bool], list[bool]]:
     n = len(candles)
     bull = [False] * n
     bear = [False] * n
@@ -160,19 +161,19 @@ def cisd_flags(candles: Sequence[Candle], lr: int) -> Tuple[List[bool], List[boo
 
 
 def build_frame(
-    symbol: str, tf: str, candles: List[Candle], quote_vol: float, cisd_lens: List[int]
+    symbol: str, tf: str, candles: list[Candle], quote_vol: float, cisd_lens: list[int]
 ) -> Frame:
     bull, bear = trend_flags(candles)
     vols = [c.v for c in candles]
     vol_ma = sma(vols, 20)
     atr14 = atr(candles)
-    body_ratio: List[float] = []
+    body_ratio: list[float] = []
     fvg_bull = [False] * len(candles)
     fvg_bear = [False] * len(candles)
     daily_move = [0.0] * len(candles)
     bull_rev = [False] * len(candles)
     bear_rev = [False] * len(candles)
-    by_day: Dict[str, float] = {}
+    by_day: dict[str, float] = {}
     for c in candles:
         day = time.strftime("%Y-%m-%d", time.gmtime(c.ts / 1000))
         by_day.setdefault(day, c.o)
@@ -192,8 +193,8 @@ def build_frame(
         fvg_bear[i] = cur.h < candles[i - 2].low and p.c < p.o
         day = time.strftime("%Y-%m-%d", time.gmtime(cur.ts / 1000))
         daily_move[i] = abs(cur.c - by_day[day]) / max(by_day[day], 1e-12) * 100.0
-    cisd_bull_map: Dict[int, List[bool]] = {}
-    cisd_bear_map: Dict[int, List[bool]] = {}
+    cisd_bull_map: dict[int, list[bool]] = {}
+    cisd_bear_map: dict[int, list[bool]] = {}
     for lr in cisd_lens:
         b, s = cisd_flags(candles, lr)
         cisd_bull_map[lr] = b
@@ -220,7 +221,7 @@ def build_frame(
 
 
 def build_symbol_pack(
-    symbol: str, candles_15: List[Candle], quote_vol: float, cisd_lens: List[int] | None = None
+    symbol: str, candles_15: list[Candle], quote_vol: float, cisd_lens: list[int] | None = None
 ) -> SymbolPack:
     lenses = cisd_lens or [3, 4, 5, 6, 7, 8]
     candles_30 = resample(candles_15, 2)
@@ -244,22 +245,22 @@ def split_index(n: int, ratio: float) -> int:
 
 def dataset_stats(
     rows: Frame, g: Genome, fee_r: float, max_hold: int, split: int
-) -> Tuple[Stats, Stats]:
+) -> tuple[Stats, Stats]:
     def run_segment(start: int, end: int) -> Stats:
         s = Stats()
-        candles = cast(List[Candle], rows["candles"])
-        trend_bull = cast(List[bool], rows["trend_bull"])
-        trend_bear = cast(List[bool], rows["trend_bear"])
-        vol_ratio = cast(List[float], rows["vol_ratio"])
-        atr_vals = cast(List[float], rows["atr"])
-        body_ratio = cast(List[float], rows["body_ratio"])
-        bull_rev = cast(List[bool], rows["bull_rev"])
-        bear_rev = cast(List[bool], rows["bear_rev"])
-        fvg_bull = cast(List[bool], rows["fvg_bull"])
-        fvg_bear = cast(List[bool], rows["fvg_bear"])
-        daily_move = cast(List[float], rows["daily_move"])
-        cisd_bull_map = cast(Dict[int, List[bool]], rows["cisd_bull"])
-        cisd_bear_map = cast(Dict[int, List[bool]], rows["cisd_bear"])
+        candles = cast(list[Candle], rows["candles"])
+        trend_bull = cast(list[bool], rows["trend_bull"])
+        trend_bear = cast(list[bool], rows["trend_bear"])
+        vol_ratio = cast(list[float], rows["vol_ratio"])
+        atr_vals = cast(list[float], rows["atr"])
+        body_ratio = cast(list[float], rows["body_ratio"])
+        bull_rev = cast(list[bool], rows["bull_rev"])
+        bear_rev = cast(list[bool], rows["bear_rev"])
+        fvg_bull = cast(list[bool], rows["fvg_bull"])
+        fvg_bear = cast(list[bool], rows["fvg_bear"])
+        daily_move = cast(list[float], rows["daily_move"])
+        cisd_bull_map = cast(dict[int, list[bool]], rows["cisd_bull"])
+        cisd_bear_map = cast(dict[int, list[bool]], rows["cisd_bear"])
 
         pos = 0
         entry = sl = tp = 0.0
@@ -349,7 +350,7 @@ def dataset_stats(
     return run_segment(0, split_i), run_segment(split_i, n)
 
 
-def bundle(s: Stats) -> Dict[str, float]:
+def bundle(s: Stats) -> dict[str, float]:
     if s.trades == 0:
         return {
             "trades": 0,
@@ -381,7 +382,7 @@ def bundle(s: Stats) -> Dict[str, float]:
     }
 
 
-def fitness(b: Dict[str, float]) -> float:
+def fitness(b: dict[str, float]) -> float:
     """Safety-biased fitness: trades < 10 → −100; DD/PF penalties as original."""
     if b["trades"] < 10:
         return -100.0
@@ -401,7 +402,7 @@ def fitness(b: Dict[str, float]) -> float:
     return score
 
 
-def genome_dict(g: Genome) -> Dict[str, object]:
+def genome_dict(g: Genome) -> dict[str, object]:
     return asdict(g)
 
 
@@ -475,17 +476,17 @@ def mutate(g: Genome, rng: random.Random, rate: float, strength: float) -> Genom
 def eval_genome(
     g: Genome,
     packs: MarketPacks,
-    symbols: List[Tuple[str, float]],
+    symbols: list[tuple[str, float]],
     train_ratio: float,
     fee_r: float,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     max_hold = {"15m": 96, "30m": 48, "1h": 24}
-    results: List[Tuple[float, float, float, float, float]] = []
+    results: list[tuple[float, float, float, float, float]] = []
     for symbol, qv in symbols:
         weight = math.sqrt(max(qv, 1.0))
         for tf in ("15m", "30m", "1h"):
             rows = packs[symbol][tf]
-            candles = cast(List[Candle], rows["candles"])
+            candles = cast(list[Candle], rows["candles"])
             split = split_index(len(candles), train_ratio)
             train_s, fwd_s = dataset_stats(rows, g, fee_r, max_hold[tf], split)
             tb, fb = bundle(train_s), bundle(fwd_s)
@@ -517,7 +518,7 @@ def eval_genome(
     }
 
 
-def render_report_md(settings: dict[str, Any], top3: List[Dict[str, object]]) -> str:
+def render_report_md(settings: dict[str, Any], top3: list[dict[str, object]]) -> str:
     md = [
         "# Genetic Forward Optimization Report",
         "",
@@ -563,7 +564,7 @@ def render_report_md(settings: dict[str, Any], top3: List[Dict[str, object]]) ->
 
 def run_ga_optimize(
     packs: MarketPacks,
-    symbols: List[Tuple[str, float]],
+    symbols: list[tuple[str, float]],
     *,
     population: int = 30,
     generations: int = 50,
@@ -583,9 +584,9 @@ def run_ga_optimize(
         raise ValueError("No symbols available for GA optimize")
     rng = random.Random(seed)
     pop = [random_genome(rng) for _ in range(population)]
-    best: List[Dict[str, object]] = []
+    best: list[dict[str, object]] = []
     for gen in range(generations):
-        scored: List[Tuple[float, Dict[str, object]]] = []
+        scored: list[tuple[float, dict[str, object]]] = []
         for genome in pop:
             res = eval_genome(genome, packs, symbols, train_ratio, fee_r)
             scored.append((float(res["fitness"]), res))  # type: ignore[arg-type]

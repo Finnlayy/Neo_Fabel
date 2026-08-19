@@ -12,7 +12,6 @@ from starlette.requests import Request
 from backend.app.main import app
 from backend.app.settings import Settings, get_settings
 
-
 client = TestClient(app)
 
 

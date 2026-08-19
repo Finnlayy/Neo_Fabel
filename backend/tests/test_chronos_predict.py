@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.auth import require_user
 from backend.app.chronos.plot_prediction import plot_prediction, plot_prediction_monte_carlo
-from backend.app.chronos.predictor import ChronosPredictor, FEATURE_COLS
+from backend.app.chronos.predictor import FEATURE_COLS, ChronosPredictor
 from backend.app.main import app
 
 client = TestClient(app)

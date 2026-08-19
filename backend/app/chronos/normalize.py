@@ -6,9 +6,9 @@ Caller must pass lookback-only windows — never mix prediction targets into μ/
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from math import sqrt
-from typing import Sequence
 
 OHLCVA_DIM = 6
 DEFAULT_EPS = 1e-6

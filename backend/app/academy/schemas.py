@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class Badge(BaseModel):
@@ -51,7 +51,7 @@ class AgentLeaderboardEntry(BaseModel):
     accuracy: float
     experience: int
     specialization_score: float
-    top_badge: Optional[Badge] = None
+    top_badge: Badge | None = None
 
 
 class SyntheticDrill(BaseModel):
@@ -80,7 +80,7 @@ class PromptVersion(BaseModel):
     scout_name: str
     prompt_text: str
     created_at: str = Field(default_factory=_utc_now)
-    parent_version: Optional[str] = None
+    parent_version: str | None = None
     change_summary: str = "Initial version"
 
 
@@ -91,12 +91,12 @@ class ABTest(BaseModel):
     variant_b_version: str
     status: str = "running"
     started_at: str = Field(default_factory=_utc_now)
-    concluded_at: Optional[str] = None
+    concluded_at: str | None = None
     calls_a: int = 0
     calls_b: int = 0
     correct_a: int = 0
     correct_b: int = 0
-    winner_version: Optional[str] = None
+    winner_version: str | None = None
 
 
 class CurriculumProgress(BaseModel):

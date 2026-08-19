@@ -9,8 +9,8 @@ import pytest
 from backend.app.trading.session_policy import (
     assert_confidence_ok,
     assert_daily_loss_ok,
-    assert_max_drawdown_ok,
     assert_market_hours_allowed,
+    assert_max_drawdown_ok,
     parse_cap_amount,
     validate_session_risk_policy,
 )

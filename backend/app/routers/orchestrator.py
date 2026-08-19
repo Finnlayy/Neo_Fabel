@@ -90,7 +90,7 @@ async def _audit(
                 reasoning=str(reasoning)[:2_000] if reasoning else None,
             )
         return True
-    except Exception:  # noqa: BLE001 - advisory remains usable when audit DB is down
+    except Exception:
         logger.exception("orchestrator audit persistence failed request_id=%s", request_id)
         return False
 
@@ -153,7 +153,7 @@ async def market_regime(
     timestamp = datetime.now(UTC)
     try:
         result = await service.analyze_market_regime(body)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise _error(exc, request_id) from exc
     persisted = await _audit(
         user_uid=str(user["uid"]),
@@ -177,7 +177,7 @@ async def signal_quality(
     timestamp = datetime.now(UTC)
     try:
         result = await service.score_signal_quality(body)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise _error(exc, request_id) from exc
     persisted = await _audit(
         user_uid=str(user["uid"]),
@@ -201,7 +201,7 @@ async def full_decision(
     timestamp = datetime.now(UTC)
     try:
         result = await service.full_decision(body)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise _error(exc, request_id) from exc
     persisted = await _audit(
         user_uid=str(user["uid"]),
@@ -231,7 +231,7 @@ async def decisions(
                 limit=limit,
                 decision_type=decision_type,
             )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(
             status_code=503,
             detail={

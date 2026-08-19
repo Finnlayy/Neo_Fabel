@@ -484,7 +484,7 @@ def parse_pine_inputs(source: str) -> dict[str, Any]:
         r"(?:(?P<var>\w+)\s*=\s*)?input\.(?P<kind>int|float|bool|string)\s*\(\s*"
         r"(?P<default>[^,\)]+)\s*"
         r"(?:,\s*(?:title\s*=\s*)?[\"'](?P<title>[^\"']+)[\"'])?",
-        re.I,
+        re.IGNORECASE,
     )
     for match in pattern.finditer(source):
         var = match.group("var")

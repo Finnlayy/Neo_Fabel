@@ -2,9 +2,8 @@
 
 Revision ID: 0001_paper_order_intents
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "0001_paper_order_intents"
 down_revision = None

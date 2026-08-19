@@ -8,10 +8,9 @@ from typing import Any, Literal, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..paper_orders import PaperOrderService
-
-
 from backend.app.market.instruments import MarketType
+
+from ..paper_orders import PaperOrderService
 
 
 class PaperExecutionPort(Protocol):

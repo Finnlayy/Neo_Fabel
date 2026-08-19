@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from backend.app.integrations.kraken_cli import KrakenCli, KrakenCliError, SPOT_ORDER_TYPES
+from backend.app.integrations.kraken_cli import SPOT_ORDER_TYPES, KrakenCli, KrakenCliError
 from backend.app.schemas import CancelAllOrdersRequest, PlaceOrderRequest
 
 

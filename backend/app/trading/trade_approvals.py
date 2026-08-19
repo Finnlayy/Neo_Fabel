@@ -16,7 +16,7 @@ logger = logging.getLogger("neo_fabel.trading.trade_approvals")
 ProposalStatus = Literal["pending", "approved", "rejected", "expired", "executed", "failed"]
 
 _LOCK = Lock()
-_PROPOSALS: dict[str, "TradeProposal"] = {}
+_PROPOSALS: dict[str, TradeProposal] = {}
 _DEFAULT_TTL_SEC = 900  # 15 minutes
 
 
@@ -151,7 +151,7 @@ def format_proposal_message(proposal: TradeProposal) -> str:
     lines.extend(
         [
             "",
-            "Reply <code>/approve {0}</code> or <code>/reject {0}</code>".format(proposal.proposal_id),
+            f"Reply <code>/approve {proposal.proposal_id}</code> or <code>/reject {proposal.proposal_id}</code>",
             "or tap the buttons below.",
         ]
     )
@@ -174,7 +174,11 @@ async def send_trade_proposal_telegram(
     proposal: TradeProposal,
 ) -> dict[str, Any] | None:
     try:
-        from backend.app.integrations.telegram_bot import TelegramBot, TelegramNotConfigured, push_local_signal
+        from backend.app.integrations.telegram_bot import (
+            TelegramBot,
+            TelegramNotConfigured,
+            push_local_signal,
+        )
 
         bot = TelegramBot(settings)
         if not bot.configured:

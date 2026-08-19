@@ -4,9 +4,8 @@ Revision ID: 0002_signal_routes
 Revises: 0001_paper_order_intents
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "0002_signal_routes"
 down_revision = "0001_paper_order_intents"

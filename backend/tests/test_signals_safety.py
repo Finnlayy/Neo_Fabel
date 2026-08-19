@@ -7,7 +7,11 @@ from backend.app.settings import Settings
 from backend.app.signals.domain import LEGAL_TRANSITIONS, assert_transition
 from backend.app.signals.evaluator import FakeSignalEvaluator, normalize_evaluation
 from backend.app.signals.policy import build_candidate, canonical_hash_for, check_route_policy
-from backend.app.signals.safety import SignalSafetyError, assert_signal_paper_only, assert_signals_module_imports
+from backend.app.signals.safety import (
+    SignalSafetyError,
+    assert_signal_paper_only,
+    assert_signals_module_imports,
+)
 from backend.app.signals.schemas import TradingViewWebhookBody
 from backend.app.trading.autonomy import AutonomyLevel
 
@@ -115,7 +119,7 @@ def test_canonical_hash_stable_and_credential_free():
         price=None,
         order_id=None,
         raw_symbol=None,
-        observed_price=Decimal("65000"),
+        observed_price=Decimal(65000),
         source="fable_engine",
     )
     assert padded == slim
@@ -182,7 +186,7 @@ async def test_fake_evaluator_pattern_boost_agreement_approves():
         observed_price=None,
         source="tradingview",
         pattern_bias="bullish",
-        pattern_confidence=Decimal("80"),
+        pattern_confidence=Decimal(80),
     )
     result = await evaluator.evaluate(candidate, policy_version="v1", deterministic_ok=True)
     assert result.decision == "approve"
@@ -207,7 +211,7 @@ async def test_fake_evaluator_pattern_boost_mismatch_rejects_high_confidence():
         observed_price=None,
         source="tradingview",
         pattern_bias="bearish",
-        pattern_confidence=Decimal("80"),
+        pattern_confidence=Decimal(80),
     )
     result = await evaluator.evaluate(candidate, policy_version="v1", deterministic_ok=True)
     assert result.decision == "reject"
@@ -232,16 +236,17 @@ async def test_fake_evaluator_pattern_boost_mismatch_low_confidence_abstains():
         observed_price=None,
         source="tradingview",
         pattern_bias="bearish",
-        pattern_confidence=Decimal("40"),
+        pattern_confidence=Decimal(40),
     )
     result = await evaluator.evaluate(candidate, policy_version="v1", deterministic_ok=True)
     assert result.decision == "abstain"
 
 
 def test_route_policy_rejects_pair():
-    from backend.app.models import SignalRoute
     from datetime import UTC, datetime
     from uuid import uuid4
+
+    from backend.app.models import SignalRoute
 
     route = SignalRoute(
         id=str(uuid4()),
@@ -253,7 +258,7 @@ def test_route_policy_rejects_pair():
         enabled=True,
         execution_target="kraken_paper",
         pair_allowlist="ETHUSD",
-        max_volume=Decimal("1"),
+        max_volume=Decimal(1),
         max_notional=None,
         allowed_order_types="market",
         max_event_age_seconds=300,
@@ -329,7 +334,7 @@ async def test_fake_evaluator_forced_non_approve_paths():
         strategy_id="S",
         pair="ADAUSD",
         side="buy",
-        volume=Decimal("10"),
+        volume=Decimal(10),
         order_type="market",
         price=None,
         order_id=None,
@@ -364,7 +369,7 @@ async def test_fake_paper_port_records_and_timeout_for_execution_unknown():
             event_id="e",
             pair="ADAUSD",
             side="buy",
-            volume=Decimal("10"),
+            volume=Decimal(10),
             order_type="market",
             price=None,
             request_id="r",

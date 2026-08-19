@@ -1,5 +1,7 @@
 import pytest
+
 from app.settings import Settings
+
 
 def test_cors_origins_valid():
     settings = Settings(allowed_origins="http://localhost:5173, https://example.com, *, http://192.168.1.100:8080")

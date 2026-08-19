@@ -39,14 +39,14 @@ def _last_price(payload: dict[str, Any]) -> Decimal:
         if isinstance(first, dict):
             raw = first
     if not isinstance(raw, dict):
-        return Decimal("0")
+        return Decimal(0)
     value = raw.get("last") or raw.get("price") or raw.get("close") or raw.get("c")
     if isinstance(value, list) and value:
         value = value[0]
     try:
         return Decimal(str(value or "0"))
     except Exception:  # noqa: BLE001
-        return Decimal("0")
+        return Decimal(0)
 
 
 async def _estimate_live_equity_usd(cli: Any) -> float:
@@ -64,7 +64,7 @@ async def _estimate_live_equity_usd(cli: Any) -> float:
             if key not in {"error", "raw", "result", "balances"}
         }
     )
-    equity = Decimal("0")
+    equity = Decimal(0)
     for raw_asset, raw_volume in balances.items():
         try:
             volume = Decimal(str(raw_volume or "0"))
@@ -191,7 +191,7 @@ class TradingLoopsService:
             self._paper_last_error = None
             try:
                 await engine.run_forever(force=True)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 self._paper_last_error = str(exc)
                 logger.exception("paper loop failed: %s", exc)
             finally:
@@ -450,8 +450,8 @@ class TradingLoopsService:
                 open_count = int((live_session_ledger.active or {}).get("last_open_trades") or 0)
         finished = live_session_ledger.stop(open_trades=open_count, status="stopped")
         if finished is not None:
-            from backend.app.trading.live_heartbeat import send_live_heartbeat
             from backend.app.settings import get_settings
+            from backend.app.trading.live_heartbeat import send_live_heartbeat
 
             await send_live_heartbeat(
                 get_settings(),

@@ -18,7 +18,7 @@ class TradingGuardrails:
     """Position and frequency limits the CLI does not enforce."""
 
     max_order_size: Decimal = Decimal("0.01")
-    max_notional: Decimal = Decimal("2")
+    max_notional: Decimal = Decimal(2)
     max_open_positions: int = 3
     max_trades_per_hour: int = 10
     min_trade_interval_seconds: float = 30.0

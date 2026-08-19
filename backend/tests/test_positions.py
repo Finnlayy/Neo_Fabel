@@ -89,7 +89,7 @@ async def test_close_paper_position_api(authenticated_user, monkeypatch: pytest.
     monkeypatch.setattr("backend.app.integrations.paper_paths.ledger_path", lambda: ledger_file)
 
     async def _price(_market_type: str, pair: str) -> Decimal:
-        return Decimal("50000")
+        return Decimal(50000)
 
     from backend.app.integrations.local_paper import get_local_paper_ledger
 
@@ -120,13 +120,13 @@ async def test_close_paper_position_api(authenticated_user, monkeypatch: pytest.
 @pytest.mark.asyncio
 async def test_open_volume_helper(tmp_path: Path) -> None:
     async def _price(_market_type: str, _pair: str) -> Decimal:
-        return Decimal("100")
+        return Decimal(100)
 
     ledger = LocalPaperLedger(
-        starting_balance_usd=Decimal("10000"),
+        starting_balance_usd=Decimal(10000),
         kelly_sizing_enabled=False,
         _path=tmp_path / "ledger.json",
     )
     ledger.set_price_resolver(_price)
-    await ledger.paper_order("buy", "ETHUSD", Decimal("2"), "market", None)
-    assert ledger.open_volume("ETHUSD") == Decimal("2")
+    await ledger.paper_order("buy", "ETHUSD", Decimal(2), "market", None)
+    assert ledger.open_volume("ETHUSD") == Decimal(2)

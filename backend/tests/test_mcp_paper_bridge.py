@@ -36,7 +36,7 @@ def isolated_bridge_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> L
     ledger = LocalPaperLedger(_path=tmp_path / "ledger.json")
 
     async def _price(_market_type: str, pair: str) -> Decimal:
-        return Decimal("0.50") if "ADA" in pair.upper() else Decimal("100")
+        return Decimal("0.50") if "ADA" in pair.upper() else Decimal(100)
 
     ledger.set_price_resolver(_price)
 

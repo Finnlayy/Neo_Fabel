@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import struct
-from typing import Sequence
+from collections.abc import Sequence
 
 from backend.app.chronos.bsq import LATENT_DIM
 from backend.app.chronos.normalize import OHLCVA_DIM

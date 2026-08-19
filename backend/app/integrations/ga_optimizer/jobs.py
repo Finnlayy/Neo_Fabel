@@ -164,7 +164,7 @@ class GaJobRegistry:
                             "status": "completed",
                         },
                     )
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     logger.exception("GA job %s failed", run_id)
                     self.update(run_id, status="failed", error=str(exc))
 

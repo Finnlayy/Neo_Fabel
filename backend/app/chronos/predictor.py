@@ -10,10 +10,11 @@ from __future__ import annotations
 import hashlib
 import math
 import random
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any
 
-from backend.app.chronos.normalize import ChronosNormalizer, OHLCVA_DIM
+from backend.app.chronos.normalize import OHLCVA_DIM, ChronosNormalizer
 
 FEATURE_COLS = ("open", "high", "low", "close", "volume", "amount")
 

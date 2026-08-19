@@ -56,7 +56,7 @@ def save_uploaded_onnx(
         if model.graph.input:
             for d in model.graph.input[0].type.tensor_type.shape.dim:
                 input_shape.append(d.dim_value if d.dim_value else None)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         tmp.unlink(missing_ok=True)
         raise ValueError(f"invalid onnx: {exc}") from exc
 

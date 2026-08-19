@@ -176,7 +176,7 @@ async def mcp_paper_fill(
             extra=rationale,
             channel="MCP PAPER FILL",
         )
-    except Exception:  # noqa: BLE001 — notify must never fail the fill path
+    except Exception:
         logger.debug("mcp paper fill telegram notify failed", exc_info=True)
 
     return McpPaperFillResponse(ok=True, request_id=rid, rationale=rationale, result=raw if isinstance(raw, dict) else {"raw": raw})

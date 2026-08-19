@@ -7,7 +7,6 @@ from backend.app.integrations import telegram_bot as telegram_module
 from backend.app.main import app
 from backend.app.settings import get_settings
 
-
 client = TestClient(app)
 
 

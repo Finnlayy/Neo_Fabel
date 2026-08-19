@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     kraken_deadman_seconds: int = Field(default=600, validation_alias="KRAKEN_DEADMAN_SECONDS")
     kraken_max_order_size: Decimal = Field(default=Decimal("0.01"), validation_alias="KRAKEN_MAX_ORDER_SIZE")
     # Max quote notional per live trade (EUR/USD treated as account cash units). Tiny accounts: ~2.
-    kraken_max_notional: Decimal = Field(default=Decimal("2"), validation_alias="KRAKEN_MAX_NOTIONAL")
+    kraken_max_notional: Decimal = Field(default=Decimal(2), validation_alias="KRAKEN_MAX_NOTIONAL")
     kraken_max_open_positions: int = Field(default=3, validation_alias="KRAKEN_MAX_OPEN_POSITIONS")
     kraken_max_trades_per_hour: int = Field(default=10, validation_alias="KRAKEN_MAX_TRADES_PER_HOUR")
     kraken_min_trade_interval_seconds: float = Field(
@@ -62,12 +62,12 @@ class Settings(BaseSettings):
         default="",
         validation_alias="PAPER_OPPORTUNITY_SYMBOLS",
     )
-    paper_starting_balance_usd: Decimal = Field(default=Decimal("10000"), validation_alias="PAPER_STARTING_BALANCE_USD")
+    paper_starting_balance_usd: Decimal = Field(default=Decimal(10000), validation_alias="PAPER_STARTING_BALANCE_USD")
     paper_futures_starting_margin_usd: Decimal = Field(
-        default=Decimal("10000"), validation_alias="PAPER_FUTURES_STARTING_MARGIN_USD"
+        default=Decimal(10000), validation_alias="PAPER_FUTURES_STARTING_MARGIN_USD"
     )
     paper_default_market: str = Field(default="spot", validation_alias="PAPER_DEFAULT_MARKET")
-    paper_maker_fee_rate: Decimal = Field(default=Decimal("0"), validation_alias="PAPER_MAKER_FEE_RATE")
+    paper_maker_fee_rate: Decimal = Field(default=Decimal(0), validation_alias="PAPER_MAKER_FEE_RATE")
     paper_taker_fee_rate: Decimal = Field(default=Decimal("0.0005"), validation_alias="PAPER_TAKER_FEE_RATE")
     paper_kelly_sizing_enabled: bool = Field(default=True, validation_alias="PAPER_KELLY_SIZING_ENABLED")
     paper_kelly_mode: str = Field(default="half_kelly", validation_alias="PAPER_KELLY_MODE")

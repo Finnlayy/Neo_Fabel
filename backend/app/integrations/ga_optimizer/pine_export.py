@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 STRATEGIES_DIR = REPO_ROOT / "assets" / "strategies"
@@ -61,7 +62,7 @@ def list_templates() -> list[dict[str, Any]]:
 class Candidate:
     symbol: str
     fitness: float
-    params: Dict[str, Any]
+    params: dict[str, Any]
     source: str
 
 
@@ -148,8 +149,8 @@ def extract_template_symbol(template_text: str, fallback: str) -> str:
     return fallback
 
 
-def normalize_candidates(payload: Dict[str, Any], fallback_symbol: str) -> List[Candidate]:
-    candidates: List[Candidate] = []
+def normalize_candidates(payload: dict[str, Any], fallback_symbol: str) -> list[Candidate]:
+    candidates: list[Candidate] = []
 
     if isinstance(payload.get("per_symbol"), dict):
         for symbol, data in payload["per_symbol"].items():
@@ -198,10 +199,10 @@ def normalize_candidates(payload: Dict[str, Any], fallback_symbol: str) -> List[
     raise ValueError("Unsupported GA result schema. Expected top3, top_results, or per_symbol.")
 
 
-def unique_top(candidates: Iterable[Candidate], limit: int) -> List[Candidate]:
+def unique_top(candidates: Iterable[Candidate], limit: int) -> list[Candidate]:
     ranked = sorted(candidates, key=lambda row: row.fitness, reverse=True)
     seen = set()
-    unique: List[Candidate] = []
+    unique: list[Candidate] = []
     for row in ranked:
         key = (sanitize_symbol(row.symbol), json.dumps(row.params, sort_keys=True, default=str))
         if key in seen:
@@ -628,7 +629,7 @@ def generate_files(
     tf_high: str,
     tf_mid: str,
     tf_low: str,
-) -> List[Path]:
+) -> list[Path]:
     payload = json.loads(results_path.read_text(encoding="utf-8"))
     meta = export_pines_from_payload(
         payload,

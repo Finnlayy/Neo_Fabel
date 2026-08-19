@@ -79,10 +79,10 @@ def test_paper_factory_prefer_local() -> None:
 async def test_futures_roundtrip(tmp_path: Path) -> None:
     reset_local_paper_ledger_for_tests()
     ledger = LocalPaperLedger(
-        starting_margin_usd=Decimal("10000"),
+        starting_margin_usd=Decimal(10000),
         _path=tmp_path / "fut.json",
     )
-    ledger.set_price_resolver(AsyncMock(return_value=Decimal("50000")))
+    ledger.set_price_resolver(AsyncMock(return_value=Decimal(50000)))
     buy = await ledger.paper_order(
         "buy", "BTCUSD", Decimal("0.01"), "market", None, market_type="futures", leverage=5
     )

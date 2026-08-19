@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +14,7 @@ PROMPT_SHOT_LOG_FILE = ACADEMY_DATA_DIR / "prompt_shot_log.jsonl"
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def append_prompt_shot_event(event: dict[str, Any]) -> Path:

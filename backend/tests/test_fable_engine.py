@@ -9,13 +9,13 @@ import pytest
 from backend.app.settings import Settings
 from backend.app.signals.engine.config import EngineSettings, StrategyConfig
 from backend.app.signals.engine.generator import FableEngine
-from backend.app.signals.engine.ratelimit import TokenBucket
 from backend.app.signals.engine.market_source import (
     bars_to_candles,
     ccxt_rows_to_candles,
     normalize_interval,
     resolve_source,
 )
+from backend.app.signals.engine.ratelimit import TokenBucket
 from backend.app.signals.engine.strategies import DcaStrategy, GridStrategy, StrategyState
 from backend.app.signals.safety import SignalSafetyError, assert_signals_module_imports
 
@@ -110,7 +110,7 @@ def test_dca_drawdown_and_take_profit_golden():
     # Avg entry ~ (90*0.5 + 80*0.5)/1 = 85; TP at 85*1.05 = 89.25
     tp = strat.evaluate([_candle(90.0)], state)
     assert len(tp) == 1 and tp[0].side == "sell" and tp[0].reason == "dca_take_profit"
-    assert state.dca_units == Decimal("0")
+    assert state.dca_units == Decimal(0)
 
 
 def test_token_bucket_rejects_over_budget():

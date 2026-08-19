@@ -8,11 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.app.auth import require_user
-from backend.app.chronos.bsq import BinarySphericalQuantizer, LATENT_DIM
+from backend.app.chronos.bsq import LATENT_DIM, BinarySphericalQuantizer
 from backend.app.chronos.charts import build_chronos_charts, matplotlib_available
 from backend.app.chronos.deps import chronos_deps_status
 from backend.app.chronos.indicators import compute_indicator_context, indicators_available
-from backend.app.chronos.normalize import ChronosNormalizer, OHLCVA_DIM
+from backend.app.chronos.normalize import OHLCVA_DIM, ChronosNormalizer
 from backend.app.chronos.pipeline import tokenize_ohlcva, tokenize_result_to_dict
 from backend.app.chronos.plot_prediction import build_prediction_charts
 from backend.app.chronos.predictor import ChronosPredictor
