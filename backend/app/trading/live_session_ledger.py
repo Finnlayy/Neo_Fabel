@@ -173,7 +173,7 @@ class LiveSessionLedger:
         self._active["samples"] = int(self._active.get("samples") or 0) + 1
         self._active["last_open_trades"] = int(open_trades)
         self._last_sample_at = now
-        started = datetime.fromisoformat(str(self._active["started_at"]).replace("Z", "+00:00"))
+        started = datetime.fromisoformat(str(self._active["started_at"]))
         self._active["session_name"] = session_name_for(started)
         self._persist_active()
         return dict(self._active)
@@ -183,7 +183,7 @@ class LiveSessionLedger:
             return None
         self.sample(open_trades=open_trades)
         now = datetime.now(UTC)
-        started = datetime.fromisoformat(str(self._active["started_at"]).replace("Z", "+00:00"))
+        started = datetime.fromisoformat(str(self._active["started_at"]))
         name = session_name_for(started, now)
         self._active["ended_at"] = now.isoformat().replace("+00:00", "Z")
         self._active["session_name"] = name

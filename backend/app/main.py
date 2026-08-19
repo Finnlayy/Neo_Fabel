@@ -191,7 +191,7 @@ async def lifespan(_app: FastAPI):
 
 def _series_key(payload: dict) -> str | None:
     for key in payload:
-        if key.startswith("Time Series") or key.startswith("Crypto Intraday"):
+        if key.startswith(("Time Series", "Crypto Intraday")):
             return key
     return None
 

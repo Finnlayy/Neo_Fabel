@@ -106,7 +106,7 @@ def _expand_range(start: float, step: float, end: float) -> list[float]:
     values: list[float] = []
     if step <= 0:
         return [start]
-    n = int(math.floor((end - start) / step + 1e-9)) + 1
+    n = math.floor((end - start) / step + 1e-9) + 1
     for i in range(max(0, n)):
         values.append(round(start + i * step, 6))
     return values

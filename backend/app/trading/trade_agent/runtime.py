@@ -95,7 +95,7 @@ class TradeAgentRuntime:
 
     async def _dispatch(self, job_id: str, *, reason: str) -> dict[str, Any]:
         try:
-            if job_id.startswith("market_scan") or job_id.startswith("et_"):
+            if job_id.startswith(("market_scan", "et_")):
                 return await jobs.run_market_scan(reason=f"{reason}:{job_id}")
             if job_id == "label_trades":
                 return await jobs.run_label_trades()

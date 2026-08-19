@@ -289,11 +289,10 @@ class TradingLoopsService:
                 if sizing.mode == "fixed_usd"
                 else sizing.manual_notional_eur
             )
-            if fixed_notional is not None:
-                if fixed_notional > margin:
-                    raise ValueError(
-                        f"fixed trade notional {fixed_notional} exceeds max_session_size {margin}"
-                    )
+            if fixed_notional is not None and fixed_notional > margin:
+                raise ValueError(
+                    f"fixed trade notional {fixed_notional} exceeds max_session_size {margin}"
+                )
             if risk.human_verification and not (
                 settings.telegram_enabled and settings.telegram_bot_token and settings.telegram_chat_id
             ):

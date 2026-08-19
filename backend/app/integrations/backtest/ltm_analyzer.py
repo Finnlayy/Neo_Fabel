@@ -471,9 +471,7 @@ def is_ltm_strategy(payload: dict[str, Any]) -> bool:
         return True
     if "liquidity trail matrix" in name or "ltm [" in name or "willyalgo" in name:
         return True
-    if "Liquidity Trail Matrix" in source or "LTM [WillyAlgoTrader]" in source:
-        return True
-    return False
+    return bool("Liquidity Trail Matrix" in source or "LTM [WillyAlgoTrader]" in source)
 
 
 def run_ltm_optimize(

@@ -179,7 +179,7 @@ def normalize_occurred_at(raw: Any) -> str:
         if ts > 10_000_000_000:  # millis
             ts //= 1000
         return datetime.fromtimestamp(ts, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    if text.endswith("Z") or "+" in text[10:] or text.endswith("z"):
+    if text.endswith(("Z", "z")) or "+" in text[10:]:
         return text if text.endswith("Z") or "+" in text[10:] else text[:-1] + "Z"
     # TV {{time}} / {{timenow}} is yyyy-MM-ddTHH:mm:ssZ — accept bare and force Z
     if "T" in text and len(text) >= 19:

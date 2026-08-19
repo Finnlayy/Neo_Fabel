@@ -487,7 +487,7 @@ def apply_candidate(
 
     trend_weight_raw = params.get("w_trend")
     if trend_weight_raw is not None:
-        per_tf_weight = max(1, int(round(float(trend_weight_raw) / 3.0)))
+        per_tf_weight = max(1, round(float(trend_weight_raw) / 3.0))
         updated = replace_input_default(output, "w_trend", str(per_tf_weight), "int")
         if updated != output:
             output = updated
@@ -501,7 +501,7 @@ def apply_candidate(
         applied_keys.add("w_trend")
 
     if "w_news" in params:
-        output = replace_input_default(output, "w_news", str(int(round(float(params["w_news"])))), "int")
+        output = replace_input_default(output, "w_news", str(round(float(params["w_news"]))), "int")
         applied_keys.add("w_news")
 
     weight_patterns = {
@@ -525,7 +525,7 @@ def apply_candidate(
     for key, replacements in weight_patterns.items():
         if key not in params:
             continue
-        value = int(round(float(params[key])))
+        value = round(float(params[key]))
         updated = replace_input_default(output, key, str(value), "int")
         if updated != output:
             output = updated

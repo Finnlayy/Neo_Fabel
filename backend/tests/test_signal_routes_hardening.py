@@ -26,30 +26,30 @@ from backend.app.signals.service import SignalSubmissionService
 
 
 def _paper_settings(**overrides) -> Settings:
-    base = dict(
-        _env_file=None,
-        kraken_live_trading_enabled=False,
-        kraken_autonomy_level=2,
-        signal_routes_enabled=True,
-        tradingview_ingress_enabled=True,
-        mcp_signal_adapter_enabled=True,
-        signal_credential_pepper="test-pepper",
-        signal_max_body_bytes=256,
-    )
+    base = {
+        "_env_file": None,
+        "kraken_live_trading_enabled": False,
+        "kraken_autonomy_level": 2,
+        "signal_routes_enabled": True,
+        "tradingview_ingress_enabled": True,
+        "mcp_signal_adapter_enabled": True,
+        "signal_credential_pepper": "test-pepper",
+        "signal_max_body_bytes": 256,
+    }
     base.update(overrides)
     return Settings(**base)
 
 
 def _mcp_args(**overrides) -> McpSubmitArgs:
-    data = dict(
-        idempotency_key="mcp-sig-1",
-        occurred_at="2026-07-18T12:00:00Z",
-        strategy_id="S",
-        pair="ADAUSD",
-        side="buy",
-        volume="1",
-        order_type="market",
-    )
+    data = {
+        "idempotency_key": "mcp-sig-1",
+        "occurred_at": "2026-07-18T12:00:00Z",
+        "strategy_id": "S",
+        "pair": "ADAUSD",
+        "side": "buy",
+        "volume": "1",
+        "order_type": "market",
+    }
     data.update(overrides)
     return McpSubmitArgs.model_validate(data)
 

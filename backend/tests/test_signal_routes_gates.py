@@ -40,70 +40,70 @@ from backend.app.signals.worker import SignalWorker
 
 def _paper_settings(**overrides) -> Settings:
     """Build Settings isolated from .env.local / operator vault overlays."""
-    base = dict(
-        _env_file=None,
-        kraken_live_trading_enabled=False,
-        kraken_autonomy_level=2,
-        signal_routes_enabled=True,
-        tradingview_ingress_enabled=True,
-        signal_worker_enabled=True,
-        signal_execution_enabled=True,
-        paper_allow_all_pairs=False,
-        advisory_provider="fake",
-        advisory_model="deterministic-fake-v1",
-        ai_advisory_enabled=False,
-        signal_credential_pepper="test-pepper",
-        signal_max_age_seconds=300,
-        signal_future_skew_seconds=30,
-    )
+    base = {
+        "_env_file": None,
+        "kraken_live_trading_enabled": False,
+        "kraken_autonomy_level": 2,
+        "signal_routes_enabled": True,
+        "tradingview_ingress_enabled": True,
+        "signal_worker_enabled": True,
+        "signal_execution_enabled": True,
+        "paper_allow_all_pairs": False,
+        "advisory_provider": "fake",
+        "advisory_model": "deterministic-fake-v1",
+        "ai_advisory_enabled": False,
+        "signal_credential_pepper": "test-pepper",
+        "signal_max_age_seconds": 300,
+        "signal_future_skew_seconds": 30,
+    }
     base.update(overrides)
     return Settings(**base)
 
 
 def _route(**overrides):
     now = datetime.now(UTC)
-    data = dict(
-        id=str(uuid4()),
-        owner_user_uid="owner-1",
-        public_route_key="pubkey",
-        name="route",
-        strategy_id="S",
-        mode="advisory",
-        enabled=True,
-        execution_target="kraken_paper",
-        pair_allowlist="ADAUSD,XRPUSD",
-        max_volume=Decimal(10),
-        max_notional=None,
-        allowed_order_types="market",
-        max_event_age_seconds=300,
-        max_rate_per_minute=10,
-        max_backlog=100,
-        max_open_exposure=None,
-        policy_version="v1",
-        version=1,
-        created_at=now,
-        updated_at=now,
-    )
+    data = {
+        "id": str(uuid4()),
+        "owner_user_uid": "owner-1",
+        "public_route_key": "pubkey",
+        "name": "route",
+        "strategy_id": "S",
+        "mode": "advisory",
+        "enabled": True,
+        "execution_target": "kraken_paper",
+        "pair_allowlist": "ADAUSD,XRPUSD",
+        "max_volume": Decimal(10),
+        "max_notional": None,
+        "allowed_order_types": "market",
+        "max_event_age_seconds": 300,
+        "max_rate_per_minute": 10,
+        "max_backlog": 100,
+        "max_open_exposure": None,
+        "policy_version": "v1",
+        "version": 1,
+        "created_at": now,
+        "updated_at": now,
+    }
     data.update(overrides)
     return SimpleNamespace(**data)
 
 
 def _candidate(**overrides):
-    kwargs = dict(
-        schema_version=1,
-        signal_id="sig-1",
-        occurred_at="2026-07-18T12:00:00Z",
-        strategy_id="S",
-        pair="ADAUSD",
-        side="buy",
-        volume=Decimal(1),
-        order_type="market",
-        price=None,
-        order_id=None,
-        raw_symbol=None,
-        observed_price=None,
-        source="tradingview",
-    )
+    kwargs = {
+        "schema_version": 1,
+        "signal_id": "sig-1",
+        "occurred_at": "2026-07-18T12:00:00Z",
+        "strategy_id": "S",
+        "pair": "ADAUSD",
+        "side": "buy",
+        "volume": Decimal(1),
+        "order_type": "market",
+        "price": None,
+        "order_id": None,
+        "raw_symbol": None,
+        "observed_price": None,
+        "source": "tradingview",
+    }
     kwargs.update(overrides)
     return build_candidate(**kwargs)
 

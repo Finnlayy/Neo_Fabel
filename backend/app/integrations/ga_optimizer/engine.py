@@ -434,7 +434,7 @@ def crossover(a: Genome, b: Genome, rng: random.Random, threshold: float) -> Gen
             vals.append(x if rng.random() < 0.5 else y)
         elif isinstance(x, int):
             rel = abs(x - y) / max(abs(x), abs(y), 1)
-            vals.append(int(round((x + y) / 2)) if rel <= threshold else (x if rng.random() < 0.5 else y))
+            vals.append(round((x + y) / 2) if rel <= threshold else (x if rng.random() < 0.5 else y))
         else:
             rel = abs(x - y) / max(abs(x) + abs(y), 1e-12)
             vals.append((x + y) / 2.0 if rel <= threshold else (x if rng.random() < 0.5 else y))
@@ -467,7 +467,7 @@ def mutate(g: Genome, rng: random.Random, rate: float, strength: float) -> Genom
         lo, hi = ranges[k]
         span = hi - lo
         if isinstance(v, int):
-            d[k] = int(round(clamp(v + rng.uniform(-span * strength, span * strength), lo, hi)))
+            d[k] = round(clamp(v + rng.uniform(-span * strength, span * strength), lo, hi))
         else:
             d[k] = clamp(v + rng.uniform(-span * strength, span * strength), lo, hi)
     return Genome(**d)  # type: ignore[arg-type]

@@ -221,7 +221,7 @@ async def build_auto_reply(
             return f"❌ <b>REJECTED</b> <code>{proposal_id}</code>"
         return f"⚠️ <b>REJECT FAILED</b> <code>{proposal_id}</code>\n{result.get('reason')}"
 
-    if lower.startswith("/start") or lower.startswith("/help"):
+    if lower.startswith(("/start", "/help")):
         return (
             "⚡ <b>FABLE 5 MASTER CONTROL DECK</b> ⚡\n\n"
             f"Welcome <b>@{from_name}</b>! Active command keys:\n\n"

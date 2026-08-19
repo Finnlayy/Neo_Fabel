@@ -43,7 +43,7 @@ def _bar_ohlc(bar: dict[str, Any]) -> tuple[float, float, float, float]:
 
 def _target_value(bars: list[dict[str, Any]], i: int, target: TargetName) -> float:
     """Target at index i uses bar i as 'current' and i+1 as next where needed."""
-    o, h, low, c = _bar_ohlc(bars[i])
+    o, h, low, _c = _bar_ohlc(bars[i])
     if target == "close":
         return float(bars[i + 1]["close"])
     if target == "spread_skew":
